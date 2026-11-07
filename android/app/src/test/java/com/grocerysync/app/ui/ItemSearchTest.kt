@@ -6,6 +6,7 @@ import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.ui.ItemSearch.addText
 import com.grocerysync.app.ui.ItemSearch.cleanInput
+import com.grocerysync.app.ui.ItemSearch.count
 import com.grocerysync.app.ui.ItemSearch.filter
 import com.grocerysync.app.ui.ItemSearch.fold
 import com.grocerysync.app.ui.ItemSearch.isActive
@@ -20,7 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
-/** Search on All items: matching rules, result order, the suggested name and the snackbar after adding. */
+/** Search on the page shown: matching rules, result order, the suggested name and the snackbar after adding. */
 class ItemSearchTest {
 
     private fun item(name: String, needed: Boolean = false) = GroceryItem(
@@ -120,6 +121,19 @@ class ItemSearchTest {
     }
 
     @Test
+    fun countUsesTheSameRules() {
+        val items = listOf(item("Milk", needed = true), item("Oat milk"), item("Basmati rice"), item("Bread"))
+        assertEquals(2, count(items, "MILK"))
+        assertEquals(1, count(items, "rice basmati"))
+        assertEquals(0, count(items, "rice milk"))
+        assertEquals(0, count(emptyList(), "rice"))
+        // Inactive: every item.
+        assertEquals(4, count(items, ""))
+        assertEquals(4, count(items, " ' "))
+        for (query in listOf("", "milk", "i", "rice", "x")) assertEquals(query, filter(items, query).size, count(items, query))
+    }
+
+    @Test
     fun suggestedNameIsTidiedUpWithACapital() {
         assertEquals("Oat milk", suggestedName("  oat   milk ", Locale.ENGLISH))
         assertEquals("\u0130rmik", suggestedName("irmik", turkish))
@@ -169,6 +183,8 @@ class ItemSearchTest {
     fun noMatchTexts() {
         assertEquals("Add \"Corriander\" to the list", addText("Corriander"))
         assertEquals("No items match your search", ItemSearch.NO_MATCH_TEXT)
+        assertEquals("No items to buy match your search", ItemSearch.NO_TO_BUY_MATCH_TEXT)
+        assertEquals("Show 3 in All items", ItemSearch.showInAllItemsText(3))
     }
 
     @Test
@@ -186,6 +202,21 @@ class ItemSearchTest {
         assertEquals(
             "Added Milk - clear the search to see it",
             addedSnackbarText("Milk", needed = true, page = ListFilter.ALL, query = "rice"),
+        )
+        // To buy searches too: a needed item the search hides says so; one it shows needs no snackbar.
+        assertEquals(
+            "Added Milk - clear the search to see it",
+            addedSnackbarText("Milk", needed = true, page = ListFilter.TO_BUY, query = "rice"),
+        )
+        assertNull(addedSnackbarText("Rice", needed = true, page = ListFilter.TO_BUY, query = "rice"))
+        // Not needed: it's under All items, whatever the search.
+        assertEquals(
+            "Added Rice - it's under All items until you need it",
+            addedSnackbarText("Rice", needed = false, page = ListFilter.TO_BUY, query = "rice"),
+        )
+        assertEquals(
+            "Added Milk - it's under All items until you need it",
+            addedSnackbarText("Milk", needed = false, page = ListFilter.TO_BUY, query = "rice"),
         )
     }
 }

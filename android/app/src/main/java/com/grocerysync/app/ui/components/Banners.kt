@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -288,11 +289,18 @@ fun EmptyListState(title: String, hint: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Shown under the search field when no item matches: [message] (announced by accessibility services
- * when it appears), then a row that adds the item ([addText], e.g. Add "Corriander" to the list).
+ * Shown under the search field when no item on the page matches: [message] (announced by accessibility
+ * services when it appears), then one row with the way on: [actionText] after [actionIcon], e.g.
+ * Add "Corriander" to the list, or Show 2 in All items. TalkBack reads the row as a button.
  */
 @Composable
-fun NoSearchMatches(message: String, addText: String, onAdd: () -> Unit, modifier: Modifier = Modifier) {
+fun NoSearchMatches(
+    message: String,
+    actionText: String,
+    actionIcon: ImageVector,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier.fillMaxWidth()) {
         Text(
             text = message,
@@ -303,12 +311,12 @@ fun NoSearchMatches(message: String, addText: String, onAdd: () -> Unit, modifie
                 .semantics { liveRegion = LiveRegionMode.Polite },
         )
         ListItem(
-            modifier = Modifier.clickable(role = Role.Button, onClick = onAdd),
+            modifier = Modifier.clickable(role = Role.Button, onClick = onAction),
             leadingContent = {
-                Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(actionIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             },
             headlineContent = {
-                Text(addText, color = MaterialTheme.colorScheme.primary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(actionText, color = MaterialTheme.colorScheme.primary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             },
         )
     }
@@ -338,7 +346,13 @@ private fun BannersPreview() {
                 onDiscard = {},
             )
             EmptyListState("Nothing to buy right now", "Tap + to add items.")
-            NoSearchMatches("No items match your search", "Add \"Corriander\" to the list", onAdd = {})
+            NoSearchMatches("No items match your search", "Add \"Corriander\" to the list", Icons.Default.Add, onAction = {})
+            NoSearchMatches(
+                "No items to buy match your search",
+                "Show 2 in All items",
+                Icons.AutoMirrored.Filled.ArrowForward,
+                onAction = {},
+            )
         }
     }
 }

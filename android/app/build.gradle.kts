@@ -29,12 +29,14 @@ android {
         minSdk = 26
         targetSdk = 36
         // 2: amounts with units (database version 2). 3: search, swipe, unique names, hidden token and
-        // "Added by" (database version 3). Android refuses to install an older versionCode over this one,
-        // so an older app, which cannot open the newer database, can't replace it.
-        versionCode = 3
+        // "Added by" (database version 3). 4: search on the page shown, To buy too (database version 3).
+        // Android refuses to install an older versionCode over this one, so an older app, which cannot
+        // open a newer database, can't replace it.
+        versionCode = 4
         // Shown to people (and at the bottom of Settings); raise it with every release (1.1 = units,
-        // 1.2 = search, swipe, unique names, hidden token, "Added by" and required units).
-        versionName = "1.2"
+        // 1.2 = search, swipe, unique names, hidden token, "Added by" and required units, 1.3 = search
+        // on To buy too: it searches the page shown).
+        versionName = "1.3"
     }
 
     signingConfigs {

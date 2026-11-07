@@ -8,8 +8,8 @@ import java.text.Normalizer
 import java.util.Locale
 
 /**
- * Search on the All items page: which items match what was typed. It filters the list already on the
- * phone (so it works offline) and looks at item names only.
+ * Search on the list screen: which items of the page shown (To buy or All items) match what was typed. It
+ * filters the list already on the phone (so it works offline) and looks at item names only.
  *
  * Names and the query are compared after [fold]: capitals, extra spaces, accents and apostrophes don't
  * count. Every word of the query has to appear somewhere in the name, in any order ("rice basmati" finds
@@ -20,7 +20,14 @@ internal object ItemSearch {
     /** Longest query kept: the longest item name, so the suggested name is always a valid one. */
     const val MAX_QUERY_LENGTH = InputValidation.MAX_NAME_LENGTH
 
+    /** All items: nothing on the list matches. */
     const val NO_MATCH_TEXT = "No items match your search"
+
+    /**
+     * To buy: none of the needed items match. Like [NO_MATCH_TEXT] it doesn't repeat the query (which is
+     * in the field just above), so as a live region it is announced once, not again with each letter typed.
+     */
+    const val NO_TO_BUY_MATCH_TEXT = "No items to buy match your search"
 
     /**
      * Marks that don't count: Latin, Greek and Cyrillic combining accents (after NFD), the Devanagari
@@ -67,6 +74,12 @@ internal object ItemSearch {
         return ListLogic.sortForDisplay(items.filter { matchesWords(it.name, words) })
     }
 
+    /** How many of [items] match [query]: all of them while the search is inactive. */
+    fun count(items: List<GroceryItem>, query: String): Int {
+        val words = words(query)
+        return if (words.isEmpty()) items.size else items.count { matchesWords(it.name, words) }
+    }
+
     /**
      * The name the Add dialog starts with when nothing matches [query]: spaces tidied up and a capital
      * first letter in the phone's language ("  oat   milk " gives "Oat milk", Turkish "irmik" gives
@@ -95,15 +108,18 @@ internal object ItemSearch {
 
     /** The row offered when nothing matches: Add "Corriander" to the list. */
     fun addText(name: String): String = "Add \"$name\" to the list"
+
+    /** The row offered on To buy when [count] items that are not needed match: Show 2 in All items. */
+    fun showInAllItemsText(count: Int): String = "Show $count in All items"
 }
 
 /**
  * The snackbar after the Add dialog added [name], or null for none. [page] is the page shown and [query]
- * the active search ("" when search is closed). On To buy, an item that is not needed doesn't show up,
- * so the snackbar says where it is; on All items, neither does one the search hides.
+ * the search ("" when search is closed). On To buy, an item that is not needed doesn't show up, so the
+ * snackbar says where it is; on either page, neither does one the search hides.
  */
 internal fun addedSnackbarText(name: String, needed: Boolean, page: ListFilter, query: String): String? = when {
     page == ListFilter.TO_BUY && !needed -> "Added $name - it's under All items until you need it"
-    page == ListFilter.ALL && !ItemSearch.matches(name, query) -> "Added $name - clear the search to see it"
+    !ItemSearch.matches(name, query) -> "Added $name - clear the search to see it"
     else -> null
 }

@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -57,7 +58,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -109,9 +109,10 @@ private val FabClearance = 88.dp
 private const val ROW_CLOCK_PERIOD_MS = 30_000L
 
 /**
- * Search on All items. It opens from the app bar's Search icon and closes with the field's X, Back or
- * on leaving All items. [open] and [query] are saved (rotation, process death, a trip to Settings);
- * focus is not, so the keyboard never comes back by itself.
+ * Search on the page shown. It opens from the app bar's Search icon on either page and closes with the
+ * field's X or Back; switching pages keeps it open with its query, which then searches the page now shown.
+ * [open] and [query] are saved (rotation, process death, a trip to Settings); focus is not, so the
+ * keyboard never comes back by itself.
  */
 @Stable
 private class SearchState(open: Boolean = false, query: String = "") {
@@ -144,8 +145,8 @@ private class SearchState(open: Boolean = false, query: String = "") {
 }
 
 /**
- * Switches the pager's page from the segmented row (or the Search icon) with the pager's animation.
- * [shownPage] is the page the segmented row highlights: a tapped page at once, otherwise the pager's
+ * Switches the pager's page from the segmented row (or To buy's "Show n in All items") with the pager's
+ * animation. [shownPage] is the page the segmented row highlights: a tapped page at once, otherwise the pager's
  * current page, which only changes once a swipe passes halfway, so the highlight never flickers.
  */
 @Stable
@@ -189,12 +190,10 @@ fun ListScreen(
     // The name the next Add dialog starts with: the search's suggestion, or "" for the + button.
     var addName by rememberSaveable { mutableStateOf("") }
 
-    // Leaving All items closes the search: at once for a tap on To buy, and for a swipe once the pager
-    // has come to rest on To buy (a swipe the user takes back keeps the search).
-    LaunchedEffect(pagerState, search, focusManager) {
-        // Restored in the middle of a page change (rotated during a swipe or a tap's animation): finish it
-        // first, so the pager never stays between two pages and a search being opened stays open.
-        pageToSettleOnRestore(pagerState.currentPage, pagerState.currentPageOffsetFraction, search.open)?.let { page ->
+    // Restored in the middle of a page change (rotated during a swipe or a tap's animation): finish it, so
+    // the pager never stays drawn between two pages. Switching pages never closes the search.
+    LaunchedEffect(pagerState) {
+        pageToSettleOnRestore(pagerState.currentPage, pagerState.currentPageOffsetFraction)?.let { page ->
             try {
                 pagerState.scrollToPage(page)
             } catch (e: CancellationException) {
@@ -202,13 +201,6 @@ fun ListScreen(
                 ensureActive()
             }
         }
-        snapshotFlow { pagerState.isScrollInProgress || pagerState.currentPage == ListFilter.ALL.page }
-            .collect { onAllItemsOrMoving ->
-                if (!onAllItemsOrMoving && search.open) {
-                    focusManager.clearFocus()
-                    search.close()
-                }
-            }
     }
     // Back with the keyboard up only hides it (the system does that); the next Back closes the search.
     BackHandler(enabled = search.open) {
@@ -229,16 +221,14 @@ fun ListScreen(
 
     // Everything that opens a dialog or leaves the screen clears focus first, so the keyboard never
     // stays over a dialog or comes back when it closes.
-    val actions = remember(viewModel, onOpenSettings, focusManager, pages, search) {
+    val actions = remember(viewModel, onOpenSettings, focusManager, search) {
         ListActions(
             openSettings = {
                 focusManager.clearFocus()
                 onOpenSettings()
             },
-            openSearch = {
-                search.openAndFocus()
-                if (pages.shownPage != ListFilter.ALL.page) pages.show(ListFilter.ALL.page)
-            },
+            // On the page shown: the search never switches pages.
+            openSearch = search::openAndFocus,
             refresh = viewModel::refresh,
             retrySync = viewModel::retrySync,
             retryFailed = viewModel::retryFailed,
@@ -262,9 +252,9 @@ fun ListScreen(
         state = state,
         pagerState = pagerState,
         shownFilter = filterOfPage(pages.shownPage),
+        // Also To buy's "Show n in All items". An open search stays open and searches the page now shown.
         onFilterChange = { filter ->
             focusManager.clearFocus()
-            if (filter != ListFilter.ALL) search.close()
             pages.show(filter.page)
         },
         search = search,
@@ -334,7 +324,7 @@ private fun EditItemDialog(key: String, state: ListUiState, viewModel: ListViewM
 /** Callbacks of the list screen, grouped so the stateless content stays previewable. */
 class ListActions(
     val openSettings: () -> Unit,
-    /** The app bar's Search icon: shows All items with the search field focused. */
+    /** The app bar's Search icon: shows the search field, focused, on the page shown (no page switch). */
     val openSearch: () -> Unit,
     val refresh: () -> Unit,
     val retrySync: () -> Unit,
@@ -349,9 +339,9 @@ class ListActions(
 )
 
 /**
- * The screen: status lines, the To buy / All items row, the search field while search is open, and a
- * pager with one list per page (swipe or tap the row to switch). Each page keeps its own scroll
- * position, banners and pull to refresh.
+ * The screen: status lines, the To buy / All items row, the search field while search is open (shared by
+ * both pages: it searches the page shown), and a pager with one list per page (swipe or tap the row to
+ * switch). Each page keeps its own scroll position, banners and pull to refresh.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -369,13 +359,15 @@ private fun ListContent(
     // Hoisted (not inside the pages), so a page keeps its scroll position while the other one is shown.
     val toBuyListState = rememberLazyListState()
     val allListState = rememberLazyListState()
-    // Dragging the All items list or swiping between the pages hides the keyboard.
-    LaunchedEffect(allListState, pagerState, focusManager) {
-        merge(allListState.interactionSource.interactions, pagerState.interactionSource.interactions)
-            .collect { if (it is DragInteraction.Start) focusManager.clearFocus() }
+    // Dragging either list or swiping between the pages hides the keyboard.
+    LaunchedEffect(toBuyListState, allListState, pagerState, focusManager) {
+        merge(
+            toBuyListState.interactionSource.interactions,
+            allListState.interactionSource.interactions,
+            pagerState.interactionSource.interactions,
+        ).collect { if (it is DragInteraction.Start) focusManager.clearFocus() }
     }
     val query = if (search.open) search.query else ""
-    val shownAll = remember(state.allItems, query) { ItemSearch.filter(state.allItems, query) }
     val rowClock = rememberTickingTime(ROW_CLOCK_PERIOD_MS)
     val now = { rowClock.value }
 
@@ -445,8 +437,12 @@ private fun ListContent(
                     query = search.query,
                     onQueryChange = { text ->
                         val clean = ItemSearch.cleanInput(text)
-                        // New results start at the top; closing or emptying the search keeps the place.
-                        if (clean != search.query && ItemSearch.isActive(clean)) allListState.requestScrollToItem(0)
+                        // New results start at the top, on both pages (the query searches the other page too,
+                        // once shown); closing or emptying the search keeps the place.
+                        if (clean != search.query && ItemSearch.isActive(clean)) {
+                            toBuyListState.requestScrollToItem(0)
+                            allListState.requestScrollToItem(0)
+                        }
                         search.query = clean
                     },
                     onSearch = { focusManager.clearFocus() },
@@ -465,6 +461,9 @@ private fun ListContent(
                     .fillMaxWidth(),
             ) { page ->
                 val filter = filterOfPage(page)
+                val content = remember(filter, state.loaded, state.toBuy, state.allItems, query) {
+                    pageContent(filter, state.loaded, state.toBuy, state.allItems, query)
+                }
                 PullToRefreshBox(
                     isRefreshing = state.isRefreshing,
                     onRefresh = actions.refresh,
@@ -477,10 +476,7 @@ private fun ListContent(
                         contentPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding() + FabClearance),
                     ) {
                         bannerHeader(state, actions)
-                        when (filter) {
-                            ListFilter.TO_BUY -> toBuyItems(state, now, actions)
-                            ListFilter.ALL -> allItems(state, shownAll, query, now, actions)
-                        }
+                        pageItems(filter, content, state, now, actions, onShowAllItems = { onFilterChange(ListFilter.ALL) })
                     }
                 }
             }
@@ -606,9 +602,33 @@ private fun LazyListScope.bannerHeader(state: ListUiState, actions: ListActions)
     }
 }
 
-private fun LazyListScope.toBuyItems(state: ListUiState, now: () -> Long, actions: ListActions) {
-    if (state.loaded && state.toBuy.isEmpty()) {
-        item(key = "empty:to-buy", contentType = "empty") {
+/**
+ * The rows of the page showing [filter], as [content] says ([pageContent]): its items, its empty state, or
+ * (search active, nothing matches on this page) the no-match line with one row: [onShowAllItems] for To buy's
+ * "Show n in All items", or the Add dialog with the query as the name.
+ */
+private fun LazyListScope.pageItems(
+    filter: ListFilter,
+    content: PageContent,
+    state: ListUiState,
+    now: () -> Long,
+    actions: ListActions,
+    onShowAllItems: () -> Unit,
+) {
+    when (content) {
+        PageContent.NotLoaded -> Unit
+        PageContent.Empty -> emptyPage(filter, state)
+        is PageContent.Rows -> when (filter) {
+            ListFilter.TO_BUY -> toBuyRows(content.items, state, now, actions)
+            ListFilter.ALL -> allItemsRows(content.items, state, now, actions)
+        }
+        is PageContent.NoMatch -> noSearchMatches(content, actions, onShowAllItems)
+    }
+}
+
+private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState) {
+    when (filter) {
+        ListFilter.TO_BUY -> item(key = "empty:to-buy", contentType = "empty") {
             EmptyListState(
                 title = "Nothing to buy right now",
                 hint = if (state.allItems.isEmpty()) {
@@ -619,9 +639,19 @@ private fun LazyListScope.toBuyItems(state: ListUiState, now: () -> Long, action
                 modifier = Modifier.animateItem(),
             )
         }
-        return
+        ListFilter.ALL -> item(key = "empty:all", contentType = "empty") {
+            EmptyListState(
+                title = "Your list is empty",
+                hint = "Tap + to add your first item.",
+                modifier = Modifier.animateItem(),
+            )
+        }
     }
-    items(state.toBuy, key = ::itemKey, contentType = { "to-buy" }) { item ->
+}
+
+/** To buy's rows: every needed item, or (search active) the needed items that match, A to Z. */
+private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState, now: () -> Long, actions: ListActions) {
+    items(items, key = ::itemKey, contentType = { "to-buy" }) { item ->
         ToBuyRow(
             item = item,
             myDeviceName = state.myDeviceName,
@@ -633,45 +663,9 @@ private fun LazyListScope.toBuyItems(state: ListUiState, now: () -> Long, action
     }
 }
 
-/**
- * The All items rows: [shown] is the list filtered by [query] ([ItemSearch.filter]; every item, needed
- * first, while the search is inactive). When the search matches nothing, one item says so and offers to
- * add the query as a new item. Nothing shows before the list was first read, so "No items match" never
- * flashes while the app starts.
- */
-private fun LazyListScope.allItems(
-    state: ListUiState,
-    shown: List<GroceryItem>,
-    query: String,
-    now: () -> Long,
-    actions: ListActions,
-) {
-    if (!state.loaded) return
-    val searching = ItemSearch.isActive(query)
-    if (!searching && state.allItems.isEmpty()) {
-        item(key = "empty:all", contentType = "empty") {
-            EmptyListState(
-                title = "Your list is empty",
-                hint = "Tap + to add your first item.",
-                modifier = Modifier.animateItem(),
-            )
-        }
-        return
-    }
-    if (searching && shown.isEmpty()) {
-        // One key for every query, so it isn't inserted again with each letter typed.
-        item(key = "empty:search", contentType = "empty") {
-            val name = ItemSearch.suggestedName(query)
-            NoSearchMatches(
-                message = ItemSearch.NO_MATCH_TEXT,
-                addText = ItemSearch.addText(name),
-                onAdd = { actions.add(name) },
-                modifier = Modifier.animateItem(),
-            )
-        }
-        return
-    }
-    items(shown, key = ::itemKey, contentType = { "all" }) { item ->
+/** All items' rows: every item, needed first, or (search active) the items that match, A to Z. */
+private fun LazyListScope.allItemsRows(items: List<GroceryItem>, state: ListUiState, now: () -> Long, actions: ListActions) {
+    items(items, key = ::itemKey, contentType = { "all" }) { item ->
         AllItemsRow(
             item = item,
             myDeviceName = state.myDeviceName,
@@ -679,6 +673,30 @@ private fun LazyListScope.allItems(
             onNeededChange = { needed -> actions.setNeeded(item.key, needed) },
             onQuantityStep = { up -> actions.stepQuantity(item.key, up) },
             onClick = { actions.edit(item.key) },
+            modifier = Modifier.animateItem(),
+        )
+    }
+}
+
+/** The no-match line and its row (see [NoMatchAction]). */
+private fun LazyListScope.noSearchMatches(content: PageContent.NoMatch, actions: ListActions, onShowAllItems: () -> Unit) {
+    // One key for every query, so it isn't inserted again with each letter typed; one call, so a row that turns
+    // from "Show n in All items" into "Add ..." (or back) changes in place and the line isn't announced again.
+    item(key = "empty:search", contentType = "empty") {
+        val action = content.action
+        NoSearchMatches(
+            message = content.message,
+            actionText = action.text,
+            actionIcon = when (action) {
+                is NoMatchAction.ShowInAllItems -> Icons.AutoMirrored.Filled.ArrowForward
+                is NoMatchAction.Add -> Icons.Default.Add
+            },
+            onAction = {
+                when (action) {
+                    is NoMatchAction.ShowInAllItems -> onShowAllItems()
+                    is NoMatchAction.Add -> actions.add(action.name)
+                }
+            },
             modifier = Modifier.animateItem(),
         )
     }
@@ -813,4 +831,17 @@ private fun ListSearchPreview() {
 @Composable
 private fun ListSearchNoMatchPreview() {
     ListContentPreviewOf(ListFilter.ALL, SearchState(open = true, query = "corriander"))
+}
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 640)
+@Composable
+private fun ToBuySearchPreview() {
+    ListContentPreviewOf(ListFilter.TO_BUY, SearchState(open = true, query = "rice"))
+}
+
+/** Coffee is on the list but not needed: To buy offers "Show 1 in All items". */
+@Preview(showBackground = true, widthDp = 360, heightDp = 640)
+@Composable
+private fun ToBuySearchInAllItemsPreview() {
+    ListContentPreviewOf(ListFilter.TO_BUY, SearchState(open = true, query = "coffee"))
 }
