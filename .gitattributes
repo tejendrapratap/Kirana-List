@@ -1,0 +1,8 @@
+# Keep line endings exactly as written (LF), whatever core.autocrlf says on this machine:
+# ./gradlew must keep LF to run in Git Bash; Windows batch files need CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.png binary
+*.jks binary
+*.apk binary

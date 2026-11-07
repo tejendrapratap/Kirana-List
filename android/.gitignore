@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+.kotlin/
+build/
+
+# Machine-specific SDK location
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing material must never be committed
+*.jks
+*.keystore
+
+# OS files
+.DS_Store
+Thumbs.db

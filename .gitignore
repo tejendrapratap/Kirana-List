@@ -1,0 +1,5 @@
+# APKs built for the phones (kept locally, rebuildable from the tagged sources)
+releases/
+# Machine-local editor and tool settings
+.idea/
+.claude/settings.local.json

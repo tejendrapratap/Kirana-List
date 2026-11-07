@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Compose (Material 3) draws the entire UI. This platform theme only styles the window
+        until the first frame; values-night/themes.xml provides the dark variant so dark-mode
+        users don't see a white flash on launch.
+    -->
+    <style name="Theme.GrocerySync" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
