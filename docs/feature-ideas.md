@@ -9,7 +9,7 @@ Researched on 2026-11-08 from other shared-list apps (Bring!, AnyList, OurGrocer
 | 1 | [Share the To buy list as text (WhatsApp / copy)](#1-share-the-to-buy-list-as-text-whatsapp-copy) | Small | No | Planned for 1.4 |
 | 2 | [Starter list of common Indian items + built-in sets (puja, monthly kirana, vrat)](#2-starter-list-of-common-indian-items-built-in-sets-puja-monthly-kirana-vrat) | Medium | No | Planned for 1.4 |
 | 3 | [Hindi / Hinglish / English name matching in search, plus a 'similar item' warning](#3-hindi-hinglish-english-name-matching-in-search-plus-a-similar-item-warning) | Medium | No | Planned for 1.4 |
-| 4 | [Paste a list / share a WhatsApp message into the app (bulk add)](#4-paste-a-list-share-a-whatsapp-message-into-the-app-bulk-add) | Medium | No | Planned for 1.4 |
+| 4 | [Paste a list / share a WhatsApp message into the app (bulk add)](#4-paste-a-list-share-a-whatsapp-message-into-the-app-bulk-add) | Medium | No | Done in 1.4 |
 | 5 | [Group To buy by shop section (automatic categories)](#5-group-to-buy-by-shop-section-automatic-categories) | Medium | No | Planned for 1.4 |
 | 6 | [Join the family list without setup (invite link, QR or short code)](#6-join-the-family-list-without-setup-invite-link-qr-or-short-code) | Large | Replaces both | Later |
 | 7 | [Notification when someone else changes the list, and an 'I'm going shopping' alert](#7-notification-when-someone-else-changes-the-list-and-an-im-going-shopping-alert) | Medium | Yes | Later |
@@ -83,7 +83,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: no
 - Much easier after the backend move: no
-- Status: Planned for 1.4
+- Status: Done in 1.4
 
 ## 5. Group To buy by shop section (automatic categories)
 

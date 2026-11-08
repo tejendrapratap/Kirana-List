@@ -11,6 +11,7 @@ import com.grocerysync.app.data.GroceryRepository
 import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
+import com.grocerysync.app.data.PasteParser
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.SyncSettings
 import com.grocerysync.app.data.notNeeded
@@ -29,6 +30,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -382,9 +385,97 @@ class ListViewModel(
 
     // endregion
 
+    // region Paste a list (PastePlan.kt, PasteListDialog.kt)
+
+    /**
+     * The "Paste a list" dialog; null while it is closed. In the preview, each line is planned against the list as
+     * it is now ([planPaste]), so the rows follow changes from the other phone. Kept in [SavedStateHandle] like the
+     * item dialog. The list comes from [uiState] (once loaded), so this reads nothing more from the database.
+     */
+    val pasteList: StateFlow<PasteListState?> = combine(
+        savedStateHandle.getStateFlow<String?>(KEY_PASTE, null),
+        uiState.filter { it.loaded }.map { it.allItems }.distinctUntilChanged(),
+    ) { saved, items ->
+        PasteDraft.decode(saved)?.let { PasteListState.of(it, items) }
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** "Paste a list": the dialog with an empty text field. */
+    fun openPasteList() = setPasteDraft(PasteDraft(text = "", previewing = false))
+
+    /**
+     * A text shared into the app (Share > Grocery Sync): its preview at once. It comes from another app, so it is
+     * only parsed; nothing changes until the user confirms. Before the app is set up, or when the text is too long,
+     * a snackbar says so instead.
+     */
+    fun openSharedText(text: String) {
+        val problem = when {
+            !settingsStore.current().isConfigured -> SHARE_NOT_SET_UP_TEXT
+            PasteParser.isTooLong(text) -> PASTE_TOO_LONG_TEXT
+            else -> null
+        }
+        if (problem == null) {
+            setPasteDraft(PasteDraft(text = text, previewing = true))
+        } else {
+            viewModelScope.launch { _events.send(ListEvent.Message(problem)) }
+        }
+    }
+
+    /** The dialog's Next: the preview of [text]. A text that is too long stays (the dialog says so). */
+    fun previewPaste(text: String) {
+        if (!PasteParser.isTooLong(text)) setPasteDraft(PasteDraft(text = text, previewing = true))
+    }
+
+    /** From the preview back to the text, to change it. */
+    fun editPasteText() {
+        pasteDraft()?.let { setPasteDraft(it.copy(previewing = false, choices = emptyMap())) }
+    }
+
+    /** Ticks or unticks the preview's row for line [index]. */
+    fun setPasteRowSelected(index: Int, selected: Boolean) {
+        pasteDraft()?.let { setPasteDraft(it.copy(choices = it.choices + (index to selected))) }
+    }
+
+    fun closePasteList() = setPasteDraft(null)
+
+    /**
+     * The preview's confirm button: applies [actions] (the ticked rows) as normal edits, one by one, so duplicate
+     * names, the outbox and sync work as for a single item. An update goes ahead only while the item still has the
+     * value the preview showed ([pasteEdit]). A snackbar says what was done.
+     */
+    fun applyPaste(actions: List<PasteAction>) {
+        closePasteList()
+        edit {
+            val byKey = repository.items.first().associateBy { it.key }
+            var added = 0
+            var updated = 0
+            var leftOut = 0
+            for (action in actions) {
+                when (val step = pasteEdit(action, action.itemKey?.let(byKey::get))) {
+                    is PasteEdit.Add -> if (repository.add(step.name, step.value) == EditResult.Saved) added++ else leftOut++
+                    is PasteEdit.Update -> if (repository.upsert(step.name, step.value)) updated++ else leftOut++
+                    PasteEdit.Unchanged -> Unit
+                    PasteEdit.ChangedMeanwhile -> leftOut++
+                }
+            }
+            _events.send(ListEvent.Message(pasteResultText(added, updated, leftOut)))
+        }
+    }
+
+    private fun pasteDraft(): PasteDraft? = PasteDraft.decode(savedStateHandle.get<String>(KEY_PASTE))
+
+    private fun setPasteDraft(draft: PasteDraft?) {
+        // set (not remove) so the StateFlow from getStateFlow() emits the change.
+        savedStateHandle.set(KEY_PASTE, draft?.encode())
+    }
+
+    // endregion
+
     private companion object {
         const val TAG = "ListViewModel"
         const val KEY_DIALOG = "item_dialog"
+        const val KEY_PASTE = "paste_list"
         val REFRESH_TIMEOUT = 10.seconds
         val MIN_REFRESH_INDICATOR = 600.milliseconds
     }

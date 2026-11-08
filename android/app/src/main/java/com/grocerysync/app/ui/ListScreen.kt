@@ -296,6 +296,8 @@ fun ListScreen(
             EditItemDialog(key = current.key, state = state, viewModel = viewModel)
         }
     }
+    // "Paste a list" and lists shared into the app; above an item dialog that may be open.
+    PasteListHost(viewModel)
 }
 
 /**
