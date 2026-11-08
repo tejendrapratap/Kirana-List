@@ -34,6 +34,19 @@ The "fresh market" palette is in `android/app/src/main/java/com/grocerysync/app/
 | Surfaces | | Warm cream `#FFF8EE`; dialogs `#F3E7D5` | Green charcoal `#13190F`; dialogs `#293025` | Screens, menus, dialogs |
 | Error | | `#BA1A1A` | `#FFB4A9` | Errors stay red |
 
-- The app bars are deep green in both themes (light `#376A26` with white text, dark `#1E510F` with `#B7F39D`), so the status bar icons over them are always light; the navigation bar follows the theme.
+- The app bars are deep green in both themes (light `#376A26` with white text, dark `#1E510F` with `#B7F39D`), so the status bar icons over them are always light; the navigation bar follows the theme. The full-screen dialogs (Add common items, Paste a list) draw under both bars too, with the same green bar at the top.
+- **Shop sections** (1.5) each have an accent, `SectionAccents` in `ui/theme/BrandColors.kt`: a short bar in front of the section's name on To buy (whose sticky header is the surface tinted with 8 % of the accent, 14 % in the dark theme) and in Add common items, and a dot in the item dialog's Shop section picker. The name and count keep the usual text colours; the colour only helps the eye find a section.
+
+  | Section | Light | Dark | | Section | Light | Dark |
+  |---|---|---|---|---|---|---|
+  | Sabzi & fruit (leaf) | `#4F8A39` | `#80C369` | | Dry fruits & nuts (kishmish) | `#AA678E` | `#DBA1C1` |
+  | Dairy, eggs & bread (milk blue) | `#3B81B8` | `#79B8EC` | | Snacks & packaged food (slate) | `#6B7D9B` | `#A0B3D2` |
+  | Meat & fish (rose) | `#C65966` | `#EE9BA0` | | Cleaning & household (teal) | `#238A85` | `#63C1BB` |
+  | Atta, rice & dal (wheat) | `#98764E` | `#D0AC82` | | Personal care (lavender) | `#8B6EBC` | `#BDA7E6` |
+  | Oil & ghee (mustard oil) | `#818032` | `#B7B668` | | Puja (marigold) | `#BC6603` | `#F69C51` |
+  | Masala (haldi) | `#A37401` | `#E7A503` | | Other (grey) | `#807C73` | `#B5B2A7` |
+  | Tea, sugar & salt (chai) | `#B06B4B` | `#E0A48A` | | | | |
+
 - Dynamic (wallpaper) colour is off, so the brand palette always shows. Dark mode follows the phone's setting.
-- `ThemeContrastTest` (a JVM unit test) checks WCAG contrast in both themes: 4.5:1 for text and icons on their colour (every `on*` role, `onSurfaceVariant` on every surface container), 3:1 for outlines.
+- `ThemeContrastTest` (a JVM unit test) checks WCAG contrast in both themes: 4.5:1 for text and icons on their colour (every `on*` role, `onSurfaceVariant` on every surface container, a section's name and count on its tinted header), 3:1 for outlines and marks (every section's accent on its header, on the dialog and on the menu).
+- Screenshots of To buy in both themes: `images/screenshot-light.png`, `images/screenshot-dark.png` (shown in the main README).

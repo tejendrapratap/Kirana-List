@@ -4,6 +4,12 @@
 
 A shared grocery list for two phones, stored in **your own Google Sheet**. It's free: no servers, no Google Cloud project, no Play Store account.
 
+<p align="center">
+  <img src="docs/images/screenshot-light.png" width="270" alt="To buy in the light theme: a deep green app bar with a turmeric cart, the items grouped under shop sections (Sabzi &amp; fruit, Dairy, eggs &amp; bread, Atta, rice &amp; dal), each section with its own colour mark, turmeric amount chips and a marigold + button">
+  &nbsp;
+  <img src="docs/images/screenshot-dark.png" width="270" alt="The same To buy list in the dark theme: green-charcoal background, the same green app bar, softer section colours and the same turmeric chips">
+</p>
+
 - One person at home adds items or marks them as needed. The person in the shop sees the change within a few seconds and ticks items off.
 - Start your list in a minute: **Add common items** offers built-in sets of common Indian items (Everyday, Monthly kirana, Diwali puja, Vrat / fasting) to tick, each with a usual unit (Atta kg, Milk L, Eggs dozen, spices pack).
 - Got a list as a WhatsApp message or a note? Paste it (or share it to Kirana List) and add every item at once, after a preview of what each line does.
@@ -127,6 +133,13 @@ Later releases signed with the same key install over the app as normal updates, 
 
 > The app never shows the token, and you can't copy it out of the app. Once saved, the **Secret token** field is empty and says *Saved and hidden*. To change the token, type or paste a new one; leave the field empty to keep the saved one. The hidden token is only ever sent to the **Web app URL** it was saved with: if you change the URL, type or paste the token again (the field says so), so nobody can point the app at another address to get the token out. A setup message pasted into the token field is read as a setup code. Anyone with the URL and the token (or a setup message) can edit your list, so keep them private.
 
+## Updating to 1.5 (Kirana List)
+
+Version 1.5 is 1.4 with a new name and look: **Kirana List** (it was Grocery Sync), a new icon (a cream cloth bag with a turmeric tick on green), deep green app bars, turmeric amounts, a marigold **+** and a colour mark for each shop section on **To buy** (see *Look and name* in [docs/README.md](docs/README.md)). **Share** no longer offers the app itself in the share sheet.
+
+- **Install 1.5 over 1.4** on both phones (section 2), as a normal update. Don't uninstall first: the list, your name, the web app URL and the hidden token stay, and so do changes that haven't been sent yet. The icon and its name change to **Kirana List**.
+- **The sheet and `Code.gs` stay as they are.** 1.5 changes nothing in the script or the sheet, so there is nothing to redeploy, and a phone still on 1.4 keeps working with one on 1.5.
+
 ## Updating to 1.2
 
 Version 1.2 adds search, swiping between the lists, "Added by" / "Updated by" on every item, unique item names, a unit for every quantity, a hidden secret token, and the version number at the bottom of Settings. "Share setup with another phone" is gone. Update the sheet first, then the phones:
@@ -172,7 +185,7 @@ While only some of this is updated:
 | Switch lists | Tap **To buy** / **All items**, or swipe left or right. Each list keeps its scroll position. |
 | Mark something as needed | In **All items**, flip **Need** on, or use **+** to set a quantity. Tap the amount to type an exact one. |
 | Add a list at once (paste) | Copy a list (a WhatsApp message, a note, a list shared from Kirana List), choose **Paste a list** in the **⋮** menu, tap **Paste**, then **Next**. Or pick **Kirana List** in another app's **Share** menu: the same preview opens with the shared text (nothing changes before you confirm). One item per line: "Rice 2 kg", "2 kg rice", "Rice - 2kg", "Rice x2", "Milk 1/2 L" or just "Dahi"; bullets, numbers, check boxes and WhatsApp formatting don't matter. The preview says what each line does: **Add Rice - 2 kg** (a new item, needed; without an amount it is yes / no, and a number without a unit counts pieces), **Mark Dahi needed** (also when the line uses another name of it: "Curd → Dahi"), **Already needed: Oil**, or **Change Rice 2 kg → 3 kg** (only if you tick it). Lines it can't use are skipped with the reason, such as an amount in another unit than the item's (nothing is converted); a yes / no item takes no amount, and the row says so. A line all in bold that names nothing the app knows, like *\*Sabzi\**, looks like a heading and starts unticked. Untick what you don't want; the button says what it does (**Add 5 items**, **Update 3 items**, **Apply 8 changes**). Up to 200 lines. It works once the family's list has loaded from the sheet: a list shared right after setup shows its preview, and its button turns on once the list is there. |
-| Shop | Open the **To buy** tab and tick **Got it** as you go. Items are grouped by shop section (Sabzi & fruit first, Other last, A to Z inside each), and the section's name and count stay at the top while you scroll through it. A search shows its results A to Z, without sections. Each quantity shows its amount and unit, e.g. **2 kg**. **Got it** sets the amount to 0 and keeps the unit. Made a mistake? Tap **Undo**. |
+| Shop | Open the **To buy** tab and tick **Got it** as you go. Items are grouped by shop section (Sabzi & fruit first, Other last, A to Z inside each), and the section's name and count stay at the top while you scroll through it. Each section has its own colour mark (leaf green for sabzi, blue for dairy, haldi for masala, ...), the same in **Add common items** and the item's **Shop section** picker. A search shows its results A to Z, without sections. Each quantity shows its amount and unit, e.g. **2 kg**. **Got it** sets the amount to 0 and keeps the unit. Made a mistake? Tap **Undo**. |
 | Send the list to someone | Tap **Share list** (the share icon at the top) and pick WhatsApp, Messages or any other app. The message has everything on **To buy**, whatever the search shows: *Grocery list (3 items)*, then one item per line with its amount (*• Atta - 10 kg*, *• Dahi*), under shop section headings in WhatsApp bold (*\*Dairy, eggs & bread\**), or A to Z when **⋮ > Group by shop section** is off. With nothing to buy, the app says *Nothing to buy right now* instead. |
 | Put an item in another shop section | Tap the item, pick its **Shop section** and **Save**. This changes only this phone's To buy: the other phone keeps its own sections, and nothing changes in the sheet. Picking the section the app chose itself goes back to the app's choice. To see To buy A to Z, turn off **⋮ > Group by shop section**. |
 | Rename, change the type, amount or unit, or delete | Tap the item. A name another item already has isn't accepted (*Another item is already called "Rice"*); changing only its capitals is fine. |
