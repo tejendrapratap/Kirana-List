@@ -209,6 +209,40 @@ class PasteParserTest {
         // Without its count it is no title: an item of that name, as "Grocery list" always was.
         assertItem("किराने की लिस्ट", "किराने की लिस्ट")
         assertItem("Grocery list", "Grocery list")
+        // The Hindi title ends in ':', which someone may delete when forwarding the list: it is left out either way.
+        assertIgnored("किराने की लिस्ट (3 चीज़ें)")
+        assertIgnored("किराने की लिस्ट (3 चीज़ें) :")
+        assertIgnored("Grocery list (3 items):")
+    }
+
+    /**
+     * How 1.4 and 1.5 read a line that is not in bold, as far as Share's title goes: copies of their PasteParser's
+     * rules, which know only the English title. Share's title has nothing their cleaning takes off (a closing
+     * bracket and ':' at the end stay). [OLD_HEADING] and [OLD_SKIPPED] are safe; any other line is offered as an
+     * item there, ticked.
+     */
+    private fun olderVersionsRead(line: String): String = when {
+        OLD_SHARE_TITLE.matches(line) -> OLD_SKIPPED
+        line.endsWith(':') -> OLD_HEADING
+        else -> OLD_ITEM
+    }
+
+    @Test
+    fun olderVersionsDontAddTheHindiTitle() {
+        // Family phones may still run 1.4 or 1.5 when a Hindi phone shares; the title must not land on the list.
+        for (count in listOf(0, 1, 2, 3, 12, 150)) {
+            for (title in nuktaForms(HindiCommonTexts.shareTitle(count))) {
+                assertNotEquals(title, OLD_ITEM, olderVersionsRead(title))
+            }
+            assertEquals(OLD_SKIPPED, olderVersionsRead(EnglishCommonTexts.shareTitle(count)))
+        }
+        // Why it ends in ':': without one they read "(3 चीज़ें)" as an amount and a unit of the user's own, and offer
+        // "किराने की लिस्ट" as an item of 3 चीज़ें.
+        val withoutColon = HindiCommonTexts.shareTitle(3).removeSuffix(":")
+        assertEquals(OLD_ITEM, olderVersionsRead(withoutColon))
+        val read = OLD_PAREN_AMOUNT.matchEntire(withoutColon)
+        assertNotNull(withoutColon, read)
+        assertEquals(listOf("किराने की लिस्ट", "3", "चीज़ें"), read!!.groupValues.drop(1))
     }
 
     @Test
@@ -346,5 +380,17 @@ class PasteParserTest {
             "क़" to "क़", "ख़" to "ख़", "ग़" to "ग़", "ज़" to "ज़",
             "ड़" to "ड़", "ढ़" to "ढ़", "फ़" to "फ़", "य़" to "य़",
         )
+
+        // 1.4 and 1.5's PasteParser, for olderVersionsRead (their SHARE_TITLE, AMOUNT, UNIT and PAREN_AMOUNT).
+        val OLD_SHARE_TITLE = Regex("""grocery list\s*\(\s*\d+\s+items?\s*\)""", RegexOption.IGNORE_CASE)
+        private const val OLD_NUMBER = """\d+(?:[.,]\d+)*|[.,]\d+"""
+        private const val OLD_AMOUNT = """\d+\s\d+\s?/\s?\d+|\d+\s?/\s?\d+|$OLD_NUMBER"""
+        private const val OLD_UNIT = """[\p{L}\p{M}][\p{L}\p{M}.]*"""
+        val OLD_PAREN_AMOUNT =
+            Regex("""^(.+?)\s?\(\s?(?:x\s?)?($OLD_AMOUNT)\s?($OLD_UNIT)?\s?\)$""", RegexOption.IGNORE_CASE)
+
+        const val OLD_SKIPPED = "left out"
+        const val OLD_HEADING = "a heading"
+        const val OLD_ITEM = "an item"
     }
 }

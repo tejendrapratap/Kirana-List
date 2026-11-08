@@ -387,7 +387,7 @@ class PastePlanTest {
 
         assertEquals("Added 5 items", pasteResultText(added = 5, updated = 0, leftOut = 0))
         assertEquals("Added 1 item, updated 3", pasteResultText(added = 1, updated = 3, leftOut = 0))
-        assertEquals("Updated 1 item. 2 skipped: changed on another phone", pasteResultText(added = 0, updated = 1, leftOut = 2))
+        assertEquals("Updated 1 item. 2 items skipped: changed on another phone", pasteResultText(added = 0, updated = 1, leftOut = 2))
         assertEquals("Nothing to change", pasteResultText(added = 0, updated = 0, leftOut = 0))
     }
 
@@ -464,14 +464,14 @@ class PastePlanTest {
         assertEquals("1 चीज़ जोड़ दी, 3 अपडेट कीं", pasteResultText(added = 1, updated = 3, leftOut = 0))
         assertEquals("2 चीज़ें जोड़ दीं, 1 अपडेट की", pasteResultText(added = 2, updated = 1, leftOut = 0))
         assertEquals(
-            "1 चीज़ अपडेट की। 2 छोड़ दीं: दूसरे फ़ोन पर बदली गई थीं",
+            "1 चीज़ अपडेट की। 2 चीज़ें छोड़ दीं: दूसरे फ़ोन पर बदली गई थीं",
             pasteResultText(added = 0, updated = 1, leftOut = 2),
         )
         assertEquals(
-            "3 चीज़ें अपडेट कीं। 1 छोड़ दी: दूसरे फ़ोन पर बदली गई थी",
+            "3 चीज़ें अपडेट कीं। 1 चीज़ छोड़ दी: दूसरे फ़ोन पर बदली गई थी",
             pasteResultText(added = 0, updated = 3, leftOut = 1),
         )
-        assertEquals("1 छोड़ दी: दूसरे फ़ोन पर बदली गई थी", pasteResultText(added = 0, updated = 0, leftOut = 1))
+        assertEquals("1 चीज़ छोड़ दी: दूसरे फ़ोन पर बदली गई थी", pasteResultText(added = 0, updated = 0, leftOut = 1))
         assertEquals("कुछ नहीं बदला", pasteResultText(added = 0, updated = 0, leftOut = 0))
     }
 

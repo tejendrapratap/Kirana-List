@@ -264,7 +264,7 @@ object EnglishBulkTexts : BulkTexts {
             updated > 0 -> "Updated ${common.itemCount(updated)}"
             else -> null
         }
-        val left = if (leftOut > 0) "$leftOut skipped: changed on another phone" else null
+        val left = if (leftOut > 0) "${common.itemCount(leftOut)} skipped: changed on another phone" else null
         return listOfNotNull(done, left).joinToString(". ").ifEmpty { "Nothing to change" }
     }
 }
@@ -382,7 +382,8 @@ object HindiBulkTexts : BulkTexts {
             else -> null
         }
         val left = if (leftOut > 0) {
-            "$leftOut " + plural(leftOut, "छोड़ दी: दूसरे फ़ोन पर बदली गई थी", "छोड़ दीं: दूसरे फ़ोन पर बदली गई थीं")
+            "${common.itemCount(leftOut)} " +
+                plural(leftOut, "छोड़ दी: दूसरे फ़ोन पर बदली गई थी", "छोड़ दीं: दूसरे फ़ोन पर बदली गई थीं")
         } else {
             null
         }

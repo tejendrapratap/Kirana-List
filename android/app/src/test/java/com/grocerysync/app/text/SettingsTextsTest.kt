@@ -113,7 +113,7 @@ class SettingsTextsTest {
         assertEquals("Simple mode", english.simpleMode)
         assertEquals("Bigger text and buttons. Shows only To buy, and Undo stays on screen.", english.simpleModeHelp)
         assertEquals("Notify me when someone adds to To buy", english.notifyChanges)
-        assertEquals("Checks about every 15 minutes while the app is closed", english.notifyChangesHelp)
+        assertEquals("Checks about every 15 minutes while the app is closed.", english.notifyChangesHelp)
         assertEquals("Notifications are blocked for this app.", english.notificationsBlocked)
         assertEquals("Allow in Android settings", english.allowNotifications)
         assertEquals("Notifications aren't on yet for this app.", english.notificationsNotOnYet)
@@ -136,6 +136,9 @@ class SettingsTextsTest {
         // The field is named as it is shown, quoted.
         assertTrue(hindi.nameForNotifications.contains("\"${hindi.yourName}\""))
         assertEquals("सूचनाएँ चालू करें", hindi.turnOnNotifications)
+        // The two switches' detail lines sit one under the other, so they end alike: as sentences.
+        for (help in listOf(english.simpleModeHelp, english.notifyChangesHelp)) assertTrue(help, help.endsWith("."))
+        for (help in listOf(hindi.simpleModeHelp, hindi.notifyChangesHelp)) assertTrue(help, help.endsWith("।"))
     }
 
     @Test

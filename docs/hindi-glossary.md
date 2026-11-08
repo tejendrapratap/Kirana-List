@@ -19,7 +19,10 @@ texts, add it here too.
 - A button named inside a sentence is in quotes: "सेव करें" दबाएँ. So is a page's name and the Need word:
   "ख़रीदना है" में, "सारा सामान" में, "चाहिए" कर दें.
 - Buttons, and what TalkBack says for them, say what they do, in the polite imperative: कम करें, बढ़ाएँ, वापस लाएँ.
-- "Then" inside a sentence is इसके बाद, not फिर, which the Retry button's name (फिर से कोशिश करें) starts with.
+- What TalkBack says for a button holds the label shown on it, word for word, so TalkBack, voice control and a
+  text that says "tap ..." name the same button: छोड़ दें is "सेव न हुए बदलाव छोड़ दें" for TalkBack.
+- "Then" in a sentence that also names the Retry button or says फिर से कोशिश करें is इसके बाद, not फिर, so the
+  two don't run together: इसके बाद "फिर से कोशिश करें" दबाएँ. Elsewhere फिर is fine: कॉपी करें, फिर "पेस्ट करें" दबाएँ.
 - A who / when line without a name puts the time first: "2 घंटे पहले जोड़ा गया".
 - Apps Script's own words stay in English, as Apps Script shows them: Deploy > Manage deployments, Web app URL,
   Execute as, SECRET_TOKEN.
@@ -37,7 +40,7 @@ texts, add it here too.
 | Put back (Ticked today) | वापस लाएँ |
 | Ticked today | आज लिया |
 | Add / Add item | जोड़ें / सामान जोड़ें |
-| Save / Cancel / Delete / Edit / OK / Close | सेव करें / रद्द करें / हटाएँ / बदलें / ठीक है / बंद करें |
+| Save / Cancel / Delete / Edit / Close | सेव करें / रद्द करें / हटाएँ / बदलें / बंद करें |
 | Search | खोजें |
 | Share | शेयर करें |
 | Settings | सेटिंग्स |
@@ -84,7 +87,8 @@ texts, add it here too.
 | Couldn't read (a pasted line) | समझ नहीं आया |
 | Update 3 items / updated (Paste a list) | 3 चीज़ें अपडेट करें / अपडेट की, अपडेट कीं |
 | Apply 5 changes | 5 बदलाव करें |
-| Live - updated 3s ago (the list's status line) | लाइव - 3 सेकंड पहले अपडेट हुई (updated less than a minute ago: अभी अपडेट हुई) |
+| Live - updated 3s ago (the list's status line) | लाइव - 3 सेकंड पहले अपडेट हुई |
+| Offline - showing saved list (updated less than a minute ago / 5 min ago) | ऑफ़लाइन - सेव की हुई लिस्ट दिख रही है (अभी अपडेट हुई / 5 मिनट पहले अपडेट हुई) |
 | Not syncing / Not synced yet / Not connected | सिंक नहीं हो रहा / अभी सिंक नहीं हुआ / शीट से नहीं जुड़ा |
 | retrying | फिर से कोशिश हो रही है |
 | waiting on this phone | इस फ़ोन पर रुकी है / रुकी हैं |
@@ -118,6 +122,7 @@ Snackbars, TalkBack texts and notifications made of the words above. Names and a
 |---|---|
 | Got Rice / Deleted Rice | Rice ले लिया / Rice हटा दिया |
 | Got it: Rice (TalkBack) | ले लिया: Rice |
+| Retry sending changes / Retry failed changes (TalkBack) | बदलाव भेजने की फिर से कोशिश करें / सेव न हुए बदलाव भेजने की फिर से कोशिश करें |
 | Rice: 2 kg → 3 kg | Rice: 2 kg → 3 kg (the same: the amounts are data) |
 | Dahi: needed / Dahi: not needed | Dahi: चाहिए / Dahi: नहीं चाहिए |
 | Renamed Curd to Dahi | Curd का नाम बदलकर Dahi कर दिया |
@@ -134,7 +139,7 @@ Snackbars, TalkBack texts and notifications made of the words above. Names and a
 | On the list as Tel | लिस्ट में Tel नाम से है |
 | Eggs is in dozen | Eggs की यूनिट dozen है |
 | Bigger text and buttons (Simple mode) | बड़े अक्षर और बड़े बटन |
-| Checks about every 15 minutes while the app is closed | ऐप बंद होने पर लगभग हर 15 मिनट में लिस्ट जाँचता है |
+| Checks about every 15 minutes while the app is closed. | ऐप बंद होने पर लगभग हर 15 मिनट में लिस्ट जाँचता है। |
 | Notifications are blocked for this app. | इस ऐप की सूचनाएँ बंद हैं। |
 | Notifications aren't on yet for this app. / Turn on notifications | इस ऐप की सूचनाएँ अभी चालू नहीं हैं। / सूचनाएँ चालू करें |
 | Type Your name above (like Mummy), so the phones can tell whose change it is. | ऊपर "आपका नाम" भरें (जैसे Mummy), ताकि फ़ोन पहचान सकें कि बदलाव किसका है। |
@@ -179,7 +184,11 @@ headings in WhatsApp bold (`*सब्ज़ी और फल*`). Item names and
 the headings in both languages, so a list shared from a Hindi phone pastes back on an English one and the other way
 round.
 
+The Hindi title ends in ':'. Phones still on 1.4 or 1.5 leave out only the English title and lines that end in ':'
+(a heading, shown unticked): without it they would offer the title as an item of 3 "चीज़ें", ticked. A title in
+any new language ends in ':' for the same reason.
+
 | English | Hindi |
 |---|---|
-| Grocery list (1 item) | किराने की लिस्ट (1 चीज़) |
-| Grocery list (3 items) | किराने की लिस्ट (3 चीज़ें) |
+| Grocery list (1 item) | किराने की लिस्ट (1 चीज़): |
+| Grocery list (3 items) | किराने की लिस्ट (3 चीज़ें): |

@@ -73,7 +73,7 @@ class ThisPhoneSwitchesTest : GroceryUiTest() {
         waitForNode(notifySwitch)
             .performScrollTo()
             .assertIsOn()
-            .assert(hasText("Checks about every 15 minutes while the app is closed"))
+            .assert(hasText("Checks about every 15 minutes while the app is closed."))
         // Notifications are allowed: nothing says they are blocked.
         assertEquals(0, count(hasText(EnglishSettingsTexts.notificationsBlocked)))
 

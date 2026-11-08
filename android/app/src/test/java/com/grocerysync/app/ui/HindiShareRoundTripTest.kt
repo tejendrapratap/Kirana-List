@@ -97,7 +97,7 @@ class HindiShareRoundTripTest {
     @Test
     fun oneItemHasTheSingularHindiTitleThatIsSkippedToo() {
         val text = withTexts(AppTexts.Hindi) { buildShareText(listOf(yesNo("Dahi")), ::catalogSectionOf) }
-        assertEquals("किराने की लिस्ट (1 चीज़)\n\n*दूध, अंडे और ब्रेड*\n• Dahi", text)
+        assertEquals("किराने की लिस्ट (1 चीज़):\n\n*दूध, अंडे और ब्रेड*\n• Dahi", text)
         assertEquals(listOf(PasteAction.Add("Dahi", ItemValue.BoolValue(true))), pasted(text))
     }
 

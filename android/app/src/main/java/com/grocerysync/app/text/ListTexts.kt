@@ -102,7 +102,10 @@ interface ListTexts {
      */
     fun pushWarning(cause: String, waiting: Int, needsFix: Boolean): String
 
-    /** The push warning's Retry button (TalkBack). */
+    /**
+     * The push warning's Retry button (TalkBack): what it retries, with the button's own label ([CommonTexts.retry])
+     * word for word in it, so TalkBack, voice control and the hints that say "tap Retry" all name the same button.
+     */
     val retrySendingChanges: String
 
     /**
@@ -114,7 +117,10 @@ interface ListTexts {
     /** The banner of changes the sheet refused: "1 change couldn't be saved", "3 changes couldn't be saved". */
     fun failedChanges(n: Int): String
 
-    /** The failed changes banner's buttons: [discard] (with [discardFailedChanges] for TalkBack) and Retry. */
+    /**
+     * The failed changes banner's buttons: [discard] (with [discardFailedChanges] for TalkBack) and Retry (with
+     * [retryFailedChanges]). Each TalkBack name holds its button's label word for word, as [retrySendingChanges] does.
+     */
     val discard: String
     val discardFailedChanges: String
     val retryFailedChanges: String
@@ -463,7 +469,7 @@ object HindiListTexts : ListTexts {
         return "$pushWarningTitle: $cause $next"
     }
 
-    override val retrySendingChanges = "बदलाव फिर से भेजें"
+    override val retrySendingChanges = "बदलाव भेजने की ${HindiCommonTexts.retry}"
 
     override fun scriptUpdateWaiting(waiting: Int) = when (waiting) {
         0 -> "तब तक यहाँ किए गए बदलाव इस फ़ोन पर रुके रहेंगे।"
@@ -475,12 +481,13 @@ object HindiListTexts : ListTexts {
     override fun failedChanges(n: Int) = if (n == 1) "1 बदलाव सेव नहीं हो सका" else "$n बदलाव सेव नहीं हो सके"
     override val discard = "छोड़ दें"
     override val discardFailedChanges = "सेव न हुए बदलाव छोड़ दें"
-    override val retryFailedChanges = "सेव न हुए बदलाव फिर से भेजें"
+    override val retryFailedChanges = "सेव न हुए बदलाव भेजने की ${HindiCommonTexts.retry}"
 
     override val emptyToBuyTitle = "अभी कुछ ख़रीदना नहीं है"
     override val emptyToBuyHintNewList =
-        "आप जो सामान अक्सर ख़रीदते हैं, उसे + दबाकर जोड़ें। जब कुछ ख़त्म हो, उसे \"${HindiCommonTexts.needed}\" कर दें।"
-    override val emptyToBuyHintAllTicked = "सब ले लिया गया है। जो चाहिए, उसे \"${HindiCommonTexts.allItems}\" में चुनें।"
+        "आप जो सामान अक्सर ख़रीदते हैं, उसे + दबाकर जोड़ें। ख़त्म होने पर उसे \"${HindiCommonTexts.needed}\" कर दें।"
+    override val emptyToBuyHintAllTicked =
+        "सब ले लिया गया है। जो चाहिए, उसे \"${HindiCommonTexts.allItems}\" में \"${HindiCommonTexts.needed}\" कर दें।"
     override val emptyListTitle = "आपकी लिस्ट ख़ाली है"
     override val emptyListHint = "पहला सामान जोड़ने के लिए + दबाएँ।"
     override val listNotLoadedTitle = "आपकी लिस्ट अभी नहीं आई है"
