@@ -3,3 +3,27 @@ releases/
 # Machine-local editor and tool settings
 .idea/
 .claude/settings.local.json
+# Signing keys, signing settings and signed builds never belong in git, wherever they are put
+*.jks
+*.keystore
+*.p12
+*.pk8
+*.pem
+keys/
+*-release.properties
+keystore.properties
+*.apk
+*.aab
+*.apks
+android/app/release/
+android/app/qa/
+# Credentials of tools this project might use later
+.env
+.clasprc.json
+.clasp.json
+google-services.json
+# Editor and OS clutter
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

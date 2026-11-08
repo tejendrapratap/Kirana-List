@@ -55,7 +55,7 @@ Use a **personal Google account**. Work and school Google accounts often block "
 
 The new file comes with `'CHANGE_ME'`, so skipping step 3 makes the app report *The script still has SECRET_TOKEN = 'CHANGE_ME'*.
 
-Coming from version 1.3? Version 1.4 changes only the app: install it over 1.3 on both phones (section 2); the sheet and `Code.gs` stay as they are. Coming from version 1.1? Follow [Updating to 1.2](#updating-to-12) below. Coming from a version without units? Follow [Updating to amounts with units](#updating-to-amounts-with-units).
+Coming from version 1.3 or 1.4? Versions 1.4 and 1.5 change only the app: install the new APK over the old one on both phones (section 2); the sheet and `Code.gs` stay as they are (see [Updating to 1.5](#updating-to-15-kirana-list)). Coming from version 1.1? Follow [Updating to 1.2](#updating-to-12) below. Coming from a version without units? Follow [Updating to amounts with units](#updating-to-amounts-with-units).
 
 ## 2. Install the app on both phones
 
@@ -65,7 +65,7 @@ Use **Option C** (the signed release APK) for the two phones you shop with. Opti
 1. In Android Studio, **File → Open** the `android/` folder.
 2. Plug in a phone with USB debugging on and press **Run ▶**.
 
-**Option B: build a debug APK and share it** (development only; needs JDK 17 or newer; Android Studio's bundled JDK works)
+**Option B: build a debug APK and share it** (development only; needs JDK 17 or newer; Android Studio's bundled JDK works. Gradle itself runs on JDK 25 and downloads it on the first build if it isn't installed, so that first build needs internet access)
 
 ```bash
 cd android
@@ -314,7 +314,7 @@ cd tools/e2e
 ./app.sh uninstall; ./ui.sh reset; ./mock.sh stop; ./emu.sh stop
 ```
 
-**Upgrade test**: build the previous version's qa APK from its tag (`git worktree add ../gs-old v1.2`, then `tools/e2e/build-test-apk.sh qa --src ../gs-old/android` and keep a copy of the APK), start the mock with the script that version shipped with (`./mock.sh start --script ../gs-old/apps-script/Code.gs`; `v3` and `v2` are the scripts of 1.1 and 1.0), install the old APK, `configure` and add items, then install the new APK over it (`./app.sh install qa`, without `--fresh`) and switch the script live with `./mock.sh script current`. The items, their "Added by" / "Updated by" and the changes waiting on the phone must survive.
+**Upgrade test**: build the previous version's qa APK from its tag (`git worktree add ../gs-old v1.4`, then `tools/e2e/build-test-apk.sh qa --src ../gs-old/android` and keep a copy of the APK), start the mock with the script that version shipped with (`./mock.sh start --script ../gs-old/apps-script/Code.gs`; `v3` and `v2` are the scripts of 1.1 and 1.0), install the old APK, `configure` and add items, then install the new APK over it (`./app.sh install qa`, without `--fresh`) and switch the script live with `./mock.sh script current`. The items, their "Added by" / "Updated by" and the changes waiting on the phone must survive.
 
 ### The mock web app
 

@@ -2,7 +2,7 @@
 
 Today every family has to make a Google Sheet, paste Code.gs into Apps Script, deploy it, and paste a setup code on every phone. The goal is: install the app, tap Start or Join, type a name, done. Installing the app is part of the setup too, so distribution is covered below.
 
-Researched on 2026-11-08. Every price, free limit, policy and date the recommendation depends on (54 claims) was checked against official sources: 54 confirmed, 0 wrong, 0 unclear. See [Fact check](#fact-check).
+Researched on 2026-11-08, before 1.4 shipped. The release numbers in the migration plan are from then (1.4 became the quick wins and 1.5 the new name and look), and the code facts describe 1.3. Every price, free limit, policy and date the recommendation depends on (54 claims) was checked against official sources: 54 confirmed, 0 wrong, 0 unclear. See [Fact check](#fact-check).
 
 ## Recommendation
 

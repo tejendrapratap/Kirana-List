@@ -44,7 +44,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 
 **What:** From the empty list or a menu, tick items from a built-in list of common Indian staples, each with a sensible type and unit (Atta kg, Doodh L, Dahi yes/no), plus fixed sets such as 'Diwali puja' and 'Monthly kirana'. Items are added as not needed, and items already on the list are skipped.
 
-**Why:** This builds the family's usual list in a minute instead of typing 80 items. It reuses the answer to question 2. Shared with features 3, 4 and 5, one built-in item dictionary (names, Hindi/English alternatives, category, default unit) powers all four.
+**Why:** This builds the family's usual list in a minute instead of typing 80 items. It reuses the [common Indian grocery list](indian-grocery-list.md). Shared with features 3, 4 and 5, one built-in item dictionary (names, Hindi/English alternatives, category, default unit) powers all four.
 
 **Evidence:** Listonic says about 70% of a list is recurring: https://apps.apple.com/in/app/id331302745 ; Indian guides split monthly staples from fresh items: https://simpleindianrecipes.com/Home/Indian-Monthly-Grocery-Shopping-List.aspx ; Navratri vrat staples: https://slurrp.com/article/8-essential-pantry-items-to-stock-up-for-a-hassle-free-navratri-1728566529054 . The empty-page hint already says 'Tap + to add the things you usually buy'.
 
@@ -104,11 +104,11 @@ Features marked "Much easier after the backend move" depend on [removing the set
 
 **What:** The first phone creates the list and the others join by scanning a QR code or opening a link: no Google Sheet, no Apps Script, no deploy and no token to paste.
 
-**Why:** Setup is the single biggest barrier today and is exactly the user's question 3. Competitors sell 'no signup' sharing as a feature.
+**Why:** Setup is the single biggest barrier today and is what [Removing the setup](zero-setup.md) is about. Competitors sell 'no signup' sharing as a feature.
 
 **Evidence:** Listonic shares by link/WhatsApp without signup: https://help.listonic.com/en/6163646-How-do-I-share-a-list- ; GroShare uses a code: https://apps.apple.com/us/app/groshare/id6746351751 ; AnyList needs accounts: https://help.anylist.com/articles/share-list/ . This is evidence of vendor marketing only; there is no independent user survey.
 
-**What has to change:** Replace the Sheet/Apps Script backend (question 3), add a list/household id, an invite flow and a migration of the current Sheet data. Doing a QR of the existing URL plus token is possible but works against the current design (the token is never shown and the app no longer makes setup codes), and it still needs the Sheet set up.
+**What has to change:** Replace the Sheet/Apps Script backend (see [Removing the setup](zero-setup.md)), add a list/household id, an invite flow and a migration of the current Sheet data. Doing a QR of the existing URL plus token is possible but works against the current design (the token is never shown and the app no longer makes setup codes), and it still needs the Sheet set up.
 
 - Effort: Large
 - India-specific: no
@@ -253,7 +253,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Settings: phone name, web app URL, write-only secret token, paste legacy setup code, Test connection, help card, version
 - The Sheet itself can be edited by hand (a basic web/desktop view)
 - Dark theme and dynamic colour on Android 12+, TalkBack labels, layouts that handle large text, HTTPS-only release build, token excluded from backup
-- Hindi item names work as free text (family list has Batti, Dahi, Diya, Kishmish)
+- Hindi item names work as free text (e.g. Batti, Dahi, Diya, Kishmish)
 - A built-in dictionary of about 150 common Indian grocery items (English, Roman Hindi and Devanagari names, a shop section and a usual unit), used by the 1.4 features below
 - Share the To buy list as text (WhatsApp bold section headings, or A to Z), with an app bar of Search, Share and a ⋮ menu that holds Settings (1.4)
 - Add common items: tick items from built-in sets (Everyday, Monthly kirana, Diwali puja, Vrat / fasting, All); items already on the list under any of their names are skipped (1.4)
