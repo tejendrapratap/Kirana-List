@@ -330,6 +330,9 @@ fun ListScreen(
             onAdd = viewModel::addCommonItems,
         )
     }
+
+    // "Paste a list" and lists shared into the app; above an item dialog that may be open.
+    PasteListHost(viewModel)
 }
 
 /**

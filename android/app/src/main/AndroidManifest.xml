@@ -25,13 +25,24 @@
         android:usesCleartextTraffic="false"
         tools:targetApi="33">
 
+        <!--
+            singleTop: a list shared into the app while it is on top of its task goes to the running
+            activity (onNewIntent) instead of opening a second list screen over it.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Share > Grocery Sync: a list as text (WhatsApp, a note). Only parsed, shown as a preview first. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
     </application>
