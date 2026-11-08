@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Android 12+ splash screen: the launcher icon's bag on the brand green, in light and dark mode.
+        Base.Theme.GrocerySync (values/, values-night/) still picks the window's day or night look.
+    -->
+    <style name="Theme.GrocerySync" parent="Base.Theme.GrocerySync">
+        <item name="android:windowSplashScreenBackground">@color/brand_green</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>
