@@ -84,8 +84,9 @@ cd tools/e2e                                     # in Git Bash
 - **Speed.** One `uiautomator dump` takes 1-2 s, so `wait-text` and `tap-text` react within about 2 s.
   A cold emulator boot takes 1-3 minutes, a reused one is instant. The first qa build takes 1-2 minutes,
   and later ones are incremental.
-- **Labels to use.** Top bar: `tap-desc "Search items"`, `"Settings"`, `"Add item"`, `"Close search"`,
-  `"Back"`. Rows: `"Got it: <name>"` (To buy), `"Need <name>"` (a Yes/no switch),
+- **Labels to use.** Top bar: `tap-desc "Search items"`, `"Share list"`, `"More options"` (the ⋮ menu:
+  then `tap-text Settings`, `"Add common items"`, `"Paste a list"` or `"Group by shop section"`), `"Add item"`,
+  `"Close search"`, `"Back"`. Rows: `"Got it: <name>"` (To buy), `"Need <name>"` (a Yes/no switch),
   `"1 more <name>"` / `"0.5 kg less <name>"` (steppers), `"Quantity 2 kg"`. Item dialog:
   `set-field Item Tea`, `tap-desc Unit`, `tap-text Save`. Tabs: `tap-text -r '^To buy'`,
   `tap-text -r '^All items'` or `swipe left`. When in doubt, run `ui.sh dump`.

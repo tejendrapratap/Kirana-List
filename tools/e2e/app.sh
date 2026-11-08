@@ -144,7 +144,15 @@ do_configure() {
   installed || gs_die "$GS_PACKAGE is not installed (app.sh install ...)"
   gs_adb shell am force-stop "$GS_PACKAGE"
   do_launch
-  gs_ui_tap_match desc Settings 0 20 || gs_die "the Settings button did not appear"
+  # From 1.4 Settings is in the app bar's ⋮ menu (More options); before, it was an icon of its own.
+  local hit label
+  hit=$(gs_ui_wait desc-re '^(More options|Settings)$' 0 20) || gs_die "the More options (or Settings) button did not appear"
+  label=$(printf '%s' "$hit" | cut -f3)
+  gs_ui_tap ${hit%%$'\t'*}
+  gs_log "tapped $label"
+  if [ "$label" = '"More options"' ]; then
+    gs_ui_tap_match text Settings 0 10 || gs_die "no Settings in the More options menu"
+  fi
   gs_ui_wait text "Web app URL" 0 15 >/dev/null || gs_die "the Settings screen did not open"
   gs_ui_set_field "Your name" "$name" || gs_die "could not set Your name"
   gs_ui_set_field "Web app URL" "$url" || gs_die "could not set the Web app URL"
