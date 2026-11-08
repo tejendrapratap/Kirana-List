@@ -8,6 +8,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.grocerysync.app.data.InputValidation
+import com.grocerysync.app.data.PhoneSettings
+import com.grocerysync.app.data.PhoneSettingsStore
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.SetupCode
 import com.grocerysync.app.data.SyncSettings
@@ -15,10 +17,12 @@ import com.grocerysync.app.data.UrlCheck
 import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.PingResult
 import com.grocerysync.app.sync.SheetsClient
+import com.grocerysync.app.text.AppLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,11 +59,15 @@ sealed interface SettingsEvent {
  * A hidden token is only used with the URL it came with ([TokenEntry.sameUrl]): once the Web app URL field
  * holds another URL, Save and Test connection need a token typed or pasted for it. Otherwise anyone holding
  * the phone could point the URL at a server of their own and have it echo the hidden token back.
+ *
+ * This phone's own settings ([phoneSettings], Settings > This phone) are not part of Save: each one is saved as soon
+ * as it is changed. A new Language recreates the activity; this view model and everything typed here stay.
  */
 class SettingsViewModel(
     private val settingsStore: SettingsStore,
     private val sheetsClient: SheetsClient,
     private val liveSync: LiveSync,
+    private val phoneSettingsStore: PhoneSettingsStore,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -113,6 +121,9 @@ class SettingsViewModel(
     val canSave: Boolean by derivedStateOf {
         urlCheck !is UrlCheck.Invalid && tokenSource != TokenSource.NONE && !isSaving
     }
+
+    /** This phone's own settings, as saved. */
+    val phoneSettings: StateFlow<PhoneSettings> = phoneSettingsStore.settings
 
     private var testJob: Job? = null
 
@@ -192,6 +203,14 @@ class SettingsViewModel(
                 isSaving = false
             }
         }
+    }
+
+    /**
+     * Saves the Language choice at once. The screen then shows the new language: it sets Texts.current and recreates
+     * the activity, which needs the activity's own configuration (for [AppLanguage.PHONE]).
+     */
+    fun setLanguage(language: AppLanguage) {
+        phoneSettingsStore.setLanguage(language)
     }
 
     /**

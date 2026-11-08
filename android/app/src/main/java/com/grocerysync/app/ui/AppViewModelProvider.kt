@@ -19,6 +19,7 @@ object AppViewModelProvider {
                 liveSync = container.liveSync,
                 settingsStore = container.settings,
                 shopSectionStore = container.shopSections,
+                phoneSettingsStore = container.phoneSettings,
                 savedStateHandle = createSavedStateHandle(),
             )
         }
@@ -28,6 +29,7 @@ object AppViewModelProvider {
                 settingsStore = container.settings,
                 sheetsClient = container.sheetsClient,
                 liveSync = container.liveSync,
+                phoneSettingsStore = container.phoneSettings,
                 savedStateHandle = createSavedStateHandle(),
             )
         }

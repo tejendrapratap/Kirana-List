@@ -3,6 +3,7 @@ package com.grocerysync.app
 import android.content.Context
 import com.grocerysync.app.data.GroceryDatabase
 import com.grocerysync.app.data.GroceryRepository
+import com.grocerysync.app.data.PhoneSettingsStore
 import com.grocerysync.app.data.PrefsClockOffsetStore
 import com.grocerysync.app.data.ServerClock
 import com.grocerysync.app.data.SettingsStore
@@ -25,6 +26,8 @@ class AppContainer(context: Context) {
     val settings = SettingsStore(appContext)
     /** This phone's own To buy layout: grouping by shop section and sections chosen per item (never synced). */
     val shopSections = ShopSectionStore(appContext)
+    /** This phone's own preferences: language, Simple mode, change notifications (never synced). */
+    val phoneSettings = PhoneSettingsStore(appContext)
     val database = GroceryDatabase(appContext)
     val serverClock = ServerClock(offsetStore = PrefsClockOffsetStore(appContext))
     val sheetsClient = SheetsClient()

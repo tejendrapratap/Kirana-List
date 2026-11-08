@@ -2,6 +2,7 @@ package com.grocerysync.app.ui
 
 import androidx.lifecycle.SavedStateHandle
 import com.grocerysync.app.data.FakeSharedPreferences
+import com.grocerysync.app.data.PhoneSettingsStore
 import com.grocerysync.app.data.ServerClock
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.SetupCodeTest
@@ -93,7 +94,7 @@ class SettingsViewModelTest {
             store = syncStore,
             scope = scope,
         )
-        return SettingsViewModel(store, SheetsClient(), liveSync, handle)
+        return SettingsViewModel(store, SheetsClient(), liveSync, PhoneSettingsStore(FakeSharedPreferences()), handle)
     }
 
     private fun saveConfigured(token: String = SAVED_TOKEN) {

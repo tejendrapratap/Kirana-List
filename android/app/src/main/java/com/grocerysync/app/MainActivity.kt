@@ -18,6 +18,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModelProvider
+import com.grocerysync.app.text.Texts
+import com.grocerysync.app.text.update
 import com.grocerysync.app.ui.AppViewModelProvider
 import com.grocerysync.app.ui.ListScreen
 import com.grocerysync.app.ui.ListViewModel
@@ -39,6 +41,9 @@ class MainActivity : ComponentActivity() {
         // always light. The navigation bar shows the list's surface: dark icons in light theme, light in dark.
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
         super.onCreate(savedInstanceState)
+        // Before anything is composed: every screen reads its texts from Texts.current. Choosing another language in
+        // Settings recreates this activity, so this runs again then; so does a change of the phone's language.
+        Texts.update((application as GroceryApp).container.phoneSettings.current().language, resources.configuration)
         // Only on a fresh start: after rotation or process death the shared text was taken already (the list screen
         // keeps it), and Recents starts the activity again with the intent that once shared it.
         if (savedInstanceState == null) receiveSharedList(intent)
@@ -96,7 +101,8 @@ internal fun sharedText(action: String?, type: String?, readText: () -> CharSequ
 private enum class Screen { LIST, SETTINGS }
 
 /**
- * Two screens, so a navigation library would be overkill: the current one survives rotation and process death.
+ * Two screens, so a navigation library would be overkill: the current one survives rotation, process death and a
+ * new Language (Settings recreates the activity and stays open).
  * Each list shared into the app ([sharedLists] goes up) shows the list screen, where its preview opens.
  */
 @Composable

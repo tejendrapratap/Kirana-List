@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.work.WorkManager
 import com.grocerysync.app.AppContainer
 import com.grocerysync.app.GroceryApp
+import com.grocerysync.app.data.PhoneSettings
 import com.grocerysync.app.data.SyncSettings
 import com.grocerysync.app.sync.ConnectionState
 import kotlinx.coroutines.runBlocking
@@ -40,6 +41,8 @@ object AppState {
      * 5. Clears the saved clock offset.
      * 6. Groups To buy by shop section again and forgets the sections chosen for items (through ShopSectionStore,
      *    which also updates what the running app sees).
+     * 7. Puts this phone's own settings (language, Simple mode, notifications) back to their defaults, through
+     *    PhoneSettingsStore. MainActivity reads the language when it starts.
      */
     fun reset() {
         val app = container
@@ -50,6 +53,11 @@ object AppState {
         context.getSharedPreferences(CLOCK_PREFS, Context.MODE_PRIVATE).edit(commit = true) { clear() }
         app.shopSections.setGroupBySection(true)
         app.shopSections.current().chosen.keys.forEach { app.shopSections.setSection(it, null) }
+        val phone = PhoneSettings()
+        app.phoneSettings.setLanguage(phone.language)
+        app.phoneSettings.setSimpleMode(phone.simpleMode)
+        app.phoneSettings.setNotifyChanges(phone.notifyChanges)
+        app.phoneSettings.setNotifyOfferDone(phone.notifyOfferDone)
     }
 
     /** Saves the connection the way Settings > Save does (SettingsStore cleans the values). */

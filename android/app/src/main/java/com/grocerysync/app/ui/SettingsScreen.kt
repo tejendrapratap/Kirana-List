@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,6 +44,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -65,25 +68,37 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.grocerysync.app.data.UrlCheck
 import com.grocerysync.app.sync.Protocol
+import com.grocerysync.app.text.AppLanguage
+import com.grocerysync.app.text.AppTexts
+import com.grocerysync.app.text.Texts
+import com.grocerysync.app.text.systemLanguage
+import com.grocerysync.app.text.update
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.appBarColors
 import kotlinx.coroutines.launch
@@ -97,8 +112,11 @@ fun SettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
+    val t = Texts.current
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val phoneSettings by viewModel.phoneSettings.collectAsStateWithLifecycle()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val versionLine = remember(context) { versionText(installedVersionName(context)) }
@@ -194,6 +212,21 @@ fun SettingsScreen(
             )
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            SectionTitle(t.settings.thisPhone)
+            LanguageChoice(
+                selected = phoneSettings.language,
+                phoneTexts = Texts.of(AppLanguage.PHONE, systemLanguage(configuration)),
+                onChoose = { language ->
+                    if (language != phoneSettings.language) {
+                        viewModel.setLanguage(language)
+                        // Every screen reads Texts.current while it composes: recreating the activity shows the new
+                        // language everywhere. Settings stays open, and what is typed here stays (the view model).
+                        if (Texts.update(language, configuration)) activity?.recreate()
+                    }
+                },
+            )
+
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
             SectionTitle("Google Sheet")
             OutlinedButton(
                 onClick = {
@@ -265,6 +298,87 @@ private fun SectionTitle(text: String) {
             .padding(top = 4.dp)
             .semantics { heading() },
     )
+}
+
+/**
+ * Settings > This phone > Language: "Phone's language" (the default, with the language it means now under it),
+ * "English" and "हिन्दी". Radio rows in a selectable group, so TalkBack reads each with its state and position
+ * ("English, not selected, radio button"). The languages' names are always in their own script, marked with their
+ * locale so that a screen reader speaks each in its language. [phoneTexts]: the texts "Phone's language" means now.
+ */
+@Composable
+private fun LanguageChoice(selected: AppLanguage, phoneTexts: AppTexts, onChoose: (AppLanguage) -> Unit) {
+    val t = Texts.current
+    Column {
+        Text(
+            text = t.settings.language,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(Modifier.selectableGroup()) {
+            LanguageOption(
+                label = AnnotatedString(t.settings.phonesLanguage),
+                detail = ownName(phoneTexts),
+                selected = selected == AppLanguage.PHONE,
+                onClick = { onChoose(AppLanguage.PHONE) },
+            )
+            LanguageOption(
+                label = ownName(AppTexts.English),
+                selected = selected == AppLanguage.ENGLISH,
+                onClick = { onChoose(AppLanguage.ENGLISH) },
+            )
+            LanguageOption(
+                label = ownName(AppTexts.Hindi),
+                selected = selected == AppLanguage.HINDI,
+                onClick = { onChoose(AppLanguage.HINDI) },
+            )
+        }
+    }
+}
+
+/** A language's name in its own script, marked as that language (for a screen reader's voice and the font). */
+private fun ownName(texts: AppTexts): AnnotatedString = buildAnnotatedString {
+    withStyle(SpanStyle(localeList = LocaleList(texts.language.id))) { append(texts.languageName) }
+}
+
+/** One choice of [LanguageChoice]: the whole row is the radio button (at least 48 dp tall). */
+@Composable
+private fun LanguageOption(
+    label: AnnotatedString,
+    selected: Boolean,
+    detail: AnnotatedString? = null,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.padding(vertical = 4.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            if (detail != null) {
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+private fun LanguageChoicePreview() {
+    GrocerySyncTheme(dynamicColor = false) {
+        Column(Modifier.padding(16.dp)) {
+            LanguageChoice(selected = AppLanguage.PHONE, phoneTexts = AppTexts.English, onChoose = {})
+        }
+    }
 }
 
 @Composable

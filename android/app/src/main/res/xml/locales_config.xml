@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The languages the app shows (Kotlin text catalogues in com.grocerysync.app.text, not string resources).
+    android:localeConfig lists the app under Android 13+'s per-app languages; the app's "Phone's language"
+    choice then follows the language picked there.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="hi" />
+</locale-config>

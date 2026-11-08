@@ -13,6 +13,7 @@ import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
 import com.grocerysync.app.data.PasteParser
+import com.grocerysync.app.data.PhoneSettingsStore
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.ShopSectionSettings
@@ -157,6 +158,8 @@ class ListViewModel(
     private val liveSync: LiveSync,
     private val settingsStore: SettingsStore,
     private val shopSectionStore: ShopSectionStore,
+    /** This phone's own preferences (never synced): the list lane reads Simple mode from it. */
+    private val phoneSettingsStore: PhoneSettingsStore,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
