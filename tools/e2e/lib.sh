@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# lib.sh - shared helpers for the Grocery Sync emulator tools (emu.sh, mock.sh, build-test-apk.sh,
+# lib.sh - shared helpers for the Kirana List emulator tools (emu.sh, mock.sh, build-test-apk.sh,
 # app.sh, ui.sh). Sourced by them, never run directly. Bash 4+: Git Bash on Windows, Linux or macOS.
 #
 # Safety rules, enforced here for every tool:

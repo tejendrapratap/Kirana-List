@@ -72,7 +72,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 
 ## 4. Paste a list / share a WhatsApp message into the app (bulk add)
 
-**What:** 'Paste list', or Share > Grocery Sync from WhatsApp, reads lines like 'Rice 2 kg', 'Dahi', 'Maggi 4 pack', then shows a preview of new items, items already on the list that will be marked needed, and lines it could not read. Confirming adds them all as needed.
+**What:** 'Paste list', or Share > Kirana List from WhatsApp, reads lines like 'Rice 2 kg', 'Dahi', 'Maggi 4 pack', then shows a preview of new items, items already on the list that will be marked needed, and lines it could not read. Confirming adds them all as needed.
 
 **Why:** Lists arrive as WhatsApp messages from a parent or the cook, or as a note. This turns one message into many items without retyping.
 

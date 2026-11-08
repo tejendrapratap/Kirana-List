@@ -1,6 +1,6 @@
 # Docs
 
-Planning notes for Grocery Sync, kept with the code.
+Planning notes for Kirana List (formerly Grocery Sync), kept with the code.
 
 | Doc | What it covers |
 |---|---|

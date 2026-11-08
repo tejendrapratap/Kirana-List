@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# emu.sh - start (or reuse) an Android emulator for Grocery Sync checks, and stop only the one it started.
+# emu.sh - start (or reuse) an Android emulator for Kirana List checks, and stop only the one it started.
 #
 # Usage:
 #   emu.sh [start] [--avd NAME] [--window] [--timeout SECS]

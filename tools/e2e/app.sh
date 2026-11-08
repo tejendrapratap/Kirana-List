@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# app.sh - install, run and set up Grocery Sync on the emulator.
+# app.sh - install, run and set up Kirana List on the emulator.
 #
 # Usage: app.sh [-s emulator-NNNN] <command> [args]
 #   install <apk|release|qa|debug> [--fresh] [--low-storage]

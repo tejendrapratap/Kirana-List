@@ -71,7 +71,7 @@ android {
         }
         // For testing only: the release build (same R8 shrinking and rules) that may also talk to the
         // local mock web app over plain HTTP (src/qa/res/xml/network_security_config.xml). Its own app ID
-        // (com.grocerysync.app.qa), name ("Grocery QA") and the debug signing key mean it installs next
+        // (com.grocerysync.app.qa), name ("Kirana QA") and the debug signing key mean it installs next
         // to the real app and can never replace it on a phone. Build it with ./gradlew assembleQa.
         create("qa") {
             initWith(getByName("release"))
