@@ -221,7 +221,7 @@ class ListViewModel(
     private val liveSync: LiveSync,
     private val settingsStore: SettingsStore,
     private val shopSectionStore: ShopSectionStore,
-    /** This phone's own preferences (never synced): the list lane reads Simple mode from it. */
+    /** This phone's own preferences (never synced): Simple mode ([simpleMode]). */
     private val phoneSettingsStore: PhoneSettingsStore,
     private val savedStateHandle: SavedStateHandle,
     /** "Ticked today" (this phone only). Without one given, kept in memory only, as for tests and previews. */
@@ -263,6 +263,15 @@ class ListViewModel(
                 shopSections = shopSectionStore.current(),
             ),
         )
+
+    /**
+     * Simple mode (Settings > This phone): the list screen shows only To buy, with bigger text and buttons. Followed
+     * all the time (not only while the screen collects it, unlike [uiState]), so the screen shows the choice made
+     * in Settings from its first frame back, without a frame of the other look.
+     */
+    val simpleMode: StateFlow<Boolean> = phoneSettingsStore.settings
+        .map { it.simpleMode }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, phoneSettingsStore.current().simpleMode)
 
     val dialog: StateFlow<ItemDialog?> = savedStateHandle.getStateFlow<String?>(KEY_DIALOG, null)
         .map { ItemDialog.decode(it) }

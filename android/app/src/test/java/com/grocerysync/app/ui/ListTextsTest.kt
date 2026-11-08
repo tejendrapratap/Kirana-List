@@ -80,4 +80,12 @@ class ListTextsTest {
         assertEquals("Put back", t.putBack)
         assertEquals("Put back Rice", t.putBackDescription("Rice"))
     }
+
+    @Test
+    fun simpleMode() {
+        assertEquals("Got it", t.gotIt)
+        assertEquals("Tap Add item to add what you need.", t.emptyToBuyHintNewListSimple)
+        assertEquals("Everything is ticked off. Tap Add item when you need something.", t.emptyToBuyHintAllTickedSimple)
+        assertEquals("Added Dahi - it isn't needed now, so it isn't on To buy", t.addedNotNeededSimple("Dahi"))
+    }
 }

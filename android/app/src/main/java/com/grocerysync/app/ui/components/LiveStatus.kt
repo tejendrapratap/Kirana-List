@@ -48,41 +48,65 @@ fun rememberTickingTime(periodMillis: Long): State<Long> {
     }
 }
 
-/** Compact connection line shown under the title in the top app bar. */
+/**
+ * Compact connection line shown under the title in the top app bar: at most two lines, shortened if need be, or with
+ * [showAll] (Simple mode, whose text is bigger) as many as it takes.
+ */
 @Composable
-fun LiveStatusLine(status: SyncStatus, isConfigured: Boolean, modifier: Modifier = Modifier) {
+fun LiveStatusLine(status: SyncStatus, isConfigured: Boolean, modifier: Modifier = Modifier, showAll: Boolean = false) {
+    val maxLines = if (showAll) Int.MAX_VALUE else 2
     val colors = MaterialTheme.colorScheme
     val t = Texts.current.list
     when {
         !isConfigured || status.state == ConnectionState.NOT_CONFIGURED ->
-            StatusText(t.notConnected, dotColor = colors.outline, textColor = colors.onSurfaceVariant, modifier = modifier)
+            StatusText(
+                text = t.notConnected,
+                dotColor = colors.outline,
+                textColor = colors.onSurfaceVariant,
+                maxLines = maxLines,
+                modifier = modifier,
+            )
         status.state == ConnectionState.LIVE -> {
             val now by rememberTickingTime(1_000L)
             StatusText(
                 text = liveStatusText(status.lastSuccessAt, now),
                 dotColor = GrocerySyncTheme.extendedColors.live,
                 textColor = colors.onSurfaceVariant,
+                maxLines = maxLines,
                 modifier = modifier,
             )
         }
         status.state == ConnectionState.CONNECTING ->
-            StatusText(t.connecting, dotColor = colors.outline, textColor = colors.onSurfaceVariant, modifier = modifier)
+            StatusText(
+                text = t.connecting,
+                dotColor = colors.outline,
+                textColor = colors.onSurfaceVariant,
+                maxLines = maxLines,
+                modifier = modifier,
+            )
         status.state == ConnectionState.OFFLINE -> {
             val now by rememberTickingTime(10_000L)
             StatusText(
                 text = offlineStatusText(status.message, status.lastSuccessAt, now),
                 dotColor = colors.outline,
                 textColor = colors.onSurfaceVariant,
+                maxLines = maxLines,
                 modifier = modifier,
             )
         }
         else ->
-            StatusText(t.notSyncing, dotColor = colors.error, textColor = colors.error, modifier = modifier)
+            StatusText(
+                text = t.notSyncing,
+                dotColor = colors.error,
+                textColor = colors.error,
+                maxLines = maxLines,
+                modifier = modifier,
+            )
     }
 }
 
 @Composable
-private fun StatusText(text: String, dotColor: Color, textColor: Color, modifier: Modifier = Modifier) {
+private fun StatusText(text: String, dotColor: Color, textColor: Color, maxLines: Int, modifier: Modifier = Modifier) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
@@ -94,7 +118,7 @@ private fun StatusText(text: String, dotColor: Color, textColor: Color, modifier
             text = text,
             style = MaterialTheme.typography.labelMedium,
             color = textColor,
-            maxLines = 2,
+            maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
         )
     }

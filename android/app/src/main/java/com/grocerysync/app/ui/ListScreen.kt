@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -36,13 +38,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.Typography
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,13 +65,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -97,6 +102,9 @@ import com.grocerysync.app.ui.components.PushWarningLine
 import com.grocerysync.app.ui.components.ScriptUpdateLine
 import com.grocerysync.app.ui.components.SetupBanner
 import com.grocerysync.app.ui.components.ShopSectionHeader
+import com.grocerysync.app.ui.components.SimpleAddItemButton
+import com.grocerysync.app.ui.components.SimpleModeSnackbar
+import com.grocerysync.app.ui.components.SimpleToBuyRow
 import com.grocerysync.app.ui.components.SyncErrorBanner
 import com.grocerysync.app.ui.components.TickedTodayHeader
 import com.grocerysync.app.ui.components.TickedTodayRow
@@ -114,6 +122,9 @@ import kotlinx.coroutines.launch
 /** Keeps the last rows clear of the FAB. */
 private val FabClearance = 88.dp
 
+/** Under and over Simple mode's Add item button: the Scaffold's 16dp below it and a gap of 16dp above it. */
+private val SimpleFabMargins = 32.dp
+
 /** Row texts ("2 min ago", highlight of recent changes) only need to move every 30 s. */
 private const val ROW_CLOCK_PERIOD_MS = 30_000L
 
@@ -121,10 +132,10 @@ private const val ROW_CLOCK_PERIOD_MS = 30_000L
  * Search on the page shown. It opens from the app bar's Search icon on either page and closes with the
  * field's X or Back; switching pages keeps it open with its query, which then searches the page now shown.
  * [open] and [query] are saved (rotation, process death, a trip to Settings); focus is not, so the
- * keyboard never comes back by itself.
+ * keyboard never comes back by itself. Simple mode has no search.
  */
 @Stable
-private class SearchState(open: Boolean = false, query: String = "") {
+internal class SearchState(open: Boolean = false, query: String = "") {
     var open by mutableStateOf(open)
         private set
     var query by mutableStateOf(query)
@@ -193,6 +204,8 @@ fun ListScreen(
     viewModel: ListViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Followed while the screen is shown, so turning it on or off in Settings shows on the way back.
+    val simpleMode by viewModel.simpleMode.collectAsStateWithLifecycle()
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val starterListOpen by viewModel.starterListOpen.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -219,23 +232,34 @@ fun ListScreen(
             }
         }
     }
+    // Simple mode has no search, so nothing could close one left open (from before it was turned on): it closes.
+    LaunchedEffect(simpleMode) {
+        if (simpleMode && search.open) {
+            focusManager.clearFocus()
+            search.close()
+        }
+    }
     // Back with the keyboard up only hides it (the system does that); the next Back closes the search.
-    BackHandler(enabled = search.open) {
+    BackHandler(enabled = search.open && !simpleMode) {
         focusManager.clearFocus()
         search.close()
     }
+    // Read when a snackbar is shown, also by the remembered Share action.
+    val currentSimpleMode by rememberUpdatedState(simpleMode)
 
     ListEventsEffect(
         events = viewModel.events,
         snackbarHostState = snackbarHostState,
+        simpleMode = simpleMode,
         onUndoChange = viewModel::undoChange,
         onUndoEdit = viewModel::undoEdit,
         onSnackbarClosed = viewModel::snackbarClosed,
         onUndoDelete = viewModel::undoDelete,
         onUndoCommonItems = viewModel::undoAddCommonItems,
         addedText = { name, value ->
-            val shown = filterOfPage(pages.shownPage)
-            addedSnackbarText(name, value.isNeeded, shown, if (search.open) search.query else "")
+            // Simple mode shows only To buy, whatever page the pager was on.
+            val shown = if (simpleMode) ListFilter.TO_BUY else filterOfPage(pages.shownPage)
+            addedSnackbarText(name, value.isNeeded, shown, if (search.open) search.query else "", simpleMode)
         },
     )
 
@@ -258,7 +282,7 @@ fun ListScreen(
                     context = context,
                     toBuy = current.toBuy,
                     sectionOf = if (current.groupBySection) current::sectionOf else null,
-                ) { message -> scope.showReplacingSnackbar(snackbarHostState, message) }
+                ) { message -> scope.showReplacingSnackbar(snackbarHostState, message, simpleMode = currentSimpleMode) }
             },
             refresh = viewModel::refresh,
             retrySync = viewModel::retrySync,
@@ -293,8 +317,9 @@ fun ListScreen(
 
     ListContent(
         state = state,
+        simpleMode = simpleMode,
         pagerState = pagerState,
-        shownFilter = filterOfPage(pages.shownPage),
+        shownFilter = if (simpleMode) ListFilter.TO_BUY else filterOfPage(pages.shownPage),
         // Also To buy's "Show n in All items". An open search stays open and searches the page now shown.
         onFilterChange = { filter ->
             focusManager.clearFocus()
@@ -411,10 +436,15 @@ class ListActions(
  * switch). Each page keeps its own scroll position, banners and pull to refresh. The app bar menu's
  * "Group by shop section" tick ([ListTopBar]) shows [ListUiState.groupBySection]. To buy ends with "Ticked today"
  * ([tickedTodaySection]), closed until it is tapped.
+ *
+ * In [simpleMode] (see SimpleMode.kt) it shows only To buy (no page row, no pager, no search), with the text under the
+ * app bar [SIMPLE_TEXT_SCALE] times as big, [SimpleToBuyRow]s, one big [SimpleAddItemButton], Undo snackbars that
+ * stay ([SimpleModeSnackbar], [SnackbarLook]) and Ticked today open at first. Internal for the UI tests, which show it
+ * at 200% text.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ListContent(
+internal fun ListContent(
     state: ListUiState,
     pagerState: PagerState,
     shownFilter: ListFilter,
@@ -423,6 +453,7 @@ private fun ListContent(
     onCloseSearch: () -> Unit,
     snackbarHostState: SnackbarHostState,
     actions: ListActions,
+    simpleMode: Boolean = false,
 ) {
     val focusManager = LocalFocusManager.current
     // Hoisted (not inside the pages), so a page keeps its scroll position while the other one is shown.
@@ -439,60 +470,181 @@ private fun ListContent(
             pagerState.interactionSource.interactions,
         ).collect { if (it is DragInteraction.Start) focusManager.clearFocus() }
     }
-    val query = if (search.open) search.query else ""
-    // Saved like the page shown; closed at first.
-    var tickedTodayExpanded by rememberSaveable { mutableStateOf(false) }
+    // Simple mode has no search (ListScreen closes one left open).
+    val searchOpen = search.open && !simpleMode
+    val query = if (searchOpen) search.query else ""
+    // Saved like the page shown. Closed at first, but open in Simple mode, where nothing should be hidden away;
+    // turning Simple mode on or off starts it over the new mode's way.
+    var tickedTodayExpanded by rememberSaveable(simpleMode) { mutableStateOf(simpleMode) }
     val rowClock = rememberTickingTime(ROW_CLOCK_PERIOD_MS)
     val now = { rowClock.value }
     val texts = Texts.current
+    // The app bar keeps the theme's text sizes (its title's slot has a fixed height); in Simple mode everything under
+    // it is bigger.
+    val barTypography = MaterialTheme.typography
+    val listTypography = remember(barTypography, simpleMode) {
+        if (simpleMode) barTypography.scaledBy(SIMPLE_TEXT_SCALE) else barTypography
+    }
+    // Simple mode: how tall its Add item button and its lasting snackbar are now (px), so the last rows can be
+    // scrolled above both, whatever the text size. The usual round + always fits FabClearance.
+    var simpleFabHeight by remember { mutableIntStateOf(0) }
+    var simpleSnackbarHeight by remember { mutableIntStateOf(0) }
+    val bottomClearance = if (simpleMode) {
+        with(LocalDensity.current) {
+            maxOf(FabClearance, simpleFabHeight.toDp() + SimpleFabMargins) + simpleSnackbarHeight.toDp()
+        }
+    } else {
+        FabClearance
+    }
 
-    Scaffold(
-        topBar = { ListTopBar(groupBySection = state.groupBySection, actions = actions) },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            // Always a blank Add dialog, also during a search. Marigold, the app's accent for adding.
-            FloatingActionButton(
-                onClick = { actions.add("") },
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-            ) {
-                Icon(Icons.Default.Add, contentDescription = texts.common.addItem)
-            }
-        },
-    ) { innerPadding ->
-        val layoutDirection = LocalLayoutDirection.current
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    top = innerPadding.calculateTopPadding(),
-                    start = innerPadding.calculateStartPadding(layoutDirection),
-                    end = innerPadding.calculateEndPadding(layoutDirection),
-                ),
-        ) {
-            // Below the app bar (not in its fixed-height title slot) so large text never clips it. About as much
-            // space above it as below (the selector's 8dp plus its touch target's margin), off the green bar's edge.
-            LiveStatusLine(
-                status = state.status,
-                isConfigured = state.isConfigured,
-                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 10.dp),
+    WithTypography(listTypography) {
+        Scaffold(
+            topBar = {
+                WithTypography(barTypography) {
+                    ListTopBar(groupBySection = state.groupBySection, actions = actions, simpleMode = simpleMode)
+                }
+            },
+            snackbarHost = {
+                if (simpleMode) {
+                    SnackbarHost(snackbarHostState, Modifier.onSizeChanged { simpleSnackbarHeight = it.height }) {
+                        SimpleModeSnackbar(it)
+                    }
+                } else {
+                    SnackbarHost(snackbarHostState)
+                }
+            },
+            floatingActionButton = {
+                // Always a blank Add dialog, also during a search. Marigold, the app's accent for adding.
+                if (simpleMode) {
+                    SimpleAddItemButton(
+                        onClick = { actions.add("") },
+                        modifier = Modifier.onSizeChanged { simpleFabHeight = it.height },
+                    )
+                } else {
+                    FloatingActionButton(
+                        onClick = { actions.add("") },
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = texts.common.addItem)
+                    }
+                }
+            },
+            content = { innerPadding ->
+                ListBody(
+                    state = state,
+                    simpleMode = simpleMode,
+                    innerPadding = innerPadding,
+                    bottomClearance = bottomClearance,
+                    pagerState = pagerState,
+                    shownFilter = shownFilter,
+                    onFilterChange = onFilterChange,
+                    search = search,
+                    onCloseSearch = onCloseSearch,
+                    searchScroll = searchScroll,
+                    listStateOf = ::listStateOf,
+                    query = query,
+                    searchOpen = searchOpen,
+                    tickedTodayExpanded = tickedTodayExpanded,
+                    onTickedTodayExpandedChange = { tickedTodayExpanded = it },
+                    now = now,
+                    actions = actions,
+                )
+            },
+        )
+    }
+}
+
+/** [content] with [typography] as the theme's text styles (as it is when they are those already). */
+@Composable
+private fun WithTypography(typography: Typography, content: @Composable () -> Unit) {
+    if (typography == MaterialTheme.typography) content() else MaterialTheme(typography = typography, content = content)
+}
+
+/**
+ * Everything under [ListContent]'s app bar: the status lines, the To buy / All items row and the search field, and
+ * the pager with one [ListPage] per page; in [simpleMode] only To buy's page, without the row, the field or a pager.
+ */
+@Composable
+private fun ListBody(
+    state: ListUiState,
+    simpleMode: Boolean,
+    innerPadding: PaddingValues,
+    bottomClearance: Dp,
+    pagerState: PagerState,
+    shownFilter: ListFilter,
+    onFilterChange: (ListFilter) -> Unit,
+    search: SearchState,
+    onCloseSearch: () -> Unit,
+    searchScroll: SearchScroll,
+    listStateOf: (ListFilter) -> LazyListState,
+    query: String,
+    searchOpen: Boolean,
+    tickedTodayExpanded: Boolean,
+    onTickedTodayExpandedChange: (Boolean) -> Unit,
+    now: () -> Long,
+    actions: ListActions,
+) {
+    val focusManager = LocalFocusManager.current
+    val layoutDirection = LocalLayoutDirection.current
+    // The lists scroll behind the navigation bar; their last rows stay above the FAB.
+    val bottomPadding = innerPadding.calculateBottomPadding() + bottomClearance
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(
+                top = innerPadding.calculateTopPadding(),
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                end = innerPadding.calculateEndPadding(layoutDirection),
+            ),
+    ) {
+        // Below the app bar (not in its fixed-height title slot) so large text never clips it. About as much
+        // space above it as below (the selector's 8dp plus its touch target's margin), off the green bar's edge.
+        LiveStatusLine(
+            status = state.status,
+            isConfigured = state.isConfigured,
+            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 10.dp),
+            // Simple mode's bigger text may need more lines; none of it is cut short there.
+            showAll = simpleMode,
+        )
+        // Outside the list, so they are in view however far the list is scrolled.
+        if (state.scriptUpdateNeeded) {
+            ScriptUpdateLine(
+                pendingItems = state.outbox.pending,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp),
             )
-            // Outside the list, so they are in view however far the list is scrolled.
-            if (state.scriptUpdateNeeded) {
-                ScriptUpdateLine(
-                    pendingItems = state.outbox.pending,
-                    modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp),
-                )
-            }
-            state.pushWarning?.let { problem ->
-                PushWarningLine(
-                    problem = problem,
-                    pendingItems = state.outbox.pending,
-                    // A manual sync pushes at once, skipping the push backoff.
-                    onRetry = actions.retrySync,
-                    modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp),
-                )
-            }
+        }
+        state.pushWarning?.let { problem ->
+            PushWarningLine(
+                problem = problem,
+                pendingItems = state.outbox.pending,
+                // A manual sync pushes at once, skipping the push backoff.
+                onRetry = actions.retrySync,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp),
+                showAll = simpleMode,
+            )
+        }
+        if (simpleMode) {
+            // Only To buy: no page row, no pager and nothing to swipe to. Its gap above is the list's header item.
+            ListPage(
+                filter = ListFilter.TO_BUY,
+                state = state,
+                simpleMode = true,
+                listState = listStateOf(ListFilter.TO_BUY),
+                searchScroll = searchScroll,
+                query = query,
+                searchOpen = searchOpen,
+                tickedTodayExpanded = tickedTodayExpanded,
+                onTickedTodayExpandedChange = onTickedTodayExpandedChange,
+                now = now,
+                bottomPadding = bottomPadding,
+                actions = actions,
+                onShowAllItems = {},
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
+        } else {
             FilterRow(
                 filter = shownFilter,
                 toBuyCount = state.toBuy.size,
@@ -529,42 +681,84 @@ private fun ListContent(
                     .fillMaxWidth(),
             ) { page ->
                 val filter = filterOfPage(page)
-                val listState = listStateOf(filter)
-                // Shown (tapped, swiped into view, "Show n in All items") with a query it hasn't shown yet: its
-                // results start at the top too. Only visible pages are composed, and a side effect runs before the
-                // list is measured, so the results never show at the old place. The page shown also passes ""
-                // here once the search is closed, so a search typed again later starts over.
-                SideEffect {
-                    if (searchScroll.takeScrollToTop(filter, query)) listState.requestScrollToItem(0)
-                }
-                // The texts too: the no-match line is a finished sentence in the language shown.
-                val content = remember(filter, state.loaded, state.toBuy, state.allItems, query, state.toBuySections, texts) {
-                    pageContent(filter, state.loaded, state.toBuy, state.allItems, query, toBuySections = state.toBuySections)
-                }
-                PullToRefreshBox(
-                    isRefreshing = state.isRefreshing,
-                    onRefresh = actions.refresh,
+                ListPage(
+                    filter = filter,
+                    state = state,
+                    simpleMode = false,
+                    listState = listStateOf(filter),
+                    searchScroll = searchScroll,
+                    query = query,
+                    searchOpen = searchOpen,
+                    tickedTodayExpanded = tickedTodayExpanded,
+                    onTickedTodayExpandedChange = onTickedTodayExpandedChange,
+                    now = now,
+                    bottomPadding = bottomPadding,
+                    actions = actions,
+                    onShowAllItems = { onFilterChange(ListFilter.ALL) },
                     modifier = Modifier.fillMaxSize(),
-                ) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        state = listState,
-                        // The list scrolls behind the navigation bar; its last rows stay above the FAB.
-                        contentPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding() + FabClearance),
-                    ) {
-                        bannerHeader(state, actions)
-                        pageItems(filter, content, state, now, actions, onShowAllItems = { onFilterChange(ListFilter.ALL) })
-                        // Below To buy's rows or its empty state; not while a search is open.
-                        if (filter == ListFilter.TO_BUY && !search.open && content != PageContent.NotLoaded) {
-                            tickedTodaySection(
-                                entries = state.tickedToday,
-                                expanded = tickedTodayExpanded,
-                                onExpandedChange = { tickedTodayExpanded = it },
-                                onPutBack = actions.putBack,
-                            )
-                        }
-                    }
-                }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One page of the list, [filter]'s, in its own [listState] with pull to refresh: the banners, the rows (or the empty
+ * state, or the no-match line) for [query], and on To buy, while no search is open ([searchOpen]), Ticked today.
+ * [bottomPadding] keeps the last rows clear of what floats over the list. [onShowAllItems] is To buy's "Show n in
+ * All items".
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ListPage(
+    filter: ListFilter,
+    state: ListUiState,
+    simpleMode: Boolean,
+    listState: LazyListState,
+    searchScroll: SearchScroll,
+    query: String,
+    searchOpen: Boolean,
+    tickedTodayExpanded: Boolean,
+    onTickedTodayExpandedChange: (Boolean) -> Unit,
+    now: () -> Long,
+    bottomPadding: Dp,
+    actions: ListActions,
+    onShowAllItems: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val texts = Texts.current
+    // Shown (tapped, swiped into view, "Show n in All items") with a query it hasn't shown yet: its
+    // results start at the top too. Only visible pages are composed, and a side effect runs before the
+    // list is measured, so the results never show at the old place. The page shown also passes ""
+    // here once the search is closed, so a search typed again later starts over.
+    SideEffect {
+        if (searchScroll.takeScrollToTop(filter, query)) listState.requestScrollToItem(0)
+    }
+    // The texts too: the no-match line is a finished sentence in the language shown.
+    val content = remember(filter, state.loaded, state.toBuy, state.allItems, query, state.toBuySections, texts) {
+        pageContent(filter, state.loaded, state.toBuy, state.allItems, query, toBuySections = state.toBuySections)
+    }
+    PullToRefreshBox(
+        isRefreshing = state.isRefreshing,
+        onRefresh = actions.refresh,
+        modifier = modifier,
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            contentPadding = PaddingValues(bottom = bottomPadding),
+        ) {
+            bannerHeader(state, actions)
+            pageItems(filter, content, state, now, actions, onShowAllItems, simpleMode)
+            // Below To buy's rows or its empty state; not while a search is open.
+            if (filter == ListFilter.TO_BUY && !searchOpen && content != PageContent.NotLoaded) {
+                tickedTodaySection(
+                    entries = state.tickedToday,
+                    expanded = tickedTodayExpanded,
+                    onExpandedChange = onTickedTodayExpandedChange,
+                    onPutBack = actions.putBack,
+                    simpleMode = simpleMode,
+                )
             }
         }
     }
@@ -695,7 +889,7 @@ private fun LazyListScope.bannerHeader(state: ListUiState, actions: ListActions)
 /**
  * The rows of the page showing [filter], as [content] says ([pageContent]): its items, its empty state, or
  * (search active, nothing matches on this page) the no-match line with one row: [onShowAllItems] for To buy's
- * "Show n in All items", or the Add dialog with the query as the name.
+ * "Show n in All items", or the Add dialog with the query as the name. [simpleMode]: Simple mode's To buy.
  */
 private fun LazyListScope.pageItems(
     filter: ListFilter,
@@ -704,15 +898,16 @@ private fun LazyListScope.pageItems(
     now: () -> Long,
     actions: ListActions,
     onShowAllItems: () -> Unit,
+    simpleMode: Boolean,
 ) {
     when (content) {
         PageContent.NotLoaded -> Unit
-        PageContent.Empty -> emptyPage(filter, state, actions)
+        PageContent.Empty -> emptyPage(filter, state, actions, simpleMode)
         is PageContent.Rows -> when (filter) {
-            ListFilter.TO_BUY -> toBuyRows(content.items, state, now, actions)
+            ListFilter.TO_BUY -> toBuyRows(content.items, state, now, actions, simpleMode)
             ListFilter.ALL -> allItemsRows(content.items, state, now, actions)
         }
-        is PageContent.Sections -> toBuySectionRows(content.groups, state, now, actions)
+        is PageContent.Sections -> toBuySectionRows(content.groups, state, now, actions, simpleMode)
         is PageContent.NoMatch -> noSearchMatches(content, actions, onShowAllItems)
     }
 }
@@ -721,12 +916,14 @@ private fun LazyListScope.pageItems(
  * A page's empty state. While the whole list is empty, with a button to "Add common items" once the family's list
  * has come from the sheet ([ListUiState.hasSheetList]). Before setup the setup banner shows the way; after it, until
  * the first sync, the page says the list hasn't loaded yet (the status line or a banner says why it takes long).
+ * In [simpleMode] To buy's hints point to its Add item button (there is no All items, nor a small +), and it has no
+ * "Add common items", as its menu hasn't.
  */
-private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, actions: ListActions) {
+private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, actions: ListActions, simpleMode: Boolean) {
     val listEmpty = state.allItems.isEmpty()
     val notLoaded = listEmpty && state.isConfigured && !state.hasSheetList
     // "Add common items" once the family's list is there.
-    val offerStarterList = listEmpty && state.hasSheetList
+    val offerStarterList = listEmpty && state.hasSheetList && !simpleMode
     when (filter) {
         ListFilter.TO_BUY -> item(key = "empty:to-buy", contentType = "empty") {
             val t = Texts.current.list
@@ -734,7 +931,9 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, acti
                 title = if (notLoaded) t.listNotLoadedTitle else t.emptyToBuyTitle,
                 hint = when {
                     notLoaded -> t.listNotLoadedHint
+                    listEmpty && simpleMode -> t.emptyToBuyHintNewListSimple
                     listEmpty -> t.emptyToBuyHintNewList
+                    simpleMode -> t.emptyToBuyHintAllTickedSimple
                     else -> t.emptyToBuyHintAllTicked
                 },
                 modifier = Modifier.animateItem(),
@@ -755,17 +954,37 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, acti
     }
 }
 
-/** To buy's rows: every needed item, or (search active) the needed items that match, A to Z; or a section's. */
-private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState, now: () -> Long, actions: ListActions) {
-    items(items, key = ::itemKey, contentType = { "to-buy" }) { item ->
-        ToBuyRow(
-            item = item,
-            myDeviceName = state.myDeviceName,
-            now = now,
-            onGotIt = { actions.gotIt(item.key) },
-            onClick = { actions.edit(item.key) },
-            modifier = Modifier.animateItem(),
-        )
+/**
+ * To buy's rows: every needed item, or (search active) the needed items that match, A to Z; or a section's. In
+ * [simpleMode] each has a big "Got it" button ([SimpleToBuyRow]) instead of the checkbox.
+ */
+private fun LazyListScope.toBuyRows(
+    items: List<GroceryItem>,
+    state: ListUiState,
+    now: () -> Long,
+    actions: ListActions,
+    simpleMode: Boolean,
+) {
+    items(items, key = ::itemKey, contentType = { if (simpleMode) "to-buy-simple" else "to-buy" }) { item ->
+        if (simpleMode) {
+            SimpleToBuyRow(
+                item = item,
+                myDeviceName = state.myDeviceName,
+                now = now,
+                onGotIt = { actions.gotIt(item.key) },
+                onClick = { actions.edit(item.key) },
+                modifier = Modifier.animateItem(),
+            )
+        } else {
+            ToBuyRow(
+                item = item,
+                myDeviceName = state.myDeviceName,
+                now = now,
+                onGotIt = { actions.gotIt(item.key) },
+                onClick = { actions.edit(item.key) },
+                modifier = Modifier.animateItem(),
+            )
+        }
     }
 }
 
@@ -773,12 +992,18 @@ private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState
  * To buy by shop section: per section a sticky header (its name and count; a heading for TalkBack), then its rows
  * as [toBuyRows] draws them. Header keys can't collide with item keys ("item:..."), and each item is in one section.
  */
-private fun LazyListScope.toBuySectionRows(groups: List<ShopSectionGroup>, state: ListUiState, now: () -> Long, actions: ListActions) {
+private fun LazyListScope.toBuySectionRows(
+    groups: List<ShopSectionGroup>,
+    state: ListUiState,
+    now: () -> Long,
+    actions: ListActions,
+    simpleMode: Boolean,
+) {
     for (group in groups) {
         stickyHeader(key = "section:" + group.section.id, contentType = "section") {
             ShopSectionHeader(section = group.section, count = group.items.size, modifier = Modifier.animateItem())
         }
-        toBuyRows(group.items, state, now, actions)
+        toBuyRows(group.items, state, now, actions, simpleMode)
     }
 }
 
@@ -800,26 +1025,29 @@ private fun LazyListScope.allItemsRows(items: List<GroceryItem>, state: ListUiSt
 /**
  * "Ticked today" ([ListUiState.tickedToday]): a header that sticks like a section's ("Ticked today (3)", a heading
  * for TalkBack) and, while [expanded], one row per item with its Put back button. Nothing when no item is ticked.
- * Keys can't collide with the rows' ("item:...") or the sections' ("section:...").
+ * Keys can't collide with the rows' ("item:...") or the sections' ("section:..."). In [simpleMode] the header and
+ * the rows are as tall as Simple mode's other rows.
  */
 private fun LazyListScope.tickedTodaySection(
     entries: List<TickedEntry>,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onPutBack: (TickedEntry) -> Unit,
+    simpleMode: Boolean,
 ) {
     if (entries.isEmpty()) return
+    val height = if (simpleMode) Modifier.heightIn(min = SimpleRowMinHeight) else Modifier
     stickyHeader(key = "ticked:header", contentType = "ticked-header") {
         TickedTodayHeader(
             count = entries.size,
             expanded = expanded,
             onClick = { onExpandedChange(!expanded) },
-            modifier = Modifier.animateItem(),
+            modifier = Modifier.animateItem().then(height),
         )
     }
     if (expanded) {
         items(entries, key = { "ticked:" + it.key }, contentType = { "ticked" }) { entry ->
-            TickedTodayRow(entry = entry, onPutBack = { onPutBack(entry) }, modifier = Modifier.animateItem())
+            TickedTodayRow(entry = entry, onPutBack = { onPutBack(entry) }, modifier = Modifier.animateItem().then(height))
         }
     }
 }
@@ -852,12 +1080,13 @@ private fun LazyListScope.noSearchMatches(content: PageContent.NoMatch, actions:
  * Shows view-model events as snackbars while the screen is visible; a new one replaces the current one.
  * [addedText] says where an item just added shows up when the page shown hides it (null: no snackbar).
  * [onSnackbarClosed] hears when the snackbar of a change has gone, whatever the reason (- / + of the same item join
- * its change only while it is shown).
+ * its change only while it is shown). In [simpleMode] they stay longer, Undo until it is tapped ([SnackbarLook]).
  */
 @Composable
 private fun ListEventsEffect(
     events: Flow<ListEvent>,
     snackbarHostState: SnackbarHostState,
+    simpleMode: Boolean,
     onUndoChange: (ListEvent.ValueChange) -> Unit,
     onUndoEdit: (ListEvent.Edited) -> Unit,
     onSnackbarClosed: (ListEvent) -> Unit,
@@ -866,6 +1095,7 @@ private fun ListEventsEffect(
     addedText: (name: String, value: ItemValue) -> String?,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    val currentSimpleMode by rememberUpdatedState(simpleMode)
     val currentOnUndoChange by rememberUpdatedState(onUndoChange)
     val currentOnUndoEdit by rememberUpdatedState(onUndoEdit)
     val currentOnSnackbarClosed by rememberUpdatedState(onSnackbarClosed)
@@ -875,31 +1105,33 @@ private fun ListEventsEffect(
     LaunchedEffect(events, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             events.collect { event ->
-                // The texts as they are when the event is shown.
+                // The texts as they are when the event is shown, and so is Simple mode.
                 val t = Texts.current
+                val simple = currentSimpleMode
                 when (event) {
                     is ListEvent.ValueChange -> showReplacingSnackbar(
                         snackbarHostState,
                         event.snackbarText(),
                         t.common.undo,
+                        simple,
                         onClosed = { currentOnSnackbarClosed(event) },
                     ) {
                         currentOnUndoChange(event)
                     }
-                    is ListEvent.Edited -> showReplacingSnackbar(snackbarHostState, event.snackbarText(), t.common.undo) {
+                    is ListEvent.Edited -> showReplacingSnackbar(snackbarHostState, event.snackbarText(), t.common.undo, simple) {
                         currentOnUndoEdit(event)
                     }
                     is ListEvent.Deleted ->
-                        showReplacingSnackbar(snackbarHostState, t.list.deletedSnackbar(event.name), t.common.undo) {
+                        showReplacingSnackbar(snackbarHostState, t.list.deletedSnackbar(event.name), t.common.undo, simple) {
                             currentOnUndoDelete(event.name, event.previous)
                         }
-                    is ListEvent.Message -> showReplacingSnackbar(snackbarHostState, event.text)
+                    is ListEvent.Message -> showReplacingSnackbar(snackbarHostState, event.text, simpleMode = simple)
                     is ListEvent.CommonItemsAdded ->
-                        showReplacingSnackbar(snackbarHostState, StarterList.addedText(event.items.size), t.common.undo) {
+                        showReplacingSnackbar(snackbarHostState, StarterList.addedText(event.items.size), t.common.undo, simple) {
                             currentOnUndoCommonItems(event.items)
                         }
                     is ListEvent.Added -> currentAddedText(event.name, event.value)?.let {
-                        showReplacingSnackbar(snackbarHostState, it)
+                        showReplacingSnackbar(snackbarHostState, it, simpleMode = simple)
                     }
                 }
             }
@@ -909,22 +1141,26 @@ private fun ListEventsEffect(
 
 /**
  * Dismisses the visible snackbar (so quick ticks don't queue up) and shows [message] without blocking the caller.
- * [onAction] runs when its action is tapped; [onClosed] once it has gone for any reason (also when the screen stops).
+ * [onAction] runs when its action (Undo) is tapped; [onClosed] once it has gone for any reason (also when the screen
+ * stops). How long it stays, and whether it has an X, depends on [simpleMode] ([SnackbarLook]).
  */
 private fun CoroutineScope.showReplacingSnackbar(
     hostState: SnackbarHostState,
     message: String,
     actionLabel: String? = null,
+    simpleMode: Boolean = false,
     onClosed: () -> Unit = {},
     onAction: () -> Unit = {},
 ) {
     hostState.currentSnackbarData?.dismiss()
+    val look = SnackbarLook.of(simpleMode, hasUndo = actionLabel != null)
     launch {
         try {
             val result = hostState.showSnackbar(
                 message = message,
                 actionLabel = actionLabel,
-                duration = SnackbarDuration.Short,
+                withDismissAction = look.withDismissAction,
+                duration = look.duration,
             )
             if (result == SnackbarResult.ActionPerformed) onAction()
         } finally {
@@ -981,7 +1217,7 @@ private fun previewState(items: List<GroceryItem>) = ListUiState(
 private val PreviewActions = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, { _, _ -> }, {}, {}, {}, {})
 
 @Composable
-private fun ListContentPreviewOf(filter: ListFilter, search: SearchState) {
+private fun ListContentPreviewOf(filter: ListFilter, search: SearchState, simpleMode: Boolean = false) {
     GrocerySyncTheme(dynamicColor = false) {
         ListContent(
             state = previewState(PreviewItems),
@@ -992,6 +1228,7 @@ private fun ListContentPreviewOf(filter: ListFilter, search: SearchState) {
             onCloseSearch = {},
             snackbarHostState = remember { SnackbarHostState() },
             actions = PreviewActions,
+            simpleMode = simpleMode,
         )
     }
 }
@@ -1032,4 +1269,11 @@ private fun ToBuySearchInAllItemsPreview() {
 @Composable
 private fun ToBuySectionsPreview() {
     ListContentPreviewOf(ListFilter.TO_BUY, SearchState())
+}
+
+/** Simple mode on a 360dp phone at 200% text: To buy only, big Got it buttons, Ticked today open. */
+@Preview(showBackground = true, widthDp = 360, heightDp = 800, fontScale = 2f)
+@Composable
+private fun SimpleModePreview() {
+    ListContentPreviewOf(ListFilter.TO_BUY, SearchState(), simpleMode = true)
 }

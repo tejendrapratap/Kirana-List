@@ -234,6 +234,21 @@ interface ListTexts {
     /** That button for TalkBack: "Put back Rice". */
     fun putBackDescription(name: String): String
 
+    // ---- Simple mode ------------------------------------------------------------------------------------
+    // Only To buy, with big buttons: there is no All items page, no search and no small + button to point at.
+
+    /** The big button of a To buy row that ticks the item off (TalkBack reads [gotItDescription] instead). */
+    val gotIt: String
+
+    /** To buy's hint while the whole list is empty ([emptyToBuyHintNewList] in Simple mode). */
+    val emptyToBuyHintNewListSimple: String
+
+    /** To buy's hint when every item has been ticked off ([emptyToBuyHintAllTicked] in Simple mode). */
+    val emptyToBuyHintAllTickedSimple: String
+
+    /** The snackbar after adding [name], not needed ([addedNotNeeded] in Simple mode, which has no All items). */
+    fun addedNotNeededSimple(name: String): String
+
     // ---- Share ------------------------------------------------------------------------------------------
 
     /** Share tapped while nothing is needed. */
@@ -374,6 +389,12 @@ object EnglishListTexts : ListTexts {
     override val putBack = "Put back"
     override fun putBackDescription(name: String) = "Put back $name"
 
+    override val gotIt = "Got it"
+    override val emptyToBuyHintNewListSimple = "Tap ${EnglishCommonTexts.addItem} to add what you need."
+    override val emptyToBuyHintAllTickedSimple =
+        "Everything is ticked off. Tap ${EnglishCommonTexts.addItem} when you need something."
+    override fun addedNotNeededSimple(name: String) = "Added $name - it isn't needed now, so it isn't on ${EnglishCommonTexts.toBuy}"
+
     override val nothingToShare = "Nothing to buy right now"
     override val noShareApp = "No app on this phone can share the list"
 
@@ -499,6 +520,18 @@ object HindiListTexts : ListTexts {
     override val hideTickedItems = "सामान छिपाएँ"
     override val putBack = "वापस लाएँ"
     override fun putBackDescription(name: String) = "$name वापस लाएँ"
+
+    override val gotIt = "ले लिया"
+
+    // "जो चाहिए, उसे "सामान जोड़ें" दबाकर जोड़ें": add what you need by tapping "Add item".
+    override val emptyToBuyHintNewListSimple = "जो चाहिए, उसे \"${HindiCommonTexts.addItem}\" दबाकर जोड़ें।"
+
+    // "कुछ और चाहिए तो ... दबाएँ": if you need something more, tap ...
+    override val emptyToBuyHintAllTickedSimple = "सब ले लिया गया है। कुछ और चाहिए तो \"${HindiCommonTexts.addItem}\" दबाएँ।"
+
+    // "Dahi जोड़ा - यह अभी नहीं चाहिए, इसलिए ..." : added Dahi - it isn't needed now, so it isn't in To buy.
+    override fun addedNotNeededSimple(name: String) =
+        "$name जोड़ा - यह अभी नहीं चाहिए, इसलिए \"${HindiCommonTexts.toBuy}\" में नहीं है"
 
     override val nothingToShare = "अभी कुछ ख़रीदना नहीं है"
     override val noShareApp = "इस फ़ोन पर लिस्ट शेयर करने के लिए कोई ऐप नहीं है"

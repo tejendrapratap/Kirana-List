@@ -306,4 +306,14 @@ class ItemSearchTest {
             addedSnackbarText("Milk", needed = false, page = ListFilter.TO_BUY, query = "rice"),
         )
     }
+
+    @Test
+    fun inSimpleModeTheSnackbarAfterAddingDoesNotPointToAllItems() {
+        // Simple mode has only To buy: an item that isn't needed doesn't show, and there is no All items to point to.
+        assertEquals(
+            "Added Rice - it isn't needed now, so it isn't on To buy",
+            addedSnackbarText("Rice", needed = false, page = ListFilter.TO_BUY, query = "", simpleMode = true),
+        )
+        assertNull(addedSnackbarText("Rice", needed = true, page = ListFilter.TO_BUY, query = "", simpleMode = true))
+    }
 }

@@ -164,9 +164,17 @@ internal object ItemSearch {
 /**
  * The snackbar after the Add dialog added [name], or null for none. [page] is the page shown and [query]
  * the search ("" when search is closed). On To buy, an item that is not needed doesn't show up, so the
- * snackbar says where it is; on either page, neither does one the search hides.
+ * snackbar says where it is; on either page, neither does one the search hides. In [simpleMode] there is only
+ * To buy and no All items to point to, so it says why the item isn't shown instead.
  */
-internal fun addedSnackbarText(name: String, needed: Boolean, page: ListFilter, query: String): String? = when {
+internal fun addedSnackbarText(
+    name: String,
+    needed: Boolean,
+    page: ListFilter,
+    query: String,
+    simpleMode: Boolean = false,
+): String? = when {
+    page == ListFilter.TO_BUY && !needed && simpleMode -> Texts.current.list.addedNotNeededSimple(name)
     page == ListFilter.TO_BUY && !needed -> Texts.current.list.addedNotNeeded(name)
     !ItemSearch.matches(name, query) -> Texts.current.list.addedHiddenBySearch(name)
     else -> null

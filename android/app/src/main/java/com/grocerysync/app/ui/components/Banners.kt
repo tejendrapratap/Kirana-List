@@ -143,7 +143,8 @@ internal fun syncErrorText(message: String?): String {
 /**
  * The list is live (reading works) but sending changes keeps failing: says why and what happens to the
  * waiting changes; Retry sends them now. Shown under the status line, outside the scrolling list, so it
- * is in view however far the list is scrolled; accessibility services announce it when it appears.
+ * is in view however far the list is scrolled; accessibility services announce it when it appears. At most
+ * six lines, shortened if need be, or with [showAll] (Simple mode, whose text is bigger) as many as it takes.
  */
 @Composable
 fun PushWarningLine(
@@ -151,6 +152,7 @@ fun PushWarningLine(
     pendingItems: Int,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    showAll: Boolean = false,
 ) {
     val t = Texts.current
     val text = pushWarningText(problem, pendingItems)
@@ -174,7 +176,7 @@ fun PushWarningLine(
                     append(text.removePrefix(PUSH_WARNING_TITLE))
                 },
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 6,
+                maxLines = if (showAll) Int.MAX_VALUE else 6,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)

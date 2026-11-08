@@ -1,11 +1,17 @@
 package com.grocerysync.app.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,8 +21,11 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -38,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.IntrinsicMeasurable
@@ -48,6 +58,7 @@ import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -77,8 +88,12 @@ import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.displayText
 import com.grocerysync.app.text.Texts
+import com.grocerysync.app.ui.SIMPLE_TEXT_SCALE
+import com.grocerysync.app.ui.SimpleRowMinHeight
+import com.grocerysync.app.ui.scaledBy
 import com.grocerysync.app.ui.stepDescription
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
+import com.grocerysync.app.ui.theme.leafTonalButtonColors
 import kotlinx.coroutines.delay
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -120,9 +135,16 @@ private val SyncIconSize = 16.dp
 private fun rowColors(highlighted: Boolean, needed: Boolean): ListItemColors {
     val colors = MaterialTheme.colorScheme
     return ListItemDefaults.colors(
-        containerColor = if (highlighted) colors.primaryContainer.copy(alpha = 0.45f) else colors.surface,
+        containerColor = rowContainerColor(highlighted),
         headlineColor = if (needed) colors.onSurface else colors.onSurfaceVariant,
     )
+}
+
+/** A row's background: a pale leaf green while it shows a recent change by someone else. */
+@Composable
+private fun rowContainerColor(highlighted: Boolean): Color {
+    val colors = MaterialTheme.colorScheme
+    return if (highlighted) colors.primaryContainer.copy(alpha = 0.45f) else colors.surface
 }
 
 /**
@@ -181,6 +203,98 @@ fun ToBuyRow(
             is ItemValue.BoolValue -> null
         },
     )
+}
+
+/**
+ * Row of To buy in Simple mode ([SimpleRowMinHeight] or taller): the name with its amount badge after it (under it
+ * when the name needs the whole line), and a big labelled "Got it" button instead of [ToBuyRow]'s small checkbox.
+ * Tapping the row still opens the Edit dialog. With very large text the name, the amount and the button's label wrap
+ * and the row grows, and the button takes at most [GOT_IT_MAX_WIDTH_FRACTION] of the row, so the name always keeps
+ * room. TalkBack reads the row as [ToBuyRow] (name, amount, "double-tap to Edit item") and the button with the name,
+ * like the checkbox ("Got it: Rice").
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SimpleToBuyRow(
+    item: GroceryItem,
+    myDeviceName: String,
+    now: () -> Long,
+    onGotIt: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val t = Texts.current
+    val highlighted = item.isRecentChangeByOthers(myDeviceName, now())
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(rowContainerColor(highlighted))
+            .clickable(onClickLabel = t.list.editItem, onClick = onClick)
+            .heightIn(min = SimpleRowMinHeight)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(item.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                (item.value as? ItemValue.Quantity)?.let { QuantityBadge(it, maxLines = Int.MAX_VALUE) }
+            }
+            if (highlighted) UpdatedByText(item.updatedBy, maxLines = Int.MAX_VALUE)
+        }
+        Spacer(Modifier.width(12.dp))
+        GotItButton(
+            itemName = item.name,
+            onClick = onGotIt,
+            modifier = Modifier.atMostFractionOfWidth(GOT_IT_MAX_WIDTH_FRACTION),
+        )
+    }
+}
+
+/** The most of a [SimpleToBuyRow] its "Got it" button takes: enough for its label at 200% text in Hindi too. */
+private const val GOT_IT_MAX_WIDTH_FRACTION = 0.6f
+
+/**
+ * Simple mode's "Got it": a big leaf-green tonal button (green is the app's colour for ticks) with a tick and the
+ * label, which TalkBack reads with the item's name ([com.grocerysync.app.text.ListTexts.gotItDescription]). The
+ * label wraps when the button may not be as wide as it would like, and the button grows.
+ */
+@Composable
+private fun GotItButton(itemName: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val t = Texts.current
+    FilledTonalButton(
+        onClick = onClick,
+        colors = leafTonalButtonColors(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        modifier = modifier
+            .heightIn(min = GotItMinHeight)
+            .semantics { contentDescription = t.list.gotItDescription(itemName) },
+    ) {
+        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        Text(t.list.gotIt, textAlign = TextAlign.Center)
+    }
+}
+
+/** The least height of Simple mode's "Got it" button, taller than Material's 40dp. */
+private val GotItMinHeight = 56.dp
+
+/**
+ * Takes at most [fraction] of the width it is offered. In a Row, a child without a weight is measured before the
+ * weighted ones and offered the row's width (less the fixed children in front of it), so this keeps it to about
+ * that share of the row and leaves the rest to the weighted child.
+ */
+private fun Modifier.atMostFractionOfWidth(fraction: Float): Modifier = layout { measurable, constraints ->
+    val limited = if (constraints.hasBoundedWidth) {
+        constraints.copy(maxWidth = (constraints.maxWidth * fraction).roundToInt().coerceAtLeast(constraints.minWidth))
+    } else {
+        constraints
+    }
+    val placeable = measurable.measure(limited)
+    layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
 }
 
 /**
@@ -385,19 +499,24 @@ private fun TextLayoutResult.breaksInsideWord(): Boolean {
     }
 }
 
+/** "Updated by Home" on To buy: on one line, shortened if need be, unless [maxLines] allows more (Simple mode). */
 @Composable
-private fun UpdatedByText(updatedBy: String) {
+private fun UpdatedByText(updatedBy: String, maxLines: Int = 1) {
     Text(
         text = Texts.current.common.updatedBy(updatedBy.trim()),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
-        maxLines = 1,
+        maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
     )
 }
 
+/**
+ * To buy's turmeric chip with the amount and unit, at most [MaxBadgeWidth] wide: its text wraps onto a second line
+ * if need be, and onto as many as [maxLines] allows (Simple mode, whose large text must never be cut off).
+ */
 @Composable
-private fun QuantityBadge(quantity: ItemValue.Quantity) {
+private fun QuantityBadge(quantity: ItemValue.Quantity, maxLines: Int = 2) {
     val text = quantity.displayText()
     Surface(
         shape = RoundedCornerShape(percent = 50),
@@ -413,7 +532,7 @@ private fun QuantityBadge(quantity: ItemValue.Quantity) {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
-            maxLines = 2,
+            maxLines = maxLines,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
         )
     }
@@ -598,4 +717,39 @@ private fun ItemRowsPreview() {
 @Composable
 private fun ItemRowsNarrowLargeTextPreview() {
     GrocerySyncTheme(dynamicColor = false) { PreviewRows() }
+}
+
+/** Simple mode's To buy rows, with its bigger text, on a 360dp phone at 200% text: names and labels wrap. */
+@Preview(showBackground = true, widthDp = 360, fontScale = 2f)
+@Composable
+private fun SimpleToBuyRowsPreview() {
+    val now = System.currentTimeMillis()
+    GrocerySyncTheme(dynamicColor = false) {
+        MaterialTheme(typography = MaterialTheme.typography.scaledBy(SIMPLE_TEXT_SCALE)) {
+            Column {
+                SimpleToBuyRow(
+                    item = previewItem("Milk", ItemValue.Quantity(Amount(1_500L), Units.L), "Shop", 600_000L),
+                    myDeviceName = "Shop",
+                    now = { now },
+                    onGotIt = {},
+                    onClick = {},
+                )
+                SimpleToBuyRow(
+                    item = previewItem("Coriander", ItemValue.Quantity.of(2L, "bunches"), "Shop", 600_000L),
+                    myDeviceName = "Shop",
+                    now = { now },
+                    onGotIt = {},
+                    onClick = {},
+                )
+                // Just added at home: highlighted, with who did it.
+                SimpleToBuyRow(
+                    item = previewItem("Basmati rice extra long grain", ItemValue.BoolValue(true), "Home", 30_000L),
+                    myDeviceName = "Shop",
+                    now = { now },
+                    onGotIt = {},
+                    onClick = {},
+                )
+            }
+        }
+    }
 }

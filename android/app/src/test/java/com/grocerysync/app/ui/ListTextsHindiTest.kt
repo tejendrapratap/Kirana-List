@@ -243,4 +243,16 @@ class ListTextsHindiTest {
         assertEquals("वापस लाएँ", t.putBack)
         assertEquals("Rice वापस लाएँ", t.putBackDescription("Rice"))
     }
+
+    @Test
+    fun simpleModeUsesTheGlossarysWordsAndKeepsTheName() {
+        val t = HindiListTexts
+        assertEquals("ले लिया", t.gotIt)
+        assertEquals("जो चाहिए, उसे \"सामान जोड़ें\" दबाकर जोड़ें।", t.emptyToBuyHintNewListSimple)
+        assertEquals("सब ले लिया गया है। कुछ और चाहिए तो \"सामान जोड़ें\" दबाएँ।", t.emptyToBuyHintAllTickedSimple)
+        assertEquals(
+            "Dahi जोड़ा - यह अभी नहीं चाहिए, इसलिए \"ख़रीदना है\" में नहीं है",
+            addedSnackbarText("Dahi", needed = false, page = ListFilter.TO_BUY, query = "", simpleMode = true),
+        )
+    }
 }
