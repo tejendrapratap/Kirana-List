@@ -13,9 +13,9 @@ data class ToBuyChange(val item: GroceryItem, val isNew: Boolean)
 /**
  * What changed on To buy while the app was closed, worked out from two lists alone (no Android), so the background
  * check ([ChangeWatcher]) and its unit tests use the same rules:
- * - [seen] is To buy as the person last saw it: each needed item's key and value. Taken when the app goes to the
- *   background and after each check, and stored as it is ([SeenListStore]).
- * - [newOnToBuy] compares the list now with it.
+ * - [seen] is To buy as the person last saw it: each needed item's key and value. Taken while the app is open and
+ *   when it leaves, and by a check that finds nothing to tell; stored as it is ([SeenListStore]).
+ * - [newOnToBuy] compares the list now with it; [told] is what a notification of those changes tells.
  */
 object ListChangeWatch {
 
@@ -42,6 +42,13 @@ object ListChangeWatch {
                 else -> ToBuyChange(item, isNew = false)
             }
         }
+
+    /**
+     * What a notification of [changes] tells, in [seen]'s form (each item's key with its value): a later check that
+     * finds the same changes has nothing more to tell, and one that finds an item or an amount not in it has.
+     */
+    fun told(changes: List<ToBuyChange>): Map<String, String> =
+        changes.associate { it.item.key to encode(it.item.value) }
 
     /**
      * True when someone else changed [item] last: compared with this phone's name [me] the way the list's

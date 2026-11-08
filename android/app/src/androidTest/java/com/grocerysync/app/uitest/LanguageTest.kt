@@ -1,5 +1,6 @@
 package com.grocerysync.app.uitest
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotSelected
@@ -12,12 +13,19 @@ import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.core.app.NotificationManagerCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.grocerysync.app.notify.ChangeNotifier
 import com.grocerysync.app.testing.AppState
 import com.grocerysync.app.testing.GroceryUiTest
 import com.grocerysync.app.testing.hasInputText
 import com.grocerysync.app.testing.textField
 import com.grocerysync.app.text.AppLanguage
+import com.grocerysync.app.text.EnglishNotifyTexts
+import com.grocerysync.app.text.HindiItemTexts
+import com.grocerysync.app.text.HindiNotifyTexts
+import com.grocerysync.app.text.HindiSettingsTexts
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -69,4 +77,38 @@ class LanguageTest : GroceryUiTest() {
         waitForNode(phoneRow and isSelected())
         assertEquals(AppLanguage.PHONE, AppState.container.phoneSettings.current().language)
     }
+
+    @Test
+    fun theNotificationsChannelIsNamedInTheLanguageChosen() {
+        launchApp()
+        openSettings()
+        node(hindi).performScrollTo().performClick()
+        waitForNode(isHeading() and hasText("यह फ़ोन"))
+        // Android's settings for the app's notifications show this name.
+        assertEquals(HindiNotifyTexts.channelName, channelName())
+
+        node(english).performScrollTo().performClick()
+        waitForNode(isHeading() and hasText("This phone"))
+        assertEquals(EnglishNotifyTexts.channelName, channelName())
+    }
+
+    @Test
+    fun theUrlFieldsErrorIsSaidInTheLanguageChosen() {
+        launchApp()
+        openSettings()
+        node(hindi).performScrollTo().performClick()
+        waitForNode(isHeading() and hasText("यह फ़ोन"))
+        node(textField(HindiSettingsTexts.webAppUrl)).performScrollTo().performTextInput("abc")
+        // TalkBack reads the field's own message, not Material's "Invalid input" in the phone's language.
+        waitForNode(
+            textField(HindiSettingsTexts.webAppUrl) and
+                SemanticsMatcher.expectValue(SemanticsProperties.Error, HindiItemTexts.urlUnparseable),
+        )
+    }
+
+    private fun channelName(): String? =
+        NotificationManagerCompat.from(InstrumentationRegistry.getInstrumentation().targetContext)
+            .getNotificationChannelCompat(ChangeNotifier.CHANNEL_ID)
+            ?.name
+            ?.toString()
 }

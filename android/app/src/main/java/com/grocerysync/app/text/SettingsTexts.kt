@@ -50,6 +50,21 @@ interface SettingsTexts {
     /** The button under [notificationsBlocked]: opens the app's notification settings in Android. */
     val allowNotifications: String
 
+    /**
+     * Under [notifyChanges] while it is on and Android 13+ was never asked to let the app notify (nothing refused
+     * yet), with the [turnOnNotifications] button.
+     */
+    val notificationsNotOnYet: String
+
+    /** The button under [notificationsNotOnYet]: asks Android (its permission dialog). */
+    val turnOnNotifications: String
+
+    /**
+     * Under [notifyChanges] while it is on and no name is saved for this phone: a phone without one tells the sheet
+     * its model's name, so two phones of the same model take each other's changes for their own and never notify.
+     */
+    val nameForNotifications: String
+
     /** The section of the connection to the sheet. */
     val googleSheet: String
 
@@ -153,6 +168,9 @@ object EnglishSettingsTexts : SettingsTexts {
     override val notifyChangesHelp = "Checks about every 15 minutes while the app is closed"
     override val notificationsBlocked = "Notifications are blocked for this app."
     override val allowNotifications = "Allow in Android settings"
+    override val notificationsNotOnYet = "Notifications aren't on yet for this app."
+    override val turnOnNotifications = "Turn on notifications"
+    override val nameForNotifications = "Type $yourName above (like Mummy), so the phones can tell whose change it is."
     override val googleSheet = "Google Sheet"
     override val pasteSetupCode = "Paste setup code"
     override val pasteSetupHelp = "Have a setup message? Copy it, then tap $pasteSetupCode."
@@ -205,6 +223,10 @@ object HindiSettingsTexts : SettingsTexts {
     override val notifyChangesHelp = "ऐप बंद होने पर लगभग हर 15 मिनट में लिस्ट जाँचता है"
     override val notificationsBlocked = "इस ऐप की सूचनाएँ बंद हैं।"
     override val allowNotifications = "Android सेटिंग्स में चालू करें"
+    override val notificationsNotOnYet = "इस ऐप की सूचनाएँ अभी चालू नहीं हैं।"
+    override val turnOnNotifications = "सूचनाएँ चालू करें"
+    override val nameForNotifications =
+        "ऊपर ${quoted(yourName)} भरें (जैसे Mummy), ताकि फ़ोन पहचान सकें कि बदलाव किसका है।"
     override val googleSheet = "Google शीट"
     override val pasteSetupCode = "सेटअप कोड पेस्ट करें"
     override val pasteSetupHelp = "सेटअप मैसेज है? उसे कॉपी करें, फिर ${quoted(pasteSetupCode)} दबाएँ।"

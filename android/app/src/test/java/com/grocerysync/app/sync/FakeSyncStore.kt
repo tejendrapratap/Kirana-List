@@ -18,6 +18,9 @@ class FakeSyncStore : SyncStore {
     var lastSuccess: Long? = null
     var spreadsheet: String? = null
 
+    /** The web app URL that answered last ([SyncInfo.sheetUrl]). */
+    var sheetUrl: String? = null
+
     /**
      * Protocol version of the script that answered last. Most tests talk to an up-to-date script (3), as if
      * an earlier sync had already seen it; null = no answer yet (the first sync after the update).
@@ -42,7 +45,7 @@ class FakeSyncStore : SyncStore {
     override fun revision(): String? = rev
 
     @Synchronized
-    override fun syncInfo() = SyncInfo(lastSuccess, spreadsheet, serverVersion)
+    override fun syncInfo() = SyncInfo(lastSuccess, spreadsheet, serverVersion, sheetUrl)
 
     @Synchronized
     override fun commitPush(
@@ -51,6 +54,7 @@ class FakeSyncStore : SyncStore {
         snapshot: ServerSnapshot,
         syncedAt: Long,
         serverVersion: Int,
+        sheetUrl: String,
     ) {
         outbox.removeAll { it.id in deleteIds }
         outbox.replaceAll { op ->
@@ -60,13 +64,15 @@ class FakeSyncStore : SyncStore {
         replace(snapshot)
         lastSuccess = syncedAt
         recordVersion(serverVersion)
+        this.sheetUrl = sheetUrl
     }
 
     @Synchronized
-    override fun commitPull(snapshot: ServerSnapshot?, syncedAt: Long, serverVersion: Int) {
+    override fun commitPull(snapshot: ServerSnapshot?, syncedAt: Long, serverVersion: Int, sheetUrl: String) {
         snapshot?.let(::replace)
         lastSuccess = syncedAt
         recordVersion(serverVersion)
+        this.sheetUrl = sheetUrl
     }
 
     private fun recordVersion(version: Int) {

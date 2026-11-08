@@ -112,6 +112,13 @@ class SettingsViewModel(
     /** The saved Web app URL: the only URL the saved token is sent to. */
     private var savedUrl by mutableStateOf(settingsStore.current().webAppUrl)
 
+    /**
+     * No name is saved for this phone (the sheet gets its model's name instead): the notifications switch asks for
+     * one. The saved name, not the field: a name typed but not saved doesn't count yet.
+     */
+    var noNameSaved by mutableStateOf(settingsStore.current().deviceName.isBlank())
+        private set
+
     /** The setup code's token while the URL field still holds the code's URL. */
     private val usableSetupCodeToken: String?
         get() = setupCodeToken?.takeIf { TokenEntry.sameUrl(setupCodeUrl, webAppUrl) }
@@ -158,6 +165,7 @@ class SettingsViewModel(
             settingsStore.settings.collect {
                 hasSavedToken = it.token.isNotBlank()
                 savedUrl = it.webAppUrl
+                noNameSaved = it.deviceName.isBlank()
             }
         }
     }
