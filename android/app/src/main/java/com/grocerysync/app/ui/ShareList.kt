@@ -84,10 +84,10 @@ internal fun shareToBuy(
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, buildShareText(toBuy, sectionOf))
     }
-    // No chooser title: Android uses its own ("Share"), and newer versions show none for text.
-    val chooser = Intent.createChooser(send, null).apply {
-        putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(context, MainActivity::class.java)))
-    }
+    // No chooser title: Android uses its own ("Share"), and newer versions show none for text. (createChooser is
+    // only ever null in the JVM unit tests, whose android.jar stubs return defaults.)
+    val chooser: Intent? = Intent.createChooser(send, null)
+    chooser?.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(context, MainActivity::class.java)))
     try {
         context.startActivity(chooser)
     } catch (e: ActivityNotFoundException) {
