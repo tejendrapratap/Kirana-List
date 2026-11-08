@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1026" width="1000" height="1026">
+  <title>Kirana List colour palette: main Material 3 roles in the light and dark themes</title>
+  <style>
+    text { font-family: Roboto, "Segoe UI", Arial, sans-serif; }
+    .h { font-size: 22px; font-weight: 700; }
+    .n { font-size: 12px; }
+    .r { font-size: 15px; font-weight: 600; }
+    .x { font-size: 15px; font-family: "Roboto Mono", Consolas, monospace; }
+    .s { font-size: 12px; }
+  </style>
+  <rect x="0" y="0" width="500" height="1026" fill="#FFF8EE"/>
+  <text x="20" y="34" class="h" fill="#201B10">Light</text>
+  <text x="20" y="56" class="n" fill="#52452D">on* text on each swatch: cream surfaces</text>
+  <rect x="20" y="76" width="460" height="54" rx="10" fill="#376A26"/>
+  <text x="34" y="99" class="r" fill="#FFFFFF">primary</text>
+  <text x="466" y="99" class="x" fill="#FFFFFF" text-anchor="end">#376A26</text>
+  <text x="34" y="119" class="s" fill="#FFFFFF">Curry-leaf green: ticks, switches, links</text>
+  <text x="466" y="119" class="s" fill="#FFFFFF" text-anchor="end">onPrimary #FFFFFF (6.5:1)</text>
+  <rect x="20" y="138" width="460" height="54" rx="10" fill="#B7F39D"/>
+  <text x="34" y="161" class="r" fill="#012200">primaryContainer</text>
+  <text x="466" y="161" class="x" fill="#012200" text-anchor="end">#B7F39D</text>
+  <text x="34" y="181" class="s" fill="#012200">Selected segment, fresh changes</text>
+  <text x="466" y="181" class="s" fill="#012200" text-anchor="end">onPrimaryContainer #012200 (13.3:1)</text>
+  <rect x="20" y="200" width="460" height="54" rx="10" fill="#7B5800"/>
+  <text x="34" y="223" class="r" fill="#FFFFFF">secondary</text>
+  <text x="466" y="223" class="x" fill="#FFFFFF" text-anchor="end">#7B5800</text>
+  <text x="34" y="243" class="s" fill="#FFFFFF">Turmeric</text>
+  <text x="466" y="243" class="s" fill="#FFFFFF" text-anchor="end">onSecondary #FFFFFF (6.5:1)</text>
+  <rect x="20" y="262" width="460" height="54" rx="10" fill="#FFCD61"/>
+  <text x="34" y="285" class="r" fill="#261900">secondaryContainer</text>
+  <text x="466" y="285" class="x" fill="#261900" text-anchor="end">#FFCD61</text>
+  <text x="34" y="305" class="s" fill="#261900">Quantity chips, setup banner</text>
+  <text x="466" y="305" class="s" fill="#261900" text-anchor="end">onSecondaryContainer #261900 (11.6:1)</text>
+  <rect x="20" y="324" width="460" height="54" rx="10" fill="#8E4F00"/>
+  <text x="34" y="347" class="r" fill="#FFFFFF">tertiary</text>
+  <text x="466" y="347" class="x" fill="#FFFFFF" text-anchor="end">#8E4F00</text>
+  <text x="34" y="367" class="s" fill="#FFFFFF">Marigold: notices as text</text>
+  <text x="466" y="367" class="s" fill="#FFFFFF" text-anchor="end">onTertiary #FFFFFF (6.4:1)</text>
+  <rect x="20" y="386" width="460" height="54" rx="10" fill="#FFA442"/>
+  <text x="34" y="409" class="r" fill="#2D1600">tertiaryContainer</text>
+  <text x="466" y="409" class="x" fill="#2D1600" text-anchor="end">#FFA442</text>
+  <text x="34" y="429" class="s" fill="#2D1600">The + button, script notice</text>
+  <text x="466" y="429" class="s" fill="#2D1600" text-anchor="end">onTertiaryContainer #2D1600 (8.7:1)</text>
+  <rect x="20" y="448" width="460" height="54" rx="10" fill="#BA1A1A"/>
+  <text x="34" y="471" class="r" fill="#FFFFFF">error</text>
+  <text x="466" y="471" class="x" fill="#FFFFFF" text-anchor="end">#BA1A1A</text>
+  <text x="34" y="491" class="s" fill="#FFFFFF">Errors</text>
+  <text x="466" y="491" class="s" fill="#FFFFFF" text-anchor="end">onError #FFFFFF (6.5:1)</text>
+  <rect x="20" y="510" width="460" height="54" rx="10" fill="#FFDAD4"/>
+  <text x="34" y="533" class="r" fill="#410001">errorContainer</text>
+  <text x="466" y="533" class="x" fill="#410001" text-anchor="end">#FFDAD4</text>
+  <text x="34" y="553" class="s" fill="#410001">Error banners</text>
+  <text x="466" y="553" class="s" fill="#410001" text-anchor="end">onErrorContainer #410001 (13.2:1)</text>
+  <rect x="20" y="572" width="460" height="54" rx="10" fill="#376A26"/>
+  <text x="34" y="595" class="r" fill="#FFFFFF">appBar</text>
+  <text x="466" y="595" class="x" fill="#FFFFFF" text-anchor="end">#376A26</text>
+  <text x="34" y="615" class="s" fill="#FFFFFF">App bars (both themes deep green)</text>
+  <text x="466" y="615" class="s" fill="#FFFFFF" text-anchor="end">onAppBar #FFFFFF (6.5:1)</text>
+  <rect x="20" y="634" width="460" height="54" rx="10" fill="#FFF8EE" stroke="#D7C4A6"/>
+  <text x="34" y="657" class="r" fill="#201B10">surface</text>
+  <text x="466" y="657" class="x" fill="#201B10" text-anchor="end">#FFF8EE</text>
+  <text x="34" y="677" class="s" fill="#201B10">Screens and lists</text>
+  <text x="466" y="677" class="s" fill="#201B10" text-anchor="end">onSurface #201B10 (16.2:1)</text>
+  <rect x="20" y="696" width="460" height="54" rx="10" fill="#F9ECDA" stroke="#D7C4A6"/>
+  <text x="34" y="719" class="r" fill="#201B10">surfaceContainer</text>
+  <text x="466" y="719" class="x" fill="#201B10" text-anchor="end">#F9ECDA</text>
+  <text x="34" y="739" class="s" fill="#201B10">Menus</text>
+  <text x="466" y="739" class="s" fill="#201B10" text-anchor="end">onSurface #201B10 (14.7:1)</text>
+  <rect x="20" y="758" width="460" height="54" rx="10" fill="#F3E7D5" stroke="#D7C4A6"/>
+  <text x="34" y="781" class="r" fill="#201B10">surfaceContainerHigh</text>
+  <text x="466" y="781" class="x" fill="#201B10" text-anchor="end">#F3E7D5</text>
+  <text x="34" y="801" class="s" fill="#201B10">Dialogs, search field</text>
+  <text x="466" y="801" class="s" fill="#201B10" text-anchor="end">onSurface #201B10 (14.0:1)</text>
+  <rect x="20" y="820" width="460" height="54" rx="10" fill="#EDE1CF" stroke="#D7C4A6"/>
+  <text x="34" y="843" class="r" fill="#52452D">surfaceContainerHighest</text>
+  <text x="466" y="843" class="x" fill="#52452D" text-anchor="end">#EDE1CF</text>
+  <text x="34" y="863" class="s" fill="#52452D">Switch track (off), cards</text>
+  <text x="466" y="863" class="s" fill="#52452D" text-anchor="end">onSurfaceVariant #52452D (7.2:1)</text>
+  <rect x="20" y="882" width="460" height="54" rx="10" fill="#362F24"/>
+  <text x="34" y="905" class="r" fill="#FCEFDD">inverseSurface</text>
+  <text x="466" y="905" class="x" fill="#FCEFDD" text-anchor="end">#362F24</text>
+  <text x="34" y="925" class="s" fill="#FCEFDD">Snackbars</text>
+  <text x="466" y="925" class="s" fill="#FCEFDD" text-anchor="end">inverseOnSurface #FCEFDD (11.7:1)</text>
+  <rect x="20" y="944" width="460" height="54" rx="10" fill="#85755B"/>
+  <text x="34" y="967" class="r" fill="#000000">outline</text>
+  <text x="466" y="967" class="x" fill="#000000" text-anchor="end">#85755B</text>
+  <text x="34" y="987" class="s" fill="#000000">Borders: text fields, segments</text>
+  <text x="466" y="987" class="s" fill="#000000" text-anchor="end">4.2:1 on surface</text>
+  <rect x="500" y="0" width="500" height="1026" fill="#13190F"/>
+  <text x="520" y="34" class="h" fill="#DEE5D4">Dark</text>
+  <text x="520" y="56" class="n" fill="#BFCAB6">on* text on each swatch: green charcoal surfaces</text>
+  <rect x="520" y="76" width="460" height="54" rx="10" fill="#9BD684"/>
+  <text x="534" y="99" class="r" fill="#043900">primary</text>
+  <text x="966" y="99" class="x" fill="#043900" text-anchor="end">#9BD684</text>
+  <text x="534" y="119" class="s" fill="#043900">Curry-leaf green: ticks, switches, links</text>
+  <text x="966" y="119" class="s" fill="#043900" text-anchor="end">onPrimary #043900 (7.8:1)</text>
+  <rect x="520" y="138" width="460" height="54" rx="10" fill="#1E510F"/>
+  <text x="534" y="161" class="r" fill="#B7F39D">primaryContainer</text>
+  <text x="966" y="161" class="x" fill="#B7F39D" text-anchor="end">#1E510F</text>
+  <text x="534" y="181" class="s" fill="#B7F39D">Selected segment, fresh changes</text>
+  <text x="966" y="181" class="s" fill="#B7F39D" text-anchor="end">onPrimaryContainer #B7F39D (7.3:1)</text>
+  <rect x="520" y="200" width="460" height="54" rx="10" fill="#FEBB04"/>
+  <text x="534" y="223" class="r" fill="#412D00">secondary</text>
+  <text x="966" y="223" class="x" fill="#412D00" text-anchor="end">#FEBB04</text>
+  <text x="534" y="243" class="s" fill="#412D00">Turmeric</text>
+  <text x="966" y="243" class="s" fill="#412D00" text-anchor="end">onSecondary #412D00 (7.7:1)</text>
+  <rect x="520" y="262" width="460" height="54" rx="10" fill="#5D4200"/>
+  <text x="534" y="285" class="r" fill="#FFDE9D">secondaryContainer</text>
+  <text x="966" y="285" class="x" fill="#FFDE9D" text-anchor="end">#5D4200</text>
+  <text x="534" y="305" class="s" fill="#FFDE9D">Quantity chips, setup banner</text>
+  <text x="966" y="305" class="s" fill="#FFDE9D" text-anchor="end">onSecondaryContainer #FFDE9D (7.2:1)</text>
+  <rect x="520" y="324" width="460" height="54" rx="10" fill="#FFB772"/>
+  <text x="534" y="347" class="r" fill="#4B2700">tertiary</text>
+  <text x="966" y="347" class="x" fill="#4B2700" text-anchor="end">#FFB772</text>
+  <text x="534" y="367" class="s" fill="#4B2700">Marigold: notices as text</text>
+  <text x="966" y="367" class="s" fill="#4B2700" text-anchor="end">onTertiary #4B2700 (7.7:1)</text>
+  <rect x="520" y="386" width="460" height="54" rx="10" fill="#FFA442"/>
+  <text x="534" y="409" class="r" fill="#2D1600">tertiaryContainer</text>
+  <text x="966" y="409" class="x" fill="#2D1600" text-anchor="end">#FFA442</text>
+  <text x="534" y="429" class="s" fill="#2D1600">The + button, script notice</text>
+  <text x="966" y="429" class="s" fill="#2D1600" text-anchor="end">onTertiaryContainer #2D1600 (8.7:1)</text>
+  <rect x="520" y="448" width="460" height="54" rx="10" fill="#FFB4A9"/>
+  <text x="534" y="471" class="r" fill="#680003">error</text>
+  <text x="966" y="471" class="x" fill="#680003" text-anchor="end">#FFB4A9</text>
+  <text x="534" y="491" class="s" fill="#680003">Errors</text>
+  <text x="966" y="491" class="s" fill="#680003" text-anchor="end">onError #680003 (7.8:1)</text>
+  <rect x="520" y="510" width="460" height="54" rx="10" fill="#930006"/>
+  <text x="534" y="533" class="r" fill="#FFDAD4">errorContainer</text>
+  <text x="966" y="533" class="x" fill="#FFDAD4" text-anchor="end">#930006</text>
+  <text x="534" y="553" class="s" fill="#FFDAD4">Error banners</text>
+  <text x="966" y="553" class="s" fill="#FFDAD4" text-anchor="end">onErrorContainer #FFDAD4 (7.2:1)</text>
+  <rect x="520" y="572" width="460" height="54" rx="10" fill="#1E510F"/>
+  <text x="534" y="595" class="r" fill="#B7F39D">appBar</text>
+  <text x="966" y="595" class="x" fill="#B7F39D" text-anchor="end">#1E510F</text>
+  <text x="534" y="615" class="s" fill="#B7F39D">App bars (both themes deep green)</text>
+  <text x="966" y="615" class="s" fill="#B7F39D" text-anchor="end">onAppBar #B7F39D (7.3:1)</text>
+  <rect x="520" y="634" width="460" height="54" rx="10" fill="#13190F" stroke="#404A3B"/>
+  <text x="534" y="657" class="r" fill="#DEE5D4">surface</text>
+  <text x="966" y="657" class="x" fill="#DEE5D4" text-anchor="end">#13190F</text>
+  <text x="534" y="677" class="s" fill="#DEE5D4">Screens and lists</text>
+  <text x="966" y="677" class="s" fill="#DEE5D4" text-anchor="end">onSurface #DEE5D4 (13.9:1)</text>
+  <rect x="520" y="696" width="460" height="54" rx="10" fill="#1F261B" stroke="#404A3B"/>
+  <text x="534" y="719" class="r" fill="#DEE5D4">surfaceContainer</text>
+  <text x="966" y="719" class="x" fill="#DEE5D4" text-anchor="end">#1F261B</text>
+  <text x="534" y="739" class="s" fill="#DEE5D4">Menus</text>
+  <text x="966" y="739" class="s" fill="#DEE5D4" text-anchor="end">onSurface #DEE5D4 (12.0:1)</text>
+  <rect x="520" y="758" width="460" height="54" rx="10" fill="#293025" stroke="#404A3B"/>
+  <text x="534" y="781" class="r" fill="#DEE5D4">surfaceContainerHigh</text>
+  <text x="966" y="781" class="x" fill="#DEE5D4" text-anchor="end">#293025</text>
+  <text x="534" y="801" class="s" fill="#DEE5D4">Dialogs, search field</text>
+  <text x="966" y="801" class="s" fill="#DEE5D4" text-anchor="end">onSurface #DEE5D4 (10.5:1)</text>
+  <rect x="520" y="820" width="460" height="54" rx="10" fill="#343B30" stroke="#404A3B"/>
+  <text x="534" y="843" class="r" fill="#BFCAB6">surfaceContainerHighest</text>
+  <text x="966" y="843" class="x" fill="#BFCAB6" text-anchor="end">#343B30</text>
+  <text x="534" y="863" class="s" fill="#BFCAB6">Switch track (off), cards</text>
+  <text x="966" y="863" class="s" fill="#BFCAB6" text-anchor="end">onSurfaceVariant #BFCAB6 (6.8:1)</text>
+  <rect x="520" y="882" width="460" height="54" rx="10" fill="#DEE5D4"/>
+  <text x="534" y="905" class="r" fill="#2B3227">inverseSurface</text>
+  <text x="966" y="905" class="x" fill="#2B3227" text-anchor="end">#DEE5D4</text>
+  <text x="534" y="925" class="s" fill="#2B3227">Snackbars</text>
+  <text x="966" y="925" class="s" fill="#2B3227" text-anchor="end">inverseOnSurface #2B3227 (10.2:1)</text>
+  <rect x="520" y="944" width="460" height="54" rx="10" fill="#899482"/>
+  <text x="534" y="967" class="r" fill="#000000">outline</text>
+  <text x="966" y="967" class="x" fill="#000000" text-anchor="end">#899482</text>
+  <text x="534" y="987" class="s" fill="#000000">Borders: text fields, segments</text>
+  <text x="966" y="987" class="s" fill="#000000" text-anchor="end">5.6:1 on surface</text>
+</svg>
