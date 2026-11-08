@@ -3,6 +3,7 @@ package com.grocerysync.app.ui
 import com.grocerysync.app.data.InputValidation
 import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ItemKeys
+import com.grocerysync.app.text.Texts
 
 /**
  * The item dialog's "Similar" warning: the stored name of an item already on the list that is the same thing
@@ -25,4 +26,4 @@ internal fun similarItemName(typedName: String, editedKey: String?, namesByKey: 
 
 /** The item dialog's warning under the name (Save stays enabled): Similar: "Dahi" is already on the list. */
 internal fun similarItemText(existingName: String): String =
-    "Similar: \"${quotedItemName(existingName)}\" is already on the list"
+    Texts.current.item.similarItem(quotedItemName(existingName))

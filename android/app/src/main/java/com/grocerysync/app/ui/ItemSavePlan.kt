@@ -7,6 +7,7 @@ import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.ValueType
+import com.grocerysync.app.text.Texts
 
 /** What saving the item dialog has to send. */
 sealed interface ItemSavePlan {
@@ -91,16 +92,21 @@ internal fun quotedItemName(name: String, maxLength: Int = QUOTED_NAME_MAX): Str
 private const val ELLIPSIS = "..."
 
 /** The add dialog's error, and the snackbar when a save is refused: "Rice" is already on the list. */
-fun alreadyOnListText(existingName: String): String = "\"${quotedItemName(existingName)}\" is already on the list"
+fun alreadyOnListText(existingName: String): String = Texts.current.item.alreadyOnList(quotedItemName(existingName))
 
 /** The edit dialog's error for a rename to another item's name: Another item is already called "Rice". */
-fun anotherItemCalledText(existingName: String): String = "Another item is already called \"${quotedItemName(existingName)}\""
+fun anotherItemCalledText(existingName: String): String =
+    Texts.current.item.anotherItemCalled(quotedItemName(existingName))
 
 /** The add dialog's button that opens the item already on the list instead: Open "Rice". */
-fun openItemText(existingName: String): String = "Open \"${quotedItemName(existingName, OPEN_BUTTON_NAME_MAX)}\""
+fun openItemText(existingName: String): String =
+    Texts.current.item.openItem(quotedItemName(existingName, OPEN_BUTTON_NAME_MAX))
 
-/** The unit picker's prompt while a quantity has no unit; Save stays disabled until one is chosen. */
-const val UNIT_PROMPT = "Choose a unit"
+/**
+ * The unit picker's prompt while a quantity has no unit; Save stays disabled until one is chosen. In the language
+ * shown, like the other texts in this file.
+ */
+val UNIT_PROMPT: String get() = Texts.current.item.unitPrompt
 
 /**
  * Whether the item dialog's Save button is enabled: every field needs a value (user decision for 1.2).
@@ -129,10 +135,10 @@ fun canSaveItem(
 fun isUnitMissing(type: ValueType, unit: String): Boolean = type == ValueType.QUANTITY && Units.normalize(unit).isEmpty()
 
 /** In the unit picker while no unit is chosen and [UNIT_PROMPT] has a line of its own below it. */
-internal const val NO_UNIT_HINT = "unit"
+internal val NO_UNIT_HINT: String get() = Texts.current.item.noUnitHint
 
 /** In the unit picker (in the primary colour) while no unit is chosen and there is no room for [UNIT_PROMPT]'s line. */
-internal const val UNIT_PICKER_PROMPT = "Choose"
+internal val UNIT_PICKER_PROMPT: String get() = Texts.current.item.unitPickerPrompt
 
 /**
  * What the unit picker shows for a quantity's [unit]: the unit; while none is chosen, [UNIT_PICKER_PROMPT] when

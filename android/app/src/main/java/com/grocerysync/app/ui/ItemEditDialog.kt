@@ -105,20 +105,13 @@ import com.grocerysync.app.data.ValueType
 import com.grocerysync.app.data.convertTo
 import com.grocerysync.app.data.displayText
 import com.grocerysync.app.data.stepped
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.quantityStepperColors
 import com.grocerysync.app.ui.theme.selectorColors
 import com.grocerysync.app.ui.theme.warningFieldColors
 import kotlinx.coroutines.delay
 import kotlin.math.min
-
-// Segmented-button labels. Their widths at the current font size decide whether the dialog can put
-// "Track as" next to the value (see DialogLayout.sideBySideColumns).
-private const val LABEL_YES_NO = "Yes / no"
-private const val LABEL_QUANTITY = "Quantity"
-private const val LABEL_YES = "Yes"
-private const val LABEL_NO = "No"
-private val SegmentLabels = listOf(LABEL_YES_NO, LABEL_QUANTITY, LABEL_YES, LABEL_NO)
 
 /** Height of the fade at a scrolled-off edge of the dialog body (less when less is hidden). */
 private val ScrollHintFadeHeight = 24.dp
@@ -149,6 +142,10 @@ private val ScrollHintFadeHeight = 24.dp
  * [shopSection]: the item's shop section on this phone for a name (the one chosen for it, else the dictionary's
  * for the name typed); null shows no "Shop section" picker (add mode). A section picked there is passed to
  * [onShopSectionChange] with the name being saved, just before [onSave]; it is this phone's choice, not synced.
+ *
+ * Its texts are in the language shown (Texts.current: ItemTexts and CommonTexts). Every label wraps rather than
+ * being cut when it is long (Hindi) or the font is large, and the body scrolls; only the narrow unit picker keeps
+ * one line, with a smaller font for a longer text.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,6 +162,7 @@ fun ItemEditDialog(
     shopSection: ((name: String) -> ShopSection)? = null,
     onShopSectionChange: (name: String, section: ShopSection) -> Unit = { _, _ -> },
 ) {
+    val t = Texts.current
     val isAdd = item == null
     val itemQuantity = item?.value as? ItemValue.Quantity
     var name by rememberSaveable { mutableStateOf(item?.name ?: initialName) }
@@ -261,8 +259,11 @@ fun ItemEditDialog(
     val spacing = DialogLayout.bodySpacing(shortWindow)
     val textMeasurer = rememberTextMeasurer()
     val segmentLabelStyle = MaterialTheme.typography.labelLarge
-    val segmentLabelWidthDp = remember(textMeasurer, segmentLabelStyle, density) {
-        SegmentLabels.maxOf { textMeasurer.measure(it, segmentLabelStyle).size.width } / density.density
+    // The segmented buttons' labels, in the language shown: their widths at the current font size decide
+    // whether the dialog can put "Track as" next to the value (see DialogLayout.sideBySideColumns).
+    val segmentLabels = listOf(t.common.yesNo, t.common.quantity, t.item.yes, t.item.no)
+    val segmentLabelWidthDp = remember(textMeasurer, segmentLabelStyle, density, segmentLabels) {
+        segmentLabels.maxOf { textMeasurer.measure(it, segmentLabelStyle).size.width } / density.density
     }
     val columns = DialogLayout.sideBySideColumns(
         availableWidthDp = availableWidthDp,
@@ -271,7 +272,7 @@ fun ItemEditDialog(
     )
 
     val typeSelector: @Composable () -> Unit = {
-        FieldLabel("Track as", spacing.labelGapDp.dp)
+        FieldLabel(t.item.trackAs, spacing.labelGapDp.dp)
         // Next to the taller amount stepper, the buttons are centred on it.
         Box(
             modifier = if (columns != null && type == ValueType.QUANTITY) {
@@ -287,13 +288,13 @@ fun ItemEditDialog(
                     onClick = { switchType(ValueType.BOOLEAN) },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     colors = selectorColors(),
-                ) { Text(LABEL_YES_NO) }
+                ) { Text(t.common.yesNo) }
                 SegmentedButton(
                     selected = type == ValueType.QUANTITY,
                     onClick = { switchType(ValueType.QUANTITY) },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     colors = selectorColors(),
-                ) { Text(LABEL_QUANTITY) }
+                ) { Text(t.common.quantity) }
             }
         }
     }
@@ -301,7 +302,7 @@ fun ItemEditDialog(
     val valueEditor: @Composable () -> Unit = {
         when (type) {
             ValueType.BOOLEAN -> {
-                FieldLabel("Need to buy?", spacing.labelGapDp.dp)
+                FieldLabel(t.item.needToBuy, spacing.labelGapDp.dp)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = needed,
@@ -311,7 +312,7 @@ fun ItemEditDialog(
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                         colors = selectorColors(),
-                    ) { Text(LABEL_YES) }
+                    ) { Text(t.item.yes) }
                     SegmentedButton(
                         selected = !needed,
                         onClick = {
@@ -320,11 +321,11 @@ fun ItemEditDialog(
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                         colors = selectorColors(),
-                    ) { Text(LABEL_NO) }
+                    ) { Text(t.item.no) }
                 }
             }
             ValueType.QUANTITY -> {
-                FieldLabel("How much to buy? (0 = none)", spacing.labelGapDp.dp)
+                FieldLabel(t.item.howMuchToBuy, spacing.labelGapDp.dp)
                 AmountEditor(
                     amountText = amountText,
                     onAmountTextChange = {
@@ -354,15 +355,13 @@ fun ItemEditDialog(
             Modifier
         },
         properties = DialogProperties(usePlatformDefaultWidth = !shortWindow),
-        title = { Text(if (isAdd) "Add item" else "Edit item") },
+        title = { Text(if (isAdd) t.common.addItem else t.item.editItemTitle) },
         text = {
             ScrollableDialogBody {
                 val noticeGap = spacing.noticeGapDp.dp
                 when {
-                    removedElsewhere ->
-                        Notice("This item was renamed or removed on another phone. Save to add it again.", noticeGap)
-                    changedElsewhere ->
-                        Notice("Changed on another phone to ${describe(liveValue)}. Save to use your value instead.", noticeGap)
+                    removedElsewhere -> Notice(t.item.removedElsewhere, noticeGap)
+                    changedElsewhere -> Notice(changedElsewhereText(liveValue), noticeGap)
                 }
                 val nameMessage = when {
                     nameError != null && name.isNotEmpty() -> nameError
@@ -377,8 +376,8 @@ fun ItemEditDialog(
                         nameTouched = true
                         name = it
                     },
-                    label = { Text("Item") },
-                    placeholder = { Text("e.g. Milk") },
+                    label = { Text(t.item.nameLabel) },
+                    placeholder = { Text(t.item.namePlaceholder) },
                     singleLine = true,
                     isError = (nameError != null && name.isNotEmpty()) || takenBy != null,
                     // The Similar warning colours the field in marigold (tertiary), as an error colours it red.
@@ -451,7 +450,7 @@ fun ItemEditDialog(
                     }
                 },
                 enabled = canSave,
-            ) { Text("Save") }
+            ) { Text(t.common.save) }
         },
         dismissButton = {
             Row {
@@ -459,9 +458,9 @@ fun ItemEditDialog(
                     TextButton(
                         onClick = { confirmDelete = true },
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    ) { Text("Delete") }
+                    ) { Text(t.common.delete) }
                 }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(t.common.cancel) }
             }
         },
     )
@@ -482,8 +481,8 @@ fun ItemEditDialog(
     if (confirmDelete && item != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete \"${item.name}\"?") },
-            text = { Text("It will be removed from the list on every phone and from the sheet.") },
+            title = { Text(t.item.deleteQuestion(item.name)) },
+            text = { Text(t.item.deleteExplanation) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -491,10 +490,10 @@ fun ItemEditDialog(
                         onDelete()
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) { Text("Delete") }
+                ) { Text(t.common.delete) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmDelete = false }) { Text(t.common.cancel) }
             },
         )
     }
@@ -563,9 +562,17 @@ private fun Notice(text: String, bottomPadding: Dp) {
     )
 }
 
-private fun describe(value: ItemValue): String = when (value) {
-    is ItemValue.BoolValue -> if (value.value) "needed" else "not needed"
-    is ItemValue.Quantity -> value.displayText()
+/**
+ * The notice when another phone changed the item's value to [value] while the user changed it too: Changed on
+ * another phone to 2 kg (or "needed", "not needed"). Save to use your value instead.
+ */
+internal fun changedElsewhereText(value: ItemValue): String {
+    val t = Texts.current
+    val described = when (value) {
+        is ItemValue.BoolValue -> if (value.value) t.common.needed else t.common.notNeeded
+        is ItemValue.Quantity -> value.displayText()
+    }
+    return t.item.changedElsewhere(described)
 }
 
 @Composable
@@ -599,6 +606,7 @@ private fun AmountEditor(
     onOtherUnit: () -> Unit,
     promptInPicker: Boolean,
 ) {
+    val t = Texts.current
     val amount = InputValidation.parseAmount(amountText)
     val step = stepDescription(unit)
 
@@ -617,7 +625,7 @@ private fun AmountEditor(
                 onClick = { step(up = false) },
                 enabled = (amount ?: Amount.ZERO).isPositive,
                 colors = quantityStepperColors(),
-                modifier = Modifier.semantics { contentDescription = "$step less" },
+                modifier = Modifier.semantics { contentDescription = t.item.stepLess(step) },
             ) {
                 Text("−", style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearAndSetSemantics { })
             }
@@ -631,7 +639,7 @@ private fun AmountEditor(
                 onClick = { step(up = true) },
                 enabled = (amount ?: Amount.ZERO) < Amount.MAX,
                 colors = quantityStepperColors(),
-                modifier = Modifier.semantics { contentDescription = "$step more" },
+                modifier = Modifier.semantics { contentDescription = t.item.stepMore(step) },
             ) {
                 Text("+", style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearAndSetSemantics { })
             }
@@ -694,7 +702,7 @@ private fun AmountField(text: String, onTextChange: (String) -> Unit, isError: B
         },
         modifier = modifier
             .heightIn(min = OutlinedTextFieldDefaults.MinHeight)
-            .semantics { contentDescription = "Amount" },
+            .semantics { contentDescription = Texts.current.common.amount },
         singleLine = true,
         textStyle = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.Center, color = textColor),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
@@ -733,6 +741,7 @@ private fun AmountField(text: String, onTextChange: (String) -> Unit, isError: B
  */
 @Composable
 private fun UnitPicker(unit: String, onUnitChange: (String) -> Unit, onOther: () -> Unit, promptInPicker: Boolean) {
+    val t = Texts.current
     var expanded by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
     val isCustom = unit.isNotEmpty() && !Units.isStandard(unit)
@@ -746,14 +755,14 @@ private fun UnitPicker(unit: String, onUnitChange: (String) -> Unit, onOther: ()
                 .width(DialogLayout.UNIT_FIELD_WIDTH_DP.dp)
                 .height(OutlinedTextFieldDefaults.MinHeight)
                 .clip(OutlinedTextFieldDefaults.shape)
-                .clickable(onClickLabel = "Choose unit") { expanded = true }
+                .clickable(onClickLabel = t.item.chooseUnit) { expanded = true }
                 .semantics {
                     role = Role.DropdownList
                     if (missing) {
-                        contentDescription = "Unit"
-                        stateDescription = "$UNIT_PROMPT to save"
+                        contentDescription = t.common.unit
+                        stateDescription = t.item.unitPromptToSave
                     } else {
-                        contentDescription = "Unit: $unit"
+                        contentDescription = t.item.unitChosen(unit)
                     }
                 },
         ) {
@@ -788,7 +797,7 @@ private fun UnitPicker(unit: String, onUnitChange: (String) -> Unit, onOther: ()
             if (isCustom) UnitMenuItem(unit, selected = true) { choose(unit) }
             Units.STANDARD.forEach { standard -> UnitMenuItem(standard, selected = standard == unit) { choose(standard) } }
             HorizontalDivider()
-            UnitMenuItem("Other...", selected = false) {
+            UnitMenuItem(t.item.otherUnit, selected = false) {
                 expanded = false
                 onOther()
             }
@@ -802,7 +811,7 @@ private fun UnitMenuItem(text: String, selected: Boolean, onClick: () -> Unit) {
         text = { Text(text) },
         onClick = onClick,
         trailingIcon = if (selected) {
-            { Icon(Icons.Default.Check, contentDescription = "Selected") }
+            { Icon(Icons.Default.Check, contentDescription = Texts.current.item.selected) }
         } else {
             null
         },
@@ -812,17 +821,18 @@ private fun UnitMenuItem(text: String, selected: Boolean, onClick: () -> Unit) {
 /** "Other..." in the unit picker: a short text field for a custom unit (bunch, box, bottle, ...). */
 @Composable
 private fun CustomUnitDialog(text: String, onTextChange: (String) -> Unit, onDismiss: () -> Unit, onDone: (String) -> Unit) {
+    val t = Texts.current
     val focusRequester = remember { FocusRequester() }
     val canUse = Units.normalize(text).isNotEmpty()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Other unit") },
+        title = { Text(t.item.otherUnitTitle) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { input -> onTextChange(input.replace('\n', ' ').replace('\r', ' ').take(Units.MAX_LENGTH)) },
-                label = { Text("Unit") },
-                placeholder = { Text("e.g. bunch, box, bottle") },
+                label = { Text(t.common.unit) },
+                placeholder = { Text(t.item.otherUnitPlaceholder) },
                 singleLine = true,
                 supportingText = { Text("${text.length} / ${Units.MAX_LENGTH}") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -833,10 +843,10 @@ private fun CustomUnitDialog(text: String, onTextChange: (String) -> Unit, onDis
             )
         },
         confirmButton = {
-            TextButton(onClick = { onDone(text) }, enabled = canUse) { Text("Use") }
+            TextButton(onClick = { onDone(text) }, enabled = canUse) { Text(t.item.useUnit) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(t.common.cancel) }
         },
     )
     LaunchedEffect(Unit) {

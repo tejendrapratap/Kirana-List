@@ -1,5 +1,6 @@
 package com.grocerysync.app.data
 
+import com.grocerysync.app.text.Texts
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 sealed interface UrlCheck {
@@ -8,25 +9,29 @@ sealed interface UrlCheck {
     data class Invalid(val message: String) : UrlCheck
 }
 
-/** User input rules; mirror the per-change validation in Code.gs so the server never rejects what the UI allowed. */
+/**
+ * User input rules; mirror the per-change validation in Code.gs so the server never rejects what the UI allowed.
+ *
+ * The messages are in the language shown ([Texts.current], ItemTexts): each `ERROR_*` and `URL_*` text is read
+ * from there whenever it is used, so [validateName] and [validateWebAppUrl] give the current language's message.
+ * Code that only asks whether a value is valid (a message or null) doesn't depend on the language.
+ */
 object InputValidation {
     const val MAX_NAME_LENGTH = 100
 
     /** Largest amount (the whole-number part; up to [Amount.DECIMALS] decimals are allowed below it). */
     const val MAX_QUANTITY = 999_999L
 
-    const val ERROR_NAME_EMPTY = "Enter an item name"
-    const val ERROR_NAME_TOO_LONG = "Keep it under 100 characters"
-    const val ERROR_NAME_LINE_BREAK = "Item name can't contain line breaks"
+    val ERROR_NAME_EMPTY: String get() = Texts.current.item.nameEmpty
+    val ERROR_NAME_TOO_LONG: String get() = Texts.current.item.nameTooLong(MAX_NAME_LENGTH)
+    val ERROR_NAME_LINE_BREAK: String get() = Texts.current.item.nameLineBreak
 
-    const val URL_DEV_WARNING =
-        "This is a test (/dev) URL. Use the Web app URL ending in /exec from Deploy > Manage deployments."
-    const val URL_HTTP_WARNING = "Not secure - only use http:// for local testing."
-    const val URL_NOT_APPS_SCRIPT_WARNING =
-        "This doesn't look like an Apps Script web app URL (it should end in /exec)."
-    const val URL_EMPTY = "Paste the Web app URL from Apps Script"
-    const val URL_BAD_SCHEME = "The URL must start with https://"
-    const val URL_UNPARSEABLE = "That isn't a valid URL"
+    val URL_DEV_WARNING: String get() = Texts.current.item.urlDevWarning
+    val URL_HTTP_WARNING: String get() = Texts.current.item.urlHttpWarning
+    val URL_NOT_APPS_SCRIPT_WARNING: String get() = Texts.current.item.urlNotAppsScriptWarning
+    val URL_EMPTY: String get() = Texts.current.item.urlEmpty
+    val URL_BAD_SCHEME: String get() = Texts.current.item.urlBadScheme
+    val URL_UNPARSEABLE: String get() = Texts.current.item.urlUnparseable
 
     private const val APPS_SCRIPT_HOST = "script.google.com"
 
@@ -48,7 +53,7 @@ object InputValidation {
     fun parseAmount(raw: String): Amount? = Amount.parse(raw)
 
     /** Shown under the amount field while it can't be read. */
-    const val ERROR_AMOUNT = "Enter an amount from 0 to 999999, up to 3 decimals"
+    val ERROR_AMOUNT: String get() = Texts.current.item.amountError(MAX_QUANTITY, Amount.DECIMALS)
 
     /** Cleans a unit typed by the user the way the sheet stores it (see [Units.normalize]). */
     fun cleanUnit(raw: String): String = Units.normalize(raw)
