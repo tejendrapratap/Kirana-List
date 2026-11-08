@@ -4,7 +4,7 @@ import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.InputValidation
 import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ListLogic
-import java.text.Normalizer
+import com.grocerysync.app.data.SearchText
 import java.util.Locale
 
 /**
@@ -30,23 +30,12 @@ internal object ItemSearch {
     const val NO_TO_BUY_MATCH_TEXT = "No items to buy match your search"
 
     /**
-     * Marks that don't count: Latin, Greek and Cyrillic combining accents (after NFD), the Devanagari
-     * nukta and the apostrophes ' ‘ ’. Other marks (Devanagari vowel signs, Thai, Arabic) change the
-     * word, so they are kept.
+     * [text] as search compares it ([SearchText.fold], shared with the item dictionary): the item key
+     * (trimmed, whitespace runs as one space, lower case ignoring the device locale) without accents, the
+     * Devanagari nukta or apostrophes, and chandrabindu written as anusvara. "Crème fraîche" gives
+     * "creme fraiche", "Lay's" gives "lays".
      */
-    private val IGNORED_MARKS = Regex("[\\u0300-\\u036F\\u093C'\\u2018\\u2019]")
-
-    private const val CHANDRABINDU = '\u0901'
-    private const val ANUSVARA = '\u0902'
-
-    /**
-     * [text] as search compares it: the item key ([ItemKeys.normalize]: trimmed, whitespace runs as one
-     * space, lower case ignoring the device locale), decomposed (NFD) without [IGNORED_MARKS], and
-     * chandrabindu written as anusvara. "Crème fraîche" gives "creme fraiche", "Lay's" gives "lays".
-     */
-    fun fold(text: String): String =
-        IGNORED_MARKS.replace(Normalizer.normalize(ItemKeys.normalize(text), Normalizer.Form.NFD), "")
-            .replace(CHANDRABINDU, ANUSVARA)
+    fun fold(text: String): String = SearchText.fold(text)
 
     /** The words of [query] after [fold]; empty when there is nothing to search for. */
     fun words(query: String): List<String> = fold(query).split(' ').filter { it.isNotEmpty() }
