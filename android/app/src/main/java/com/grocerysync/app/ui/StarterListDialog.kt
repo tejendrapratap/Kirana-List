@@ -75,16 +75,17 @@ private val UntickedSaver = Saver<Set<String>, ArrayList<String>>(
  * Everyday, Monthly kirana, ...); its items are listed by shop section in walking order, each with a checkbox, its
  * other names in small text ("Pyaaz · प्याज़") and what it is added as (a unit, or yes / no). An item already on the
  * list ([onList]: the same name, or another name of the same item, e.g. "Curd" for Dahi) is unticked and disabled
- * ("On the list as Curd"); the rest start ticked, and Select all / Select none at the bottom changes the set shown.
- * The set and what was unticked survive rotation; what was unticked stays unticked in the other sets too. The rules
- * are in [StarterList].
+ * ("On the list as Curd"); the rest start ticked, except meat, fish and eggs ([StarterList.UNTICKED_AT_FIRST]:
+ * many families never buy them), and Select all / Select none at the bottom changes the set shown. The set and
+ * what was unticked survive rotation; what was unticked stays unticked in the other sets too. The rules are in
+ * [StarterList].
  *
  * "Add N items" calls [onAdd] with the ticked entries of the set shown; the X and Back call [onDismiss].
  */
 @Composable
 fun StarterListDialog(onList: List<GroceryItem>, onDismiss: () -> Unit, onAdd: (List<CatalogEntry>) -> Unit) {
     var set by rememberSaveable { mutableStateOf(StarterList.SETS.first()) }
-    var unticked by rememberSaveable(stateSaver = UntickedSaver) { mutableStateOf(emptySet<String>()) }
+    var unticked by rememberSaveable(stateSaver = UntickedSaver) { mutableStateOf(StarterList.UNTICKED_AT_FIRST) }
     val names = remember(onList) { onList.map { it.name } }
     val groups = remember(set, names) { StarterList.groups(set, names) }
 

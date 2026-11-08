@@ -168,7 +168,8 @@ object ListLogic {
 
     /**
      * Like [editConflict], for a change that was planned on the value the user saw ([expected]): the paste
-     * preview's updates ([GroceryRepository.updateIf]). Null when the item [existing] (as shown right before the
+     * preview's updates ([GroceryRepository.updateIf]) and the Undo of "Add common items"
+     * ([GroceryRepository.deleteIf]). Null when the item [existing] (as shown right before the
      * change is queued) still has that value; [EditResult.ValueChanged] when the other phone changed it meanwhile,
      * so it isn't overwritten; [EditResult.NotOnList] when it was renamed or removed, so it isn't re-created.
      */

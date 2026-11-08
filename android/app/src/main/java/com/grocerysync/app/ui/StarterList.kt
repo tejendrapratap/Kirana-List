@@ -27,6 +27,9 @@ internal data class StarterRow(val entry: CatalogEntry, val onListAs: String?) {
 /** The rows of one shop section, in the catalog's order (most common first). */
 internal data class StarterGroup(val section: ShopSection, val rows: List<StarterRow>)
 
+/** An item "Add common items" added: its [name] and the [value] it was added with, for the snackbar's Undo. */
+data class AddedItem(val name: String, val value: ItemValue)
+
 /**
  * The name each catalog entry is on the list as, from the list's names ([names], in the list's order): like
  * [ItemCatalog.nameOnList] (a name with the display name's item key first, else the first name that names the
@@ -51,6 +54,12 @@ internal object StarterList {
 
     /** The sets offered as chips, in this order; the dialog opens on the first. */
     val SETS: List<CatalogSet> = CatalogSet.entries
+
+    /**
+     * What the dialog starts with unticked ([StarterRow.id]s): the entries a family adds only by choice
+     * ([CatalogEntry.optIn]: meat, fish and eggs). They are shown, so a family that buys them ticks them.
+     */
+    val UNTICKED_AT_FIRST: Set<String> = ItemCatalog.entries.filter { it.optIn }.mapTo(HashSet()) { it.displayName }
 
     /** Shown with an entry added as yes / no, where a quantity shows its unit. */
     const val YES_NO_TEXT = "Yes / no"
@@ -150,12 +159,16 @@ internal object StarterList {
         else -> "Add $count items"
     }
 
-    /** The snackbar once they are added: "Added 12 items to All items". */
+    /** The snackbar once they are added: "Added 12 items to All items" (with Undo when some were). */
     fun addedText(count: Int): String = when (count) {
         0 -> "Nothing added: those items are on the list already"
         1 -> "Added 1 item to All items"
         else -> "Added $count items to All items"
     }
+
+    /** After Undo, when some of the items added were changed on the other phone meanwhile and stay. */
+    fun keptText(count: Int): String =
+        if (count == 1) "1 item stays: changed on another phone" else "$count items stay: changed on another phone"
 
     /**
      * Adds [entries] one by one through [add], the repository's normal add (it refuses a name that is on the list,
@@ -163,18 +176,19 @@ internal object StarterList {
      * ([CatalogEntry.notNeededValue]: yes / no off, or 0 of its unit), so it goes to All items. [namesOnList] is
      * the list as it is now: an entry that is on it by now under any of its names (it may have come from the other
      * phone while the dialog was open) is skipped, so "Curd" from the other phone doesn't get a "Dahi" beside it.
-     * Returns how many were added.
+     * Returns what was added, for the snackbar's count and Undo.
      */
     suspend fun addEntries(
         entries: List<CatalogEntry>,
         namesOnList: Collection<String>,
         add: suspend (name: String, value: ItemValue) -> EditResult,
-    ): Int {
+    ): List<AddedItem> {
         val onList = NamesOnList(namesOnList)
-        var added = 0
+        val added = ArrayList<AddedItem>()
         for (entry in entries) {
             if (onList.nameOf(entry) != null) continue
-            if (add(entry.displayName, entry.notNeededValue()) == EditResult.Saved) added++
+            val item = AddedItem(entry.displayName, entry.notNeededValue())
+            if (add(item.name, item.value) == EditResult.Saved) added += item
         }
         return added
     }

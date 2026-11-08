@@ -68,7 +68,7 @@ class TopBarTest : GroceryUiTest() {
         launchConnected()
 
         chooseFromMenu("Add common items")
-        // Everyday first, everything ticked (adding them is in AddCommonItemsTest).
+        // Everyday first, everything ticked but meat, fish and eggs (adding them is in AddCommonItemsTest).
         val onion = isToggleable() and hasText("Onion")
         waitForNode(onion).assertIsOn()
         node(hasContentDescription("Close") and hasClickAction()).performClick()

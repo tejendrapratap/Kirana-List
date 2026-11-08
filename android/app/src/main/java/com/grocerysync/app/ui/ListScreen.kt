@@ -225,6 +225,7 @@ fun ListScreen(
         snackbarHostState = snackbarHostState,
         onUndoGotIt = viewModel::undoGotIt,
         onUndoDelete = viewModel::undoDelete,
+        onUndoCommonItems = viewModel::undoAddCommonItems,
         addedText = { name, value ->
             val shown = filterOfPage(pages.shownPage)
             addedSnackbarText(name, value.isNeeded, shown, if (search.open) search.query else "")
@@ -798,11 +799,13 @@ private fun ListEventsEffect(
     snackbarHostState: SnackbarHostState,
     onUndoGotIt: (name: String, value: ItemValue) -> Unit,
     onUndoDelete: (name: String, value: ItemValue) -> Unit,
+    onUndoCommonItems: (List<AddedItem>) -> Unit,
     addedText: (name: String, value: ItemValue) -> String?,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnUndoGotIt by rememberUpdatedState(onUndoGotIt)
     val currentOnUndoDelete by rememberUpdatedState(onUndoDelete)
+    val currentOnUndoCommonItems by rememberUpdatedState(onUndoCommonItems)
     val currentAddedText by rememberUpdatedState(addedText)
     LaunchedEffect(events, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -815,6 +818,10 @@ private fun ListEventsEffect(
                         currentOnUndoDelete(event.name, event.previous)
                     }
                     is ListEvent.Message -> showReplacingSnackbar(snackbarHostState, event.text)
+                    is ListEvent.CommonItemsAdded ->
+                        showReplacingSnackbar(snackbarHostState, StarterList.addedText(event.items.size), "Undo") {
+                            currentOnUndoCommonItems(event.items)
+                        }
                     is ListEvent.Added -> currentAddedText(event.name, event.value)?.let {
                         showReplacingSnackbar(snackbarHostState, it)
                     }

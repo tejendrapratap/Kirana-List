@@ -37,7 +37,7 @@ class AddCommonItemsTest : GroceryUiTest() {
         launchConnected()
 
         waitForNode(button("Add common items")).performClick()
-        // Everyday first, everything ticked.
+        // Everyday first, everything ticked but meat, fish and eggs.
         waitForNode(starterRow("Onion")).assertIsOn()
         node(choice("Vrat / fasting")).performClick()
         waitForNode(starterRow("Potato")).assertIsOn()

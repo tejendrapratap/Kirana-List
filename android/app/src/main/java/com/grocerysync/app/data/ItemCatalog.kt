@@ -60,6 +60,9 @@ enum class CatalogGrade { CORE, COMMON, REGIONAL }
  *   that - / + steps make sense), or yes/no (unit "") for items people just tick.
  * @param sets every set it belongs to, [CatalogSet.ALL] and (for core and common entries)
  *   [CatalogSet.EVERYDAY] included.
+ * @param optIn starts unticked in "Add common items": meat, fish and eggs, which many families never buy
+ *   (docs/indian-grocery-list.md: 39% of adults say they are vegetarian, 28% of women never eat eggs), and what is
+ *   added goes on the whole family's list.
  */
 data class CatalogEntry(
     val displayName: String,
@@ -70,6 +73,7 @@ data class CatalogEntry(
     val unit: String,
     val grade: CatalogGrade,
     val sets: Set<CatalogSet>,
+    val optIn: Boolean = false,
 ) {
     /** Every other name that means this entry: [otherNames], then [moreNames]. */
     val aliases: List<String> get() = otherNames + moreNames

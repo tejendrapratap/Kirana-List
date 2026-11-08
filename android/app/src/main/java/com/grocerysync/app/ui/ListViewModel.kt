@@ -151,6 +151,9 @@ sealed interface ListEvent {
 
     /** The add dialog's item was saved; the screen says where it is if the page shown hides it. */
     data class Added(val name: String, val value: ItemValue) : ListEvent
+
+    /** "Add common items" added [items] (at least one); the snackbar says how many and offers Undo. */
+    data class CommonItemsAdded(val items: List<AddedItem>) : ListEvent
 }
 
 class ListViewModel(
@@ -260,7 +263,8 @@ class ListViewModel(
     /**
      * "Add N items": adds [entries] to All items, not needed, through the repository's normal add, so the duplicate
      * rules, the outbox and sync are those of any new item. An entry that reached the list meanwhile under any of its
-     * names is skipped ([StarterList.addEntries]). The snackbar says how many were added.
+     * names is skipped ([StarterList.addEntries]). The snackbar says how many were added, with Undo
+     * ([undoAddCommonItems]): a set can be a hundred items, and they are on the family's list at once.
      */
     fun addCommonItems(entries: List<CatalogEntry>) {
         // A second tap on "Add" before the dialog has gone would only say "Nothing added".
@@ -274,8 +278,21 @@ class ListViewModel(
             }
             val names = repository.items.first().map { it.name }
             val added = StarterList.addEntries(entries, names, repository::add)
-            _events.send(ListEvent.Message(StarterList.addedText(added)))
+            _events.send(if (added.isEmpty()) ListEvent.Message(StarterList.addedText(0)) else ListEvent.CommonItemsAdded(added))
         }
+    }
+
+    /**
+     * Undo of "Add common items": deletes the [items] it added, each only while it is as it was added
+     * ([GroceryRepository.deleteIf]): one marked needed or changed on the other phone meanwhile stays, and a
+     * snackbar says how many did. One gone already (deleted there) needs nothing.
+     */
+    fun undoAddCommonItems(items: List<AddedItem>) = edit {
+        var kept = 0
+        for (item in items) {
+            if (repository.deleteIf(ItemKeys.normalize(item.name), item.value) == EditResult.ValueChanged) kept++
+        }
+        if (kept > 0) _events.send(ListEvent.Message(StarterList.keptText(kept)))
     }
 
     // endregion

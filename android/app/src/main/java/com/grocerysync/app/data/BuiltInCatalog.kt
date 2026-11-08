@@ -94,14 +94,16 @@ internal object BuiltInCatalog {
         item("Paneer", PACK, REGIONAL, "Cottage cheese, पनीर", "Panir", VRAT)
         item("Butter", PACK, REGIONAL, "Makhan, मक्खन", "Makkhan, Maska")
         item("Cheese", PACK, REGIONAL, "चीज़", "Cheese slices, Cheese cubes")
-        item("Eggs", DOZEN, COMMON, "Ande, अंडे", "Anda, Anday, अंडा")
+        optIn { item("Eggs", DOZEN, COMMON, "Ande, अंडे", "Anda, Anday, अंडा") }
         item("Bread", PACK, COMMON, "Double roti, ब्रेड", "Pav, Pao, डबल रोटी, पाव")
         item("Rusk", PACK, REGIONAL, "Toast, रस्क", "Cake rusk")
 
         section(ShopSection.MEAT_FISH)
-        item("Chicken", KG, COMMON, "Murga, चिकन", "Murgh, Murgi, मुर्गा")
-        item("Fish", KG, REGIONAL, "Machhli, मछली", "Machli, Machhi")
-        item("Mutton", KG, REGIONAL, "Bakre ka gosht, मटन", "Gosht, Goat meat")
+        optIn {
+            item("Chicken", KG, COMMON, "Murga, चिकन", "Murgh, Murgi, मुर्गा")
+            item("Fish", KG, REGIONAL, "Machhli, मछली", "Machli, Machhi")
+            item("Mutton", KG, REGIONAL, "Bakre ka gosht, मटन", "Gosht, Goat meat")
+        }
 
         section(ShopSection.ATTA_RICE_DAL)
         item("Rice", KG, CORE, "Chawal, चावल", "Chaval", MONTHLY_KIRANA)
@@ -402,10 +404,18 @@ private val YES_NO: String? = null
 private class Table {
     val entries = ArrayList<CatalogEntry>()
     private var section = ShopSection.OTHER
+    private var optingIn = false
 
     /** The entries that follow are in [section]. */
     fun section(section: ShopSection) {
         this.section = section
+    }
+
+    /** The entries [block] adds start unticked in "Add common items" ([CatalogEntry.optIn]: meat, fish, eggs). */
+    fun optIn(block: Table.() -> Unit) {
+        optingIn = true
+        block()
+        optingIn = false
     }
 
     /**
@@ -427,6 +437,7 @@ private class Table {
             unit = unit.orEmpty(),
             grade = grade,
             sets = allSets,
+            optIn = optingIn,
         )
     }
 

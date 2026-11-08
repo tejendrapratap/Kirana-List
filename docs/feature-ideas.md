@@ -53,7 +53,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: yes
 - Much easier after the backend move: no
-- Status: Done in 1.4 (Add common items, in the ⋮ menu and on the empty list: sets Everyday, Monthly kirana, Diwali puja, Vrat / fasting and All, added to All items as not needed; offered once the family's list has loaded from the sheet)
+- Status: Done in 1.4 (Add common items, in the ⋮ menu and on the empty list: sets Everyday, Monthly kirana, Diwali puja, Vrat / fasting and All, added to All items as not needed, with Undo; meat, fish and eggs start unticked; offered once the family's list has loaded from the sheet)
 
 ## 3. Hindi / Hinglish / English name matching in search, plus a 'similar item' warning
 

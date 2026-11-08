@@ -6,6 +6,7 @@ import com.grocerysync.app.data.CatalogSet
 import com.grocerysync.app.data.EditResult
 import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ItemValue
+import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.Units
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -68,6 +69,34 @@ class StarterListTest {
         assertTrue(StarterList.hasAddable(groups))
         assertTrue(StarterList.allTicked(groups, emptySet()))
         assertEquals(ItemCatalog.entriesIn(CatalogSet.EVERYDAY), StarterList.toAdd(groups, emptySet()))
+    }
+
+    @Test
+    fun meatFishAndEggsStartUnticked() {
+        // Many families never buy them, and what is added goes on the whole family's list.
+        assertEquals(setOf("Eggs", "Chicken", "Fish", "Mutton"), StarterList.UNTICKED_AT_FIRST)
+        assertEquals(
+            (ItemCatalog.entries.filter { it.section == ShopSection.MEAT_FISH } + entry("Eggs")).toSet(),
+            ItemCatalog.entries.filter { it.optIn }.toSet(),
+        )
+        val unticked = StarterList.UNTICKED_AT_FIRST
+        val everyday = StarterList.groups(CatalogSet.EVERYDAY, emptyList())
+        for (name in listOf("Eggs", "Chicken")) {
+            // Shown, and can be ticked.
+            assertTrue(name, row(everyday, name).canAdd)
+            assertFalse(name, StarterList.isTicked(row(everyday, name), unticked))
+        }
+        assertTrue(StarterList.isTicked(row(everyday, "Onion"), unticked))
+        val toAdd = StarterList.toAdd(everyday, unticked)
+        assertEquals(ItemCatalog.entriesIn(CatalogSet.EVERYDAY) - entry("Eggs") - entry("Chicken"), toAdd)
+        // So the control offers Select all, which ticks them too, as a tick of the row does.
+        assertFalse(StarterList.allTicked(everyday, unticked))
+        assertTrue(entry("Chicken") in StarterList.toAdd(everyday, StarterList.toggle(unticked, "Chicken", ticked = true)))
+        val all = StarterList.selectAll(everyday, unticked, select = true)
+        assertEquals(ItemCatalog.entriesIn(CatalogSet.EVERYDAY), StarterList.toAdd(everyday, all))
+        // Under All, fish and mutton too.
+        val allSet = StarterList.groups(CatalogSet.ALL, emptyList())
+        assertFalse(StarterList.toAdd(allSet, unticked).any { it.section == ShopSection.MEAT_FISH })
     }
 
     @Test
@@ -192,6 +221,8 @@ class StarterListTest {
         assertEquals("Added 1 item to All items", StarterList.addedText(1))
         assertEquals("Added 12 items to All items", StarterList.addedText(12))
         assertEquals("Nothing added: those items are on the list already", StarterList.addedText(0))
+        assertEquals("1 item stays: changed on another phone", StarterList.keptText(1))
+        assertEquals("3 items stay: changed on another phone", StarterList.keptText(3))
         assertEquals(
             "Connect to your sheet in Settings first, so items already on it aren't replaced.",
             StarterList.NOT_CONNECTED_TEXT,
@@ -214,9 +245,10 @@ class StarterListTest {
     fun addsEachEntryByItsDisplayNameAsNotNeeded() = runTest {
         val fake = FakeAdd()
         val entries = listOf(entry("Atta"), entry("Dahi"), entry("Milk"), entry("Eggs"))
-        val count = StarterList.addEntries(entries, emptyList(), fake::add)
+        val added = StarterList.addEntries(entries, emptyList(), fake::add)
 
-        assertEquals(4, count)
+        // What it returns is what was added, for the snackbar's count and Undo.
+        assertEquals(fake.added.map { (name, value) -> AddedItem(name, value) }, added)
         assertEquals(
             listOf(
                 "Atta" to ItemValue.Quantity(Amount.ZERO, Units.KG),
@@ -233,8 +265,8 @@ class StarterListTest {
     @Test
     fun everyEntryIsAddedNotNeeded() = runTest {
         val fake = FakeAdd()
-        val count = StarterList.addEntries(ItemCatalog.entries, emptyList(), fake::add)
-        assertEquals(ItemCatalog.entries.size, count)
+        val added = StarterList.addEntries(ItemCatalog.entries, emptyList(), fake::add)
+        assertEquals(ItemCatalog.entries.size, added.size)
         assertTrue(fake.added.none { it.second.isNeeded })
     }
 
@@ -243,10 +275,10 @@ class StarterListTest {
         // "Curd" came from the other phone after the dialog opened: no Dahi beside it.
         val fake = FakeAdd(refuse = setOf("Rice"))
         val entries = listOf(entry("Dahi"), entry("Rice"), entry("Atta"))
-        val count = StarterList.addEntries(entries, listOf("Curd"), fake::add)
+        val added = StarterList.addEntries(entries, listOf("Curd"), fake::add)
 
         assertEquals(listOf("Atta"), fake.added.map { it.first })
-        // Rice was refused by the repository (an item called "Rice" arrived in between): not counted.
-        assertEquals(1, count)
+        // Rice was refused by the repository (an item called "Rice" arrived in between): not counted, nor undone.
+        assertEquals(listOf(AddedItem("Atta", ItemValue.Quantity(Amount.ZERO, Units.KG))), added)
     }
 }

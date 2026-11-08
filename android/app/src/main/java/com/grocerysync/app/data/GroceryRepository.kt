@@ -145,6 +145,22 @@ class GroceryRepository(
         }
     }
 
+    /**
+     * Deletes the item [key], but only while it still has [expected]: the Undo of "Add common items", which takes
+     * back what it added and nothing more. An item marked needed or changed on the other phone since is kept
+     * ([EditResult.ValueChanged]), checked in the same transaction as the enqueue like [updateIf].
+     */
+    suspend fun deleteIf(key: String, expected: ItemValue): EditResult = withContext(io) {
+        edit { list ->
+            val current = list.current(key)
+            val conflict = ListLogic.updateConflict(expected.sanitized(), current?.item)
+            if (current == null || conflict != null) return@edit refuse(conflict ?: EditResult.NotOnList)
+            val item = current.item
+            val name = ListLogic.nameForChange(item.name, item) ?: return@edit refuse(EditResult.InvalidName)
+            listOf(deleteOp(key, name, editTime(item))) to EditResult.Saved
+        }
+    }
+
     /** Deletes the item; its Added At is kept for a while in case the delete is undone (see [upsert]). */
     suspend fun delete(key: String) {
         withContext(io) {
