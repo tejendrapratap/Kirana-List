@@ -7,6 +7,7 @@ import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ListLogic
 import com.grocerysync.app.data.SearchText
+import com.grocerysync.app.text.Texts
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
@@ -26,14 +27,11 @@ internal object ItemSearch {
     /** Longest query kept: the longest item name, so the suggested name is always a valid one. */
     const val MAX_QUERY_LENGTH = InputValidation.MAX_NAME_LENGTH
 
-    /** All items: nothing on the list matches. */
-    const val NO_MATCH_TEXT = "No items match your search"
+    /** All items: nothing on the list matches (in the language shown, like every text here). */
+    val NO_MATCH_TEXT: String get() = Texts.current.list.noSearchMatch
 
-    /**
-     * To buy: none of the needed items match. Like [NO_MATCH_TEXT] it doesn't repeat the query (which is
-     * in the field just above), so as a live region it is announced once, not again with each letter typed.
-     */
-    const val NO_TO_BUY_MATCH_TEXT = "No items to buy match your search"
+    /** To buy: none of the needed items match. Like [NO_MATCH_TEXT] it doesn't repeat the query. */
+    val NO_TO_BUY_MATCH_TEXT: String get() = Texts.current.list.noToBuySearchMatch
 
     /**
      * [text] as search compares it ([SearchText.fold], shared with the item dictionary): the item key
@@ -157,10 +155,10 @@ internal object ItemSearch {
     private fun isLineBreak(c: Char): Boolean = c == '\n' || c == '\r' || c == '\u2028' || c == '\u2029'
 
     /** The row offered when nothing matches: Add "Corriander" to the list. */
-    fun addText(name: String): String = "Add \"$name\" to the list"
+    fun addText(name: String): String = Texts.current.list.addToList(name)
 
     /** The row offered on To buy when [count] items that are not needed match: Show 2 in All items. */
-    fun showInAllItemsText(count: Int): String = "Show $count in All items"
+    fun showInAllItemsText(count: Int): String = Texts.current.list.showInAllItems(count)
 }
 
 /**
@@ -169,7 +167,7 @@ internal object ItemSearch {
  * snackbar says where it is; on either page, neither does one the search hides.
  */
 internal fun addedSnackbarText(name: String, needed: Boolean, page: ListFilter, query: String): String? = when {
-    page == ListFilter.TO_BUY && !needed -> "Added $name - it's under All items until you need it"
-    !ItemSearch.matches(name, query) -> "Added $name - clear the search to see it"
+    page == ListFilter.TO_BUY && !needed -> Texts.current.list.addedNotNeeded(name)
+    !ItemSearch.matches(name, query) -> Texts.current.list.addedHiddenBySearch(name)
     else -> null
 }

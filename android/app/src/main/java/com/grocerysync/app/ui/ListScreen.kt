@@ -86,6 +86,7 @@ import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.ValueType
 import com.grocerysync.app.sync.ConnectionState
 import com.grocerysync.app.sync.SyncStatus
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.components.AllItemsRow
 import com.grocerysync.app.ui.components.EmptyListState
 import com.grocerysync.app.ui.components.FailedChangesBanner
@@ -432,6 +433,7 @@ private fun ListContent(
     val query = if (search.open) search.query else ""
     val rowClock = rememberTickingTime(ROW_CLOCK_PERIOD_MS)
     val now = { rowClock.value }
+    val texts = Texts.current
 
     Scaffold(
         topBar = { ListTopBar(groupBySection = state.groupBySection, actions = actions) },
@@ -443,7 +445,7 @@ private fun ListContent(
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add item")
+                Icon(Icons.Default.Add, contentDescription = texts.common.addItem)
             }
         },
     ) { innerPadding ->
@@ -524,7 +526,8 @@ private fun ListContent(
                 SideEffect {
                     if (searchScroll.takeScrollToTop(filter, query)) listState.requestScrollToItem(0)
                 }
-                val content = remember(filter, state.loaded, state.toBuy, state.allItems, query, state.toBuySections) {
+                // The texts too: the no-match line is a finished sentence in the language shown.
+                val content = remember(filter, state.loaded, state.toBuy, state.allItems, query, state.toBuySections, texts) {
                     pageContent(filter, state.loaded, state.toBuy, state.allItems, query, toBuySections = state.toBuySections)
                 }
                 PullToRefreshBox(
@@ -564,6 +567,7 @@ private fun SearchField(
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val t = Texts.current
     LaunchedEffect(focusRequests) {
         if (focusRequests == 0) return@LaunchedEffect
         // A field that has just appeared may only be attached in the next frame.
@@ -588,12 +592,12 @@ private fun SearchField(
             unfocusedIndicatorColor = Color.Transparent,
         ),
         // No label or contentDescription: the placeholder is the hint, and TalkBack reads the typed text.
-        placeholder = { Text("Search items", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        placeholder = { Text(t.list.searchItems, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
         // One control: closing clears the query too (a search is typed again in two taps).
         trailingIcon = {
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close search")
+                Icon(Icons.Default.Close, contentDescription = t.list.closeSearch)
             }
         },
         keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Search),
@@ -609,6 +613,7 @@ private fun FilterRow(
     allCount: Int,
     onFilterChange: (ListFilter) -> Unit,
 ) {
+    val t = Texts.current
     SingleChoiceSegmentedButtonRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -620,13 +625,13 @@ private fun FilterRow(
             onClick = { onFilterChange(ListFilter.TO_BUY) },
             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
             colors = selectorColors(),
-        ) { Text("To buy ($toBuyCount)", maxLines = 1) }
+        ) { Text("${t.common.toBuy} ($toBuyCount)", maxLines = 1) }
         SegmentedButton(
             selected = filter == ListFilter.ALL,
             onClick = { onFilterChange(ListFilter.ALL) },
             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
             colors = selectorColors(),
-        ) { Text("All items ($allCount)", maxLines = 1) }
+        ) { Text("${t.common.allItems} ($allCount)", maxLines = 1) }
     }
 }
 
@@ -700,36 +705,35 @@ private fun LazyListScope.pageItems(
 private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, actions: ListActions) {
     val listEmpty = state.allItems.isEmpty()
     val notLoaded = listEmpty && state.isConfigured && !state.hasSheetList
-    val starterList = if (listEmpty && state.hasSheetList) StarterList.TITLE else null
+    // "Add common items" once the family's list is there.
+    val offerStarterList = listEmpty && state.hasSheetList
     when (filter) {
         ListFilter.TO_BUY -> item(key = "empty:to-buy", contentType = "empty") {
+            val t = Texts.current.list
             EmptyListState(
-                title = if (notLoaded) LIST_NOT_LOADED_TITLE else "Nothing to buy right now",
+                title = if (notLoaded) t.listNotLoadedTitle else t.emptyToBuyTitle,
                 hint = when {
-                    notLoaded -> LIST_NOT_LOADED_HINT
-                    listEmpty -> "Tap + to add the things you usually buy. Mark them as needed when you run out."
-                    else -> "Everything is ticked off. Open All items to mark what you need."
+                    notLoaded -> t.listNotLoadedHint
+                    listEmpty -> t.emptyToBuyHintNewList
+                    else -> t.emptyToBuyHintAllTicked
                 },
                 modifier = Modifier.animateItem(),
-                actionText = starterList,
+                actionText = t.addCommonItems.takeIf { offerStarterList },
                 onAction = actions.openStarterList,
             )
         }
         ListFilter.ALL -> item(key = "empty:all", contentType = "empty") {
+            val t = Texts.current.list
             EmptyListState(
-                title = if (notLoaded) LIST_NOT_LOADED_TITLE else "Your list is empty",
-                hint = if (notLoaded) LIST_NOT_LOADED_HINT else "Tap + to add your first item.",
+                title = if (notLoaded) t.listNotLoadedTitle else t.emptyListTitle,
+                hint = if (notLoaded) t.listNotLoadedHint else t.emptyListHint,
                 modifier = Modifier.animateItem(),
-                actionText = starterList,
+                actionText = t.addCommonItems.takeIf { offerStarterList },
                 onAction = actions.openStarterList,
             )
         }
     }
 }
-
-/** The empty pages while the family's list hasn't come from the sheet yet (right after setup). */
-private const val LIST_NOT_LOADED_TITLE = "Your list hasn't loaded yet"
-private const val LIST_NOT_LOADED_HINT = "It shows here once it has come from the sheet."
 
 /** To buy's rows: every needed item, or (search active) the needed items that match, A to Z; or a section's. */
 private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState, now: () -> Long, actions: ListActions) {
@@ -818,16 +822,19 @@ private fun ListEventsEffect(
     LaunchedEffect(events, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             events.collect { event ->
+                // The texts as they are when the event is shown.
+                val t = Texts.current
                 when (event) {
-                    is ListEvent.GotIt -> showReplacingSnackbar(snackbarHostState, "Got ${event.name}", "Undo") {
+                    is ListEvent.GotIt -> showReplacingSnackbar(snackbarHostState, t.list.gotItSnackbar(event.name), t.common.undo) {
                         currentOnUndoGotIt(event.name, event.previous)
                     }
-                    is ListEvent.Deleted -> showReplacingSnackbar(snackbarHostState, "Deleted ${event.name}", "Undo") {
-                        currentOnUndoDelete(event.name, event.previous)
-                    }
+                    is ListEvent.Deleted ->
+                        showReplacingSnackbar(snackbarHostState, t.list.deletedSnackbar(event.name), t.common.undo) {
+                            currentOnUndoDelete(event.name, event.previous)
+                        }
                     is ListEvent.Message -> showReplacingSnackbar(snackbarHostState, event.text)
                     is ListEvent.CommonItemsAdded ->
-                        showReplacingSnackbar(snackbarHostState, StarterList.addedText(event.items.size), "Undo") {
+                        showReplacingSnackbar(snackbarHostState, StarterList.addedText(event.items.size), t.common.undo) {
                             currentOnUndoCommonItems(event.items)
                         }
                     is ListEvent.Added -> currentAddedText(event.name, event.value)?.let {

@@ -12,18 +12,23 @@ import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.ListLogic
 import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.displayText
+import com.grocerysync.app.text.Texts
 
 // Share in the app bar: the To buy list as a plain-text message (WhatsApp, SMS, a note) through Android's share
 // sheet. The text is built by a pure function (unit-tested in ShareListTest).
 
 /** The snackbar when Share is tapped and nothing is needed. */
-internal const val NOTHING_TO_SHARE_TEXT = "Nothing to buy right now"
+internal val NOTHING_TO_SHARE_TEXT: String get() = Texts.current.list.nothingToShare
 
 /** The snackbar when no app on the phone can take the text (the share sheet couldn't open). */
-internal const val NO_SHARE_APP_TEXT = "No app on this phone can share the list"
+internal val NO_SHARE_APP_TEXT: String get() = Texts.current.list.noShareApp
 
-/** The first line of a shared list: "Grocery list (3 items)", "Grocery list (1 item)". */
-internal fun shareListTitle(count: Int): String = "Grocery list ($count ${if (count == 1) "item" else "items"})"
+/**
+ * The first line of a shared list: "Grocery list (3 items)", "Grocery list (1 item)", in the language shown
+ * ([CommonTexts.shareTitle][com.grocerysync.app.text.CommonTexts.shareTitle], which Paste a list skips in every
+ * language).
+ */
+internal fun shareListTitle(count: Int): String = Texts.current.common.shareTitle(count)
 
 /**
  * The shared text of every needed item of [items] (the others are left out): [shareListTitle], a blank line, then
@@ -33,6 +38,7 @@ internal fun shareListTitle(count: Int): String = "Grocery list ($count ${if (co
  * under its name in WhatsApp bold ("*Dairy, eggs & bread*") and the groups separated by a blank line; only
  * sections with items appear. Without it (null), one list. Items are A to Z either way, inside each section too,
  * as on To buy. Nothing needed: just the title (Share says "Nothing to buy right now" instead, [shareToBuy]).
+ * The title and the section names are in the language shown; item names and amounts are as they are.
  */
 internal fun buildShareText(items: List<GroceryItem>, sectionOf: ((GroceryItem) -> ShopSection)?): String {
     val needed = ListLogic.sortForDisplay(items.filter { it.value.isNeeded })
@@ -44,7 +50,7 @@ internal fun buildShareText(items: List<GroceryItem>, sectionOf: ((GroceryItem) 
         // groupBy keeps the A to Z order inside each section.
         needed.groupBy(sectionOf).entries.sortedBy { it.key.ordinal }.forEachIndexed { index, (section, sectionItems) ->
             if (index > 0) lines += ""
-            lines += "*${section.label}*"
+            lines += "*${Texts.current.common.sectionName(section)}*"
             sectionItems.mapTo(lines, ::shareLine)
         }
     }

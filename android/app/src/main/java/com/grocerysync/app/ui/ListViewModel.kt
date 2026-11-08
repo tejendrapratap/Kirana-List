@@ -25,6 +25,7 @@ import com.grocerysync.app.sync.ConnectionState
 import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.PushProblem
 import com.grocerysync.app.sync.SyncStatus
+import com.grocerysync.app.text.Texts
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -140,7 +141,10 @@ sealed interface ItemDialog {
     }
 }
 
-/** One-shot messages for the snackbar. */
+/**
+ * One-shot messages for the snackbar. A [Message] carries its finished text, made in the language shown when the
+ * event is sent; the others carry data, and the screen makes their text when it shows them.
+ */
 sealed interface ListEvent {
     data class GotIt(val name: String, val previous: ItemValue) : ListEvent
     data class Deleted(val name: String, val previous: ItemValue) : ListEvent
@@ -378,21 +382,19 @@ class ListViewModel(
         EditResult.InvalidName -> couldNotSave(name)
     }
 
-    private fun couldNotSave(name: String) =
-        ListEvent.Message("Couldn't save \"${quotedItemName(name)}\". Check the name and try again.")
+    private fun couldNotSave(name: String) = ListEvent.Message(Texts.current.list.couldNotSave(quotedItemName(name)))
 
     /** The open edit dialog's item was renamed or removed on another phone (or in the sheet). */
     fun onEditedItemRemoved(name: String?) {
         closeDialog()
-        val text = if (name != null) changedElsewhereText(name) else "That item was changed on another phone"
+        val text = if (name != null) changedElsewhereText(name) else Texts.current.list.itemChangedElsewhere
         viewModelScope.launch { _events.send(ListEvent.Message(text)) }
     }
 
-    private fun changedElsewhereText(name: String) = "\"${quotedItemName(name)}\" was changed on another phone"
+    private fun changedElsewhereText(name: String) = Texts.current.list.changedElsewhere(quotedItemName(name))
 
-    private fun cantChange(item: GroceryItem) = ListEvent.Message(
-        "Couldn't change \"${ItemKeys.singleLine(item.name).take(40)}\". Open it and shorten its name.",
-    )
+    private fun cantChange(item: GroceryItem) =
+        ListEvent.Message(Texts.current.list.cantChange(ItemKeys.singleLine(item.name).take(40)))
 
     fun deleteItem(key: String) {
         closeDialog()
@@ -437,7 +439,7 @@ class ListViewModel(
                     throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "Local edit failed", e)
-                    _events.send(ListEvent.Message("Couldn't save that change. Please try again."))
+                    _events.send(ListEvent.Message(Texts.current.list.editFailed))
                 }
             }
         }

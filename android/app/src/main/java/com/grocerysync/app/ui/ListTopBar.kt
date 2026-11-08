@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.components.AppBarTitle
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.appBarColors
@@ -41,15 +42,16 @@ import com.grocerysync.app.ui.theme.appBarColors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ListTopBar(groupBySection: Boolean, actions: ListActions) {
+    val t = Texts.current
     TopAppBar(
         title = { AppBarTitle() },
         colors = appBarColors(),
         actions = {
             IconButton(onClick = actions.openSearch) {
-                Icon(Icons.Default.Search, contentDescription = "Search items")
+                Icon(Icons.Default.Search, contentDescription = t.list.searchItems)
             }
             IconButton(onClick = actions.share) {
-                Icon(Icons.Default.Share, contentDescription = "Share list")
+                Icon(Icons.Default.Share, contentDescription = t.list.shareList)
             }
             ListMenu(groupBySection = groupBySection, actions = actions)
         },
@@ -65,6 +67,7 @@ internal fun ListTopBar(groupBySection: Boolean, actions: ListActions) {
 private fun ListMenu(groupBySection: Boolean, actions: ListActions) {
     var expanded by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val t = Texts.current
     val choose = { action: () -> Unit ->
         expanded = false
         action()
@@ -76,7 +79,7 @@ private fun ListMenu(groupBySection: Boolean, actions: ListActions) {
             focusManager.clearFocus()
             expanded = true
         }) {
-            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+            Icon(Icons.Default.MoreVert, contentDescription = t.list.moreOptions)
         }
         DropdownMenu(
             expanded = expanded,
@@ -84,15 +87,15 @@ private fun ListMenu(groupBySection: Boolean, actions: ListActions) {
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ) {
             DropdownMenuItem(
-                text = { Text("Add common items") },
+                text = { Text(t.list.addCommonItems) },
                 onClick = { choose(actions.openStarterList) },
             )
             DropdownMenuItem(
-                text = { Text("Paste a list") },
+                text = { Text(t.list.pasteList) },
                 onClick = { choose(actions.openPasteList) },
             )
             DropdownMenuItem(
-                text = { Text("Group by shop section") },
+                text = { Text(t.list.groupBySection) },
                 onClick = { choose { actions.setGroupBySection(!groupBySection) } },
                 // The box only shows the state; TalkBack reads the whole row as one checkbox ("checked").
                 trailingIcon = {
@@ -112,7 +115,7 @@ private fun ListMenu(groupBySection: Boolean, actions: ListActions) {
                 },
             )
             DropdownMenuItem(
-                text = { Text("Settings") },
+                text = { Text(t.common.settings) },
                 onClick = { choose(actions.openSettings) },
             )
         }

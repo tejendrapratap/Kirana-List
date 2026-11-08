@@ -76,6 +76,7 @@ import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.displayText
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.stepDescription
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import kotlinx.coroutines.delay
@@ -138,6 +139,7 @@ fun ToBuyRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val t = Texts.current
     val highlighted = item.isRecentChangeByOthers(myDeviceName, now())
     // Show the tick immediately; the row leaves the view once the repository emits the change.
     var ticked by remember(item.key, item.value) { mutableStateOf(false) }
@@ -150,7 +152,7 @@ fun ToBuyRow(
     }
 
     ListItem(
-        modifier = modifier.clickable(onClickLabel = "Edit item", onClick = onClick),
+        modifier = modifier.clickable(onClickLabel = t.list.editItem, onClick = onClick),
         colors = rowColors(highlighted, needed = true),
         leadingContent = {
             Checkbox(
@@ -161,7 +163,7 @@ fun ToBuyRow(
                         onGotIt()
                     }
                 },
-                modifier = Modifier.semantics { contentDescription = "Got it: ${item.name}" },
+                modifier = Modifier.semantics { contentDescription = t.list.gotItDescription(item.name) },
             )
         },
         headlineContent = {
@@ -201,7 +203,7 @@ fun AllItemsRow(
     val needed = item.value.isNeeded
 
     ListItem(
-        modifier = modifier.clickable(onClickLabel = "Edit item", onClick = onClick),
+        modifier = modifier.clickable(onClickLabel = Texts.current.list.editItem, onClick = onClick),
         colors = rowColors(highlighted, needed),
         headlineContent = {
             Text(item.name, style = MaterialTheme.typography.bodyLarge)
@@ -247,7 +249,7 @@ private fun ItemMeta(item: GroceryItem, highlighted: Boolean, now: Long) {
         if (item.pendingSync) {
             Icon(
                 imageVector = Icons.Default.Refresh,
-                contentDescription = "Not synced yet",
+                contentDescription = Texts.current.list.notSyncedYet,
                 // Centred on the first line of the text, which may wrap.
                 modifier = Modifier
                     .padding(top = ((lineHeight(style) - SyncIconSize) / 2).coerceAtLeast(0.dp))
@@ -386,7 +388,7 @@ private fun TextLayoutResult.breaksInsideWord(): Boolean {
 @Composable
 private fun UpdatedByText(updatedBy: String) {
     Text(
-        text = "Updated by ${updatedBy.trim()}",
+        text = Texts.current.common.updatedBy(updatedBy.trim()),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
         maxLines = 1,
@@ -404,7 +406,7 @@ private fun QuantityBadge(quantity: ItemValue.Quantity) {
         contentColor = MaterialTheme.colorScheme.onSecondaryFixed,
         modifier = Modifier
             .widthIn(max = MaxBadgeWidth)
-            .clearAndSetSemantics { contentDescription = "Quantity ${quantity.spokenText()}" },
+            .clearAndSetSemantics { contentDescription = Texts.current.list.amountDescription(quantity.spokenText()) },
     ) {
         Text(
             text = text,
@@ -419,17 +421,18 @@ private fun QuantityBadge(quantity: ItemValue.Quantity) {
 
 @Composable
 private fun NeedToggle(needed: Boolean, itemName: String, onNeededChange: (Boolean) -> Unit) {
+    val t = Texts.current
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(percent = 50))
             .toggleable(value = needed, role = Role.Switch, onValueChange = onNeededChange)
-            .semantics { contentDescription = "Need $itemName" }
+            .semantics { contentDescription = t.list.needDescription(itemName) }
             .heightIn(min = 48.dp)
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Need",
+            text = t.list.need,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -449,11 +452,12 @@ private fun QuantityStepper(
     val amount = quantity.amount
     val unit = quantity.unitText
     val step = stepDescription(unit)
+    val t = Texts.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(
             onClick = { onStep(false) },
             enabled = amount.isPositive,
-            modifier = Modifier.semantics { contentDescription = "$step less $itemName" },
+            modifier = Modifier.semantics { contentDescription = t.list.stepDown(step, itemName) },
         ) {
             Text("−", style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearAndSetSemantics { })
         }
@@ -463,8 +467,8 @@ private fun QuantityStepper(
             modifier = Modifier
                 .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .clickable(onClickLabel = "Edit amount", onClick = onEdit)
-                .clearAndSetSemantics { contentDescription = "Quantity ${quantity.spokenText()}" },
+                .clickable(onClickLabel = t.list.editAmount, onClick = onEdit)
+                .clearAndSetSemantics { contentDescription = t.list.amountDescription(quantity.spokenText()) },
             contentAlignment = Alignment.Center,
         ) {
             Column(
@@ -494,7 +498,7 @@ private fun QuantityStepper(
         IconButton(
             onClick = { onStep(true) },
             enabled = amount < Amount.MAX,
-            modifier = Modifier.semantics { contentDescription = "$step more $itemName" },
+            modifier = Modifier.semantics { contentDescription = t.list.stepUp(step, itemName) },
         ) {
             Text("+", style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearAndSetSemantics { })
         }

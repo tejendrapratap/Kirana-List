@@ -144,8 +144,8 @@ class ItemMetaTextTest {
         assertEquals("Updated by Sheet", meta(item("Sheet", 0L)))
         assertEquals("Updated by Sheet", meta(item("Sheet", 0L, addedAt = now)))
         assertNull(meta(item(" ", 0L)))
-        assertEquals("Added by Home", ItemMetaText("Added", "Home", null).text)
-        assertEquals("Updated on 3 Nov", ItemMetaText("Updated", null, "on 3 Nov").text)
+        assertEquals("Added by Home", ItemMetaText(added = true, "Home", null).text)
+        assertEquals("Updated on 3 Nov", ItemMetaText(added = false, null, "on 3 Nov").text)
     }
 
     @Test
@@ -159,14 +159,14 @@ class ItemMetaTextTest {
 
     @Test
     fun displayTextKeepsTheTimeInOnePieceAndTheDashWithTheName() {
-        val meta = ItemMetaText("Updated", "Home", "2 minutes ago")
+        val meta = ItemMetaText(added = false, "Home", "2 minutes ago")
         assertEquals("Updated by Home - 2 minutes ago", meta.text)
         assertEquals("Updated by Home\u00A0- 2\u00A0minutes\u00A0ago", meta.displayText())
         // The only ordinary spaces are inside "Updated by Home" and after the dash: a line can only break there.
         assertEquals(listOf("Updated", "by", "Home\u00A0-", "2\u00A0minutes\u00A0ago"), meta.displayText().split(' '))
         assertEquals("Updated by Ho$ELLIPSIS\u00A0- 2\u00A0minutes\u00A0ago", meta.displayText("Ho$ELLIPSIS"))
-        assertEquals("Added on\u00A03\u00A0Nov", ItemMetaText("Added", null, "on 3 Nov").displayText())
-        assertEquals("Updated by Home", ItemMetaText("Updated", "Home", null).displayText())
+        assertEquals("Added on\u00A03\u00A0Nov", ItemMetaText(added = true, null, "on 3 Nov").displayText())
+        assertEquals("Updated by Home", ItemMetaText(added = false, "Home", null).displayText())
     }
 
     // ---- fitting helpers ----
@@ -223,8 +223,8 @@ class ItemMetaTextTest {
     private fun fit(meta: ItemMetaText, width: Int): Laid =
         fitMetaLine(meta, maxLines = 2, layout = { layOut(it, width) }, lineCount = { it.lines.size }, breaksInsideWord = { it.brokeWord })
 
-    private val home = ItemMetaText("Updated", "Home", "59 minutes ago")
-    private val grandma = ItemMetaText("Updated", "Grandma's kitchen phone", "59 minutes ago")
+    private val home = ItemMetaText(added = false, "Home", "59 minutes ago")
+    private val grandma = ItemMetaText(added = false, "Grandma's kitchen phone", "59 minutes ago")
 
     @Test
     fun theTimeStaysInOnePieceWhenThatCostsNoLine() {
@@ -256,8 +256,8 @@ class ItemMetaTextTest {
     fun shortNamesAreNeverCut() {
         // About 14 characters a line (large text beside a wide stepper): two lines can't work with any name.
         assertEquals(listOf("Updated by", "Home -", "59 minutes ago"), fit(home, 14).lines)
-        assertEquals(listOf("Updated by", "Shopper -", "23 hours ago"), fit(ItemMetaText("Updated", "Shopper", "23 hours ago"), 14).lines)
-        val sixteen = ItemMetaText("Updated", "Tarun's Pixel 8a", "2 minutes ago")
+        assertEquals(listOf("Updated by", "Shopper -", "23 hours ago"), fit(ItemMetaText(added = false, "Shopper", "23 hours ago"), 14).lines)
+        val sixteen = ItemMetaText(added = false, "Tarun's Pixel 8a", "2 minutes ago")
         assertEquals(listOf("Updated by", "Tarun's Pixel", "8a -", "2 minutes ago"), fit(sixteen, 14).lines)
     }
 
@@ -272,7 +272,7 @@ class ItemMetaTextTest {
         val names = listOf("Home", "Shop", "Grandma's kitchen phone", "Phone of somebody with a really long name")
         for (width in 10..60) {
             for (name in names) {
-                val laid = fit(ItemMetaText("Updated", name, "59 minutes ago"), width)
+                val laid = fit(ItemMetaText(added = false, name, "59 minutes ago"), width)
                 val shown = laid.lines.joinToString(" ")
                 assertTrue(shown, shown.startsWith("Updated by ") && shown.endsWith(" - 59 minutes ago"))
                 assertFalse(shown, laid.brokeWord)
@@ -284,8 +284,8 @@ class ItemMetaTextTest {
 
     @Test
     fun withoutATimeOrANameThereIsNothingToChoose() {
-        assertEquals(listOf("Updated by Home"), fit(ItemMetaText("Updated", "Home", null), 21).lines)
-        assertEquals(listOf("Added just now"), fit(ItemMetaText("Added", null, "just now"), 21).lines)
+        assertEquals(listOf("Updated by Home"), fit(ItemMetaText(added = false, "Home", null), 21).lines)
+        assertEquals(listOf("Added just now"), fit(ItemMetaText(added = true, null, "just now"), 21).lines)
     }
 
     // ---- the line count doesn't move with the clock ----
@@ -306,7 +306,7 @@ class ItemMetaTextTest {
     @Test
     fun theTimeGetsALineOfItsOwnWhenTheWidestTimeWouldNotFitBesideTheName() {
         // 30 characters beside a Need switch: "Updated by Home - 59 minutes ago" (32) doesn't fit, "- just now" does.
-        val updated = ItemMetaText("Updated", "Home", "just now")
+        val updated = ItemMetaText(added = false, "Home", "just now")
         assertTrue(breaksBeforeTime(updated, fitsOnOneLine(30)))
         assertEquals(listOf("Updated by Home -", "just now"), rowAt(updated, "just now", 30).lines)
         assertEquals(listOf("Updated by Home -", "2 minutes ago"), rowAt(updated, "2 minutes ago", 30).lines)
@@ -314,22 +314,22 @@ class ItemMetaTextTest {
         assertFalse(breaksBeforeTime(updated, fitsOnOneLine(32)))
         assertEquals(listOf("Updated by Home - just now"), rowAt(updated, "just now", 32).lines)
         // Without a name or a time.
-        assertTrue(breaksBeforeTime(ItemMetaText("Added", null, "just now"), fitsOnOneLine(16)))
-        assertEquals(listOf("Added", "just now"), rowAt(ItemMetaText("Added", null, "just now"), "just now", 16).lines)
-        assertFalse(breaksBeforeTime(ItemMetaText("Updated", "Home", null), fitsOnOneLine(10)))
+        assertTrue(breaksBeforeTime(ItemMetaText(added = true, null, "just now"), fitsOnOneLine(16)))
+        assertEquals(listOf("Added", "just now"), rowAt(ItemMetaText(added = true, null, "just now"), "just now", 16).lines)
+        assertFalse(breaksBeforeTime(ItemMetaText(added = false, "Home", null), fitsOnOneLine(10)))
         // A date in another year wider than the widest ticking time decides for itself.
-        assertTrue(breaksBeforeTime(ItemMetaText("Updated", "Home", "on 30 Nov 2025 at noon"), fitsOnOneLine(32)))
+        assertTrue(breaksBeforeTime(ItemMetaText(added = false, "Home", "on 30 Nov 2025 at noon"), fitsOnOneLine(32)))
     }
 
     @Test
     fun aRowKeepsItsNumberOfLinesAsTheTimeMovesOn() {
         val names = listOf("Home", "Shop", "Grandma's kitchen phone", "Phone of somebody with a really long name")
         for (width in 14..60) {
-            for (verb in listOf("Added", "Updated")) {
+            for (added in listOf(true, false)) {
                 for (name in names) {
-                    val meta = ItemMetaText(verb, name, "just now")
+                    val meta = ItemMetaText(added, name, "just now")
                     val counts = times.map { rowAt(meta, it, width).lines.size }.toSet()
-                    assertEquals("$verb by $name at $width: $counts", 1, counts.size)
+                    assertEquals("${meta.text} at $width: $counts", 1, counts.size)
                     for (time in times) {
                         val laid = rowAt(meta, time, width)
                         assertFalse(laid.lines.toString(), laid.brokeWord)
