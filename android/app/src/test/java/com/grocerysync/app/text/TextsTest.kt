@@ -139,9 +139,10 @@ class TextsTest {
         assertEquals("Grocery list (1 item)", EnglishCommonTexts.shareTitle(1))
         assertEquals("Grocery list (3 items)", EnglishCommonTexts.shareTitle(3))
         assertEquals("Grocery list (0 items)", EnglishCommonTexts.shareTitle(0))
-        assertEquals("किराने की लिस्ट (1 चीज़)", HindiCommonTexts.shareTitle(1))
-        assertEquals("किराने की लिस्ट (3 चीज़ें)", HindiCommonTexts.shareTitle(3))
-        assertEquals("किराने की लिस्ट (3 चीज़ें)", withTexts(AppTexts.Hindi) { Texts.current.common.shareTitle(3) })
+        // Hindi ends in ':', which 1.4 and 1.5 read as a heading (PasteParserTest.olderVersionsDontAddTheHindiTitle).
+        assertEquals("किराने की लिस्ट (1 चीज़):", HindiCommonTexts.shareTitle(1))
+        assertEquals("किराने की लिस्ट (3 चीज़ें):", HindiCommonTexts.shareTitle(3))
+        assertEquals("किराने की लिस्ट (3 चीज़ें):", withTexts(AppTexts.Hindi) { Texts.current.common.shareTitle(3) })
     }
 
     @Test

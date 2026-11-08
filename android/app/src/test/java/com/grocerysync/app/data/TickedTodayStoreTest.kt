@@ -123,8 +123,15 @@ class TickedTodayStoreTest {
     fun withoutPreferencesEntriesStayInMemory() {
         val store = TickedTodayStore(prefs = null, clock = { now }, zone = { zone })
         store.record("rice", "Rice", before = rice2, set = rice0)
-        assertEquals(1, store.today().size)
-        assertTrue(prefs.values.isEmpty())
+        store.record("dahi", "Dahi", before = BoolValue(true), set = BoolValue(false))
+        assertEquals(listOf("dahi", "rice"), store.today().map { it.key })
+        // Kept by that store only: another one without preferences (as after a restart) starts empty.
+        assertEquals(emptyList<TickedEntry>(), TickedTodayStore(prefs = null, clock = { now }, zone = { zone }).today())
+        // Removing works without preferences too.
+        store.remove("dahi")
+        assertEquals(listOf("rice"), store.today().map { it.key })
+        store.retain { false }
+        assertEquals(emptyList<TickedEntry>(), store.today())
     }
 
     @Test

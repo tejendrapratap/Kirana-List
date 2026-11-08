@@ -350,16 +350,18 @@ object PasteParser {
 
     /**
      * [texts]' title of a shared list ([CommonTexts.shareTitle]) as written for [n] items, as a pattern of its
-     * [headingKey] that takes any count instead of [n].
+     * [headingKey] that takes any count instead of [n], with or without a ':' at the end: the Hindi title ends in
+     * one (for older versions, see [CommonTexts.shareTitle]), which may have been deleted when the list was
+     * forwarded.
      */
     private fun titlePattern(texts: CommonTexts, n: Int): String {
-        val parts = headingKey(texts.shareTitle(n)).split(n.toString())
+        val parts = headingKey(texts.shareTitle(n)).removeSuffix(":").split(n.toString())
         check(parts.size == 2) { "Share's title must hold its count once: ${texts.shareTitle(n)}" }
-        return Regex.escape(parts[0]) + """\d+""" + Regex.escape(parts[1])
+        return Regex.escape(parts[0]) + """\d+""" + Regex.escape(parts[1]) + ":?"
     }
 
     /**
-     * The first line of a shared list, as its [headingKey]: "Grocery list (12 items)", "किराने की लिस्ट (12 चीज़ें)",
+     * The first line of a shared list, as its [headingKey]: "Grocery list (12 items)", "किराने की लिस्ट (12 चीज़ें):",
      * for any count, with the singular or plural word (each language's forms for 1 and for 2).
      */
     private val SHARE_TITLE = Regex(

@@ -75,7 +75,7 @@ class NotificationCardsTest {
             }
         }
         compose.onNode(notifySwitch).assertIsOn()
-        compose.onNode(hasText("Checks about every 15 minutes while the app is closed")).assertIsDisplayed()
+        compose.onNode(hasText("Checks about every 15 minutes while the app is closed.")).assertIsDisplayed()
         compose.onNode(blockedLine).assertDoesNotExist()
         compose.onNode(allowButton).assertDoesNotExist()
     }

@@ -150,7 +150,7 @@ object EnglishSettingsTexts : SettingsTexts {
     override val simpleModeHelp = "Bigger text and buttons. Shows only ${EnglishCommonTexts.toBuy}, and " +
         "${EnglishCommonTexts.undo} stays on screen."
     override val notifyChanges = "Notify me when someone adds to ${EnglishCommonTexts.toBuy}"
-    override val notifyChangesHelp = "Checks about every 15 minutes while the app is closed"
+    override val notifyChangesHelp = "Checks about every 15 minutes while the app is closed."
     override val notificationsBlocked = "Notifications are blocked for this app."
     override val allowNotifications = "Allow in Android settings"
     override val googleSheet = "Google Sheet"
@@ -202,7 +202,7 @@ object HindiSettingsTexts : SettingsTexts {
     override val simpleModeHelp = "बड़े अक्षर और बड़े बटन। सिर्फ़ ${quoted(HindiCommonTexts.toBuy)} दिखेगा, और " +
         "${quoted(HindiCommonTexts.undo)} स्क्रीन पर बना रहेगा।"
     override val notifyChanges = "कोई ${quoted(HindiCommonTexts.toBuy)} में कुछ जोड़े, तो मुझे सूचना दें"
-    override val notifyChangesHelp = "ऐप बंद होने पर लगभग हर 15 मिनट में लिस्ट जाँचता है"
+    override val notifyChangesHelp = "ऐप बंद होने पर लगभग हर 15 मिनट में लिस्ट जाँचता है।"
     override val notificationsBlocked = "इस ऐप की सूचनाएँ बंद हैं।"
     override val allowNotifications = "Android सेटिंग्स में चालू करें"
     override val googleSheet = "Google शीट"

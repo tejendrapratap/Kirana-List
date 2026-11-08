@@ -14,7 +14,6 @@ interface CommonTexts {
     val save: String
     val delete: String
     val edit: String
-    val ok: String
     val close: String
 
     /** Tries a failed action (sending changes, syncing) again. Sync messages that say "tap Retry" name this button. */
@@ -83,6 +82,10 @@ interface CommonTexts {
      * The first line of a shared To buy list: "Grocery list (1 item)", "Grocery list (3 items)". Share writes it
      * in the current language and Paste a list skips it in every language, so a list shared from a Hindi phone
      * pastes back on an English one and the other way round: both read it from here.
+     *
+     * Phones on 1.4 or 1.5 may read it too, and they leave out only the English title and lines that end in ':'
+     * (a heading, which they show unticked). Any other title is read there as an item with an amount ("(3 चीज़ें)"
+     * is 3 of a unit "चीज़ें") and offered ticked, so a title in another language ends in ':'.
      */
     fun shareTitle(n: Int): String
 }
@@ -93,7 +96,6 @@ object EnglishCommonTexts : CommonTexts {
     override val save = "Save"
     override val delete = "Delete"
     override val edit = "Edit"
-    override val ok = "OK"
     override val close = "Close"
     override val retry = "Retry"
     override val add = "Add"
@@ -131,7 +133,6 @@ object HindiCommonTexts : CommonTexts {
     override val save = "सेव करें"
     override val delete = "हटाएँ"
     override val edit = "बदलें"
-    override val ok = "ठीक है"
     override val close = "बंद करें"
     override val retry = "फिर से कोशिश करें"
     override val add = "जोड़ें"
@@ -177,5 +178,7 @@ object HindiCommonTexts : CommonTexts {
     override fun hoursAgo(n: Int) = "$n घंटे पहले"
     override val yesterday = "कल"
     override fun daysAgo(n: Int) = "$n दिन पहले"
-    override fun shareTitle(n: Int) = "किराने की लिस्ट (${itemCount(n)})"
+
+    /** Ends in ':', so that 1.4 and 1.5 show it as a heading instead of adding it as an item (see the interface). */
+    override fun shareTitle(n: Int) = "किराने की लिस्ट (${itemCount(n)}):"
 }

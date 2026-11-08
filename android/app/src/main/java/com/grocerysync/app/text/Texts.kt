@@ -29,8 +29,8 @@ enum class AppLanguage(val id: String) {
  *
  * Conventions (every area file follows them; see also [Texts]):
  * - One file per area in this package: `XTexts.kt` holds `interface XTexts`, `object EnglishXTexts : XTexts` and
- *   `object HindiXTexts : XTexts`. A lane edits only the area files it owns; a text another area also needs may be
- *   defined again in its own file (a duplicate across areas is fine). Words several areas share are in [CommonTexts].
+ *   `object HindiXTexts : XTexts`. Each area keeps its own texts; a text another area also needs may be defined
+ *   again in that area's file (a duplicate across areas is fine). Words several areas share are in [CommonTexts].
  * - Members are `val` for a fixed text (`val undo: String`) and `fun` for a text with parts
  *   (`fun gotIt(name: String): String`, `fun itemCount(n: Int): String`). Member names say what the text is for, in
  *   lowerCamelCase, not what it says in English (`emptyToBuyTitle`, not `nothingToBuyRightNow`).

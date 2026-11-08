@@ -190,11 +190,24 @@ class ListTextsHindiTest {
     }
 
     @Test
+    fun theBannersButtonsAreNamedForTalkBackWithTheirOwnLabels() {
+        // TalkBack and voice control go by the button's name, and the failed change hints say to tap the label
+        // shown, so each name holds that label word for word; in English as in Hindi.
+        for (texts in listOf(AppTexts.English, AppTexts.Hindi)) {
+            val list = texts.list
+            assertTrue(list.retrySendingChanges, list.retrySendingChanges.contains(texts.common.retry))
+            assertTrue(list.retryFailedChanges, list.retryFailedChanges.contains(texts.common.retry))
+            assertTrue(list.discardFailedChanges, list.discardFailedChanges.contains(list.discard))
+        }
+        assertEquals("सेव न हुए बदलाव भेजने की फिर से कोशिश करें", HindiListTexts.retryFailedChanges)
+    }
+
+    @Test
     fun shareUsesHindiForTheTitleAndTheSectionsOnly() {
         val atta = item("Atta", ItemValue.Quantity(Amount.whole(10L), Units.KG))
-        assertEquals("किराने की लिस्ट (1 चीज़)\n\n*दूध, अंडे और ब्रेड*\n• Dahi", buildShareText(listOf(yesNo("Dahi")), ::catalogSectionOf))
-        assertEquals("किराने की लिस्ट (2 चीज़ें)\n\n• Atta - 10 kg\n• Dahi", buildShareText(listOf(yesNo("Dahi"), atta), sectionOf = null))
-        assertEquals("किराने की लिस्ट (0 चीज़ें)", buildShareText(listOf(yesNo("Dahi", needed = false)), sectionOf = null))
+        assertEquals("किराने की लिस्ट (1 चीज़):\n\n*दूध, अंडे और ब्रेड*\n• Dahi", buildShareText(listOf(yesNo("Dahi")), ::catalogSectionOf))
+        assertEquals("किराने की लिस्ट (2 चीज़ें):\n\n• Atta - 10 kg\n• Dahi", buildShareText(listOf(yesNo("Dahi"), atta), sectionOf = null))
+        assertEquals("किराने की लिस्ट (0 चीज़ें):", buildShareText(listOf(yesNo("Dahi", needed = false)), sectionOf = null))
         assertEquals("अभी कुछ ख़रीदना नहीं है", NOTHING_TO_SHARE_TEXT)
     }
 
