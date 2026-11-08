@@ -103,7 +103,8 @@ do_reset() {
     echo "nothing to reset on $GS_SERIAL"
     return 0
   fi
-  while IFS='=' read -r key value; do
+  # The file is read on fd 3: adb shell reads stdin, and on fd 0 it would swallow the lines after the first.
+  while IFS='=' read -r key value <&3; do
     case $key in
       font_scale) put_or_delete system font_scale "$value";;
       user_rotation) put_or_delete system user_rotation "$value";;
@@ -116,7 +117,7 @@ do_reset() {
         if [ "$value" = 1 ]; then gs_adb shell cmd connectivity airplane-mode enable; else gs_adb shell cmd connectivity airplane-mode disable; fi;;
     esac
     echo "restored $key=$value"
-  done <"$ORIG"
+  done 3<"$ORIG"
   rm -f "$ORIG"
 }
 
@@ -193,7 +194,7 @@ do_logcat() {
       rm -f "$LOGCAT_PID";;
     mark)
       gs_resolve_serial
-      gs_sh date '+%m-%d %H:%M:%S.000' >"$GS_STATE/crash-mark-$GS_SERIAL"
+      gs_device_time >"$GS_STATE/crash-mark-$GS_SERIAL"
       echo "crash mark: $(cat "$GS_STATE/crash-mark-$GS_SERIAL")";;
     grep)
       [ -n "${1:-}" ] || gs_die "logcat grep REGEX [FILE]"
@@ -215,7 +216,7 @@ case $cmd in
   wait-text)
     parse_match text "$@"
     if gs_ui_wait "$how" "$query" "$index" "$timeout" "$gone"; then
-      [ -n "$gone" ] && echo "gone: $query"
+      if [ -n "$gone" ]; then echo "gone: $query"; fi
     else
       gs_log "timed out after $timeout s waiting for${gone:+ the end of} $how \"$query\""
       exit 1

@@ -77,10 +77,10 @@ wait_for_boot() {
 emulator_process_alive() {
   local pid=$1 winpid=${2:-}
   if [ -n "$pid" ] && [ -r "/proc/$pid/cmdline" ] && kill -0 "$pid" 2>/dev/null; then
-    tr '\0' ' ' <"/proc/$pid/cmdline" | grep -qi emulator && return 0
+    tr '\0' ' ' <"/proc/$pid/cmdline" | grep -i emulator >/dev/null && return 0
   fi
   if [ -n "$winpid" ] && gs_have tasklist; then
-    tasklist /FI "PID eq $winpid" /NH 2>/dev/null | grep -qiE "^(emulator|qemu)[^ ]* +$winpid " && return 0
+    tasklist /FI "PID eq $winpid" /NH 2>/dev/null | grep -iE "^(emulator|qemu)[^ ]* +$winpid " >/dev/null && return 0
   fi
   return 1
 }
@@ -114,7 +114,7 @@ running_serial() {
 
 free_port() {
   local port
-  for port in $(seq 5554 2 5584); do
+  for port in ${EMU_PORTS:-$(seq 5554 2 5584)}; do
     [ -z "$(gs_state_of "emulator-$port")" ] && ! gs_port_busy "$port" && ! gs_port_busy $((port + 1)) && {
       printf '%s\n' "$port"
       return 0

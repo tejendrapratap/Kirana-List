@@ -1,5 +1,9 @@
 package com.grocerysync.app.testing
 
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.isSelected
@@ -78,25 +82,62 @@ abstract class GroceryUiTest {
 
     // ---- Waiting ----------------------------------------------------------------------------------------
 
-    /** Waits until [condition] holds (checked every few ms), else fails naming [what]. */
+    /**
+     * Waits until [condition] holds (checked every few ms), else fails naming [what] and listing what the screen
+     * shows at that moment ([screenTexts]).
+     */
     protected fun waitFor(what: String, timeoutMs: Long = SYNC_TIMEOUT_MS, condition: () -> Boolean) {
-        compose.waitUntil(what, timeoutMs, condition)
+        try {
+            compose.waitUntil(what, timeoutMs, condition)
+        } catch (e: ComposeTimeoutException) {
+            throw AssertionError("Waited $timeoutMs ms for $what. The screen shows: ${screenTexts()}", e)
+        }
     }
 
     /** Waits until a node matching [matcher] is on screen (in any window, dialogs included) and returns it. */
     protected fun waitForNode(matcher: SemanticsMatcher, timeoutMs: Long = UI_TIMEOUT_MS): SemanticsNodeInteraction {
-        compose.waitUntil("a node that ${matcher.description}", timeoutMs) { count(matcher) > 0 }
+        waitFor("a node that ${matcher.description}", timeoutMs) { count(matcher) > 0 }
         return compose.onNode(matcher)
     }
 
     /** Waits until no node matches [matcher]. */
     protected fun waitForNoNode(matcher: SemanticsMatcher, timeoutMs: Long = UI_TIMEOUT_MS) {
-        compose.waitUntil("no node that ${matcher.description}", timeoutMs) { count(matcher) == 0 }
+        waitFor("no node that ${matcher.description}", timeoutMs) { count(matcher) == 0 }
     }
 
     /** How many nodes match [matcher] right now. */
-    protected fun count(matcher: SemanticsMatcher): Int =
-        compose.onAllNodes(matcher).fetchSemanticsNodes(atLeastOneRootRequired = false).size
+    protected fun count(matcher: SemanticsMatcher): Int = nodes(matcher).size
+
+    /** Fails when a node matches [matcher] right now, naming the texts of the nodes that do. */
+    protected fun assertNoNode(matcher: SemanticsMatcher) {
+        val found = nodes(matcher)
+        if (found.isNotEmpty()) {
+            throw AssertionError("Expected no node that ${matcher.description}, found ${found.size}: ${found.joinToString { describe(it) }}")
+        }
+    }
+
+    /** Every text and content description on screen (all windows), for failure messages. Never typed text. */
+    protected fun screenTexts(): String =
+        nodes(SemanticsMatcher("any node") { true }).map(::describe).filter { it.isNotBlank() }.joinToString(" | ")
+
+    private fun nodes(matcher: SemanticsMatcher): List<SemanticsNode> =
+        compose.onAllNodes(matcher).fetchSemanticsNodes(atLeastOneRootRequired = false)
+
+    /**
+     * A node's own texts, content descriptions and state, as a failure message shows them. A text field is only
+     * named as one: what was typed into it (a token, say) is left out.
+     */
+    private fun describe(node: SemanticsNode): String {
+        val config = node.config
+        return (
+            config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text } +
+                config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() +
+                listOfNotNull(
+                    config.getOrNull(SemanticsProperties.StateDescription)?.let { "state: $it" },
+                    if (config.contains(SemanticsProperties.EditableText)) "[text field]" else null,
+                )
+            ).joinToString(" / ")
+    }
 
     /**
      * Runs [block] (waiting for the fake, not the UI) with the UI's test clock stopped: a snackbar shown before

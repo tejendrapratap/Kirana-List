@@ -139,7 +139,7 @@ aapt2="$bt/aapt2"
     "$aapt2" dump badging "$out" 2>/dev/null |
       grep -E "^(package:|minSdkVersion:|sdkVersion:|targetSdkVersion:|application-label:|application-debuggable|launchable-activity:)" |
       sed -E "s/ (platformBuildVersion|compileSdkVersion)[A-Za-z]*='[^']*'//g"
-    if "$aapt2" dump xmltree --file AndroidManifest.xml "$out" 2>/dev/null | grep -q networkSecurityConfig; then
+    if "$aapt2" dump xmltree --file AndroidManifest.xml "$out" 2>/dev/null | grep networkSecurityConfig >/dev/null; then
       echo "network security config: present (cleartext to localhost / 127.0.0.1 / 10.0.2.2)"
     else
       echo "network security config: none (HTTPS only: cannot reach the mock over http)"
@@ -149,7 +149,7 @@ aapt2="$bt/aapt2"
   fi
   if [ -f "$bt/lib/apksigner.jar" ]; then
     certs=$("$java" -jar "$bt/lib/apksigner.jar" verify --print-certs "$out" 2>&1 | tr -d '\r')
-    if printf '%s\n' "$certs" | grep -q 'certificate SHA-256'; then
+    if grep -q 'certificate SHA-256' <<<"$certs"; then
       printf '%s\n' "$certs" | grep -E 'certificate (DN|SHA-256 digest)' | sed 's/^Signer #1 //'
     else
       echo "signature: $(printf '%s\n' "$certs" | head -n 1)"

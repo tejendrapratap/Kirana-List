@@ -39,11 +39,12 @@ cmd=${1:-}
 [ -z "$cmd" ] && usage 2
 shift
 
-installed() { gs_sh pm path "$GS_PACKAGE" 2>/dev/null | grep -q '^package:'; }
+# Never "| grep -q" on adb output: under pipefail an early exit of grep fails the pipeline (SIGPIPE).
+installed() { gs_sh pm path "$GS_PACKAGE" 2>/dev/null | grep '^package:' >/dev/null; }
 
 set_crash_mark() {
   local now
-  now=$(gs_sh date '+%m-%d %H:%M:%S.000')
+  now=$(gs_device_time)
   [ -n "$now" ] && printf '%s\n' "$now" >"$GS_STATE/crash-mark-$GS_SERIAL"
 }
 
@@ -85,7 +86,7 @@ do_install() {
       gs_adb shell settings put global sys_storage_threshold_percentage "$orig"
     fi
   fi
-  if [ $rc -ne 0 ] || ! printf '%s\n' "$out" | grep -q '^Success'; then
+  if [ $rc -ne 0 ] || ! grep -q '^Success' <<<"$out"; then
     printf '%s\n' "$out" | tail -n 3 >&2
     case $out in
       *INSTALL_FAILED_UPDATE_INCOMPATIBLE* | *signatures*do\ not\ match*)
@@ -107,13 +108,13 @@ app_info_line() {
   printf '%s versionName=%s versionCode=%s%s\n' "$GS_PACKAGE" \
     "$(printf '%s\n' "$dump" | sed -n 's/^ *versionName=//p' | head -n 1)" \
     "$(printf '%s\n' "$dump" | sed -n 's/^ *versionCode=\([0-9]*\).*/\1/p' | head -n 1)" \
-    "$(printf '%s\n' "$dump" | grep -q 'pkgFlags=\[.*DEBUGGABLE' && echo ' (debuggable)')"
+    "$(grep -q 'pkgFlags=\[.*DEBUGGABLE' <<<"$dump" && echo ' (debuggable)')"
 }
 
 do_launch() {
   local out
   out=$(gs_sh am start -W -n "$GS_PACKAGE/$GS_ACTIVITY")
-  printf '%s\n' "$out" | grep -q 'Status: ok' || { printf '%s\n' "$out" >&2; gs_die "could not start $GS_PACKAGE"; }
+  grep -q 'Status: ok' <<<"$out" || { printf '%s\n' "$out" >&2; gs_die "could not start $GS_PACKAGE"; }
   gs_log "launched ($(printf '%s\n' "$out" | sed -n 's/^TotalTime: /TotalTime /p') ms)"
 }
 

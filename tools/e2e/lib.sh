@@ -154,7 +154,8 @@ gs_adb_to() {
   gs_check_serial "$serial"
   gs_refuse_adb_command "${1:-}"
   gs_init_sdk
-  "$ADB" -s "$serial" "$@"
+  # Never from the caller's stdin: "adb shell" reads it, which would eat the rest of a "while read" loop's input.
+  "$ADB" -s "$serial" "$@" </dev/null
 }
 
 # State of an emulator serial: device, offline, ... or empty when adb does not know it.
@@ -209,6 +210,10 @@ gs_sh() { gs_adb shell "$@" | tr -d '\r'; }
 # Quotes one argument for the device's shell (adb joins shell arguments with spaces).
 gs_shq() { local s=$1; printf "'%s'" "${s//\'/\'\\\'\'}"; }
 
+# The device clock as logcat -T wants it ("11-08 10:00:00.000"). Sent as one quoted shell word: adb joins its
+# arguments with spaces, so date would otherwise get "+%m-%d" and "%H:%M:%S.000" as two arguments and fail.
+gs_device_time() { gs_sh "date '+%m-%d %H:%M:%S.000'"; }
+
 # ----------------------------------------------------------------------------------------- state files
 
 # gs_kv_get <file> <key>: the value of key=value in a state file.
@@ -222,7 +227,7 @@ gs_alive() {
   local pid=$1 winpid=${2:-}
   [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && return 0
   if [ -n "$winpid" ] && gs_have tasklist; then
-    tasklist /FI "PID eq $winpid" /NH 2>/dev/null | grep -q " $winpid " && return 0
+    tasklist /FI "PID eq $winpid" /NH 2>/dev/null | grep " $winpid " >/dev/null && return 0
   fi
   return 1
 }
@@ -265,7 +270,7 @@ gs_ui_dump() {
   mkdir -p "$GS_OUT/xml"
   for try in 1 2 3; do
     out=$(gs_sh uiautomator dump "$GS_UI_REMOTE" 2>&1)
-    if printf '%s' "$out" | grep -q 'dumped to'; then
+    if grep -q 'dumped to' <<<"$out"; then
       gs_adb exec-out cat "$GS_UI_REMOTE" >"$GS_UI_LAST" 2>/dev/null
       if grep -q '<hierarchy' "$GS_UI_LAST" 2>/dev/null; then
         [ -n "$name" ] && cp "$GS_UI_LAST" "$GS_OUT/xml/$name.xml"
@@ -331,8 +336,12 @@ gs_ui_tap_match() {
   gs_log "tapped ${hit#*$'\t'} at $1,$2"
 }
 
+# Reads the whole dump first: "dumpsys ... | grep -q" fails under pipefail on a real device, where the dump is
+# thousands of lines and grep -q exits at the first match (SIGPIPE, status 141), so it said "hidden".
 gs_ui_keyboard_shown() {
-  gs_sh dumpsys input_method | grep -Eq 'mInputShown=true|isInputViewShown=true'
+  local out
+  out=$(gs_sh dumpsys input_method)
+  grep -Eq 'mInputShown=true|isInputViewShown=true' <<<"$out"
 }
 
 # Closes the soft keyboard if it is open. Never sends BACK otherwise (that would leave the screen).

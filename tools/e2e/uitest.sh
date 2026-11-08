@@ -54,7 +54,7 @@ gs_resolve_serial
 wall_start=$SECONDS
 fmt() { printf '%dm%02ds' $(($1 / 60)) $(($1 % 60)); }
 
-installed() { gs_sh pm path "$1" 2>/dev/null | grep -q '^package:'; }
+installed() { gs_sh pm path "$1" 2>/dev/null | grep '^package:' >/dev/null; }
 uninstall_pkg() {
   if installed "$1"; then
     gs_adb uninstall "$1" >/dev/null && gs_log "uninstalled $1 from $GS_SERIAL"
@@ -118,7 +118,7 @@ install_apk() {
   local out
   gs_log "installing $(basename "$1") on $GS_SERIAL"
   out=$(gs_adb install -r -t "$(gs_path "$1")" 2>&1 | tr -d '\r')
-  if ! printf '%s\n' "$out" | grep -q '^Success'; then
+  if ! grep -q '^Success' <<<"$out"; then
     printf '%s\n' "$out" | tail -n 3 >&2
     case $out in
       *INSTALL_FAILED_UPDATE_INCOMPATIBLE* | *signatures*do\ not\ match*)
@@ -152,7 +152,7 @@ for a in "${extra[@]}"; do
 done
 args+=("$TEST_PACKAGE/$RUNNER")
 
-mark=$(gs_sh date '+%m-%d %H:%M:%S.000')
+mark=$(gs_device_time)
 gs_log "running: am instrument ${args[*]} (on $GS_SERIAL; raw output: $raw)"
 t=$SECONDS
 

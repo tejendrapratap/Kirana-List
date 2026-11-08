@@ -30,6 +30,17 @@ fun mentions(text: String): SemanticsMatcher = SemanticsMatcher("mentions \"$tex
     texts.any { it.contains(text) }
 }
 
+/**
+ * A node that shows [text] on screen: in its text, or in a text field's shown text (a password field shows dots
+ * there). Unlike hasText, it leaves out a field's input text, which holds what was typed before masking.
+ */
+fun showsText(text: String): SemanticsMatcher = SemanticsMatcher("shows \"$text\"") { node ->
+    val config = node.config
+    val shown = config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text } +
+        listOfNotNull(config.getOrNull(SemanticsProperties.EditableText)?.text)
+    shown.any { it.contains(text) }
+}
+
 /** A text or content description with the word [word] in it, in any case ("Show", "show"; not "Shown"). */
 fun hasWord(word: String): SemanticsMatcher {
     val regex = Regex("\\b${Regex.escape(word)}\\b", RegexOption.IGNORE_CASE)

@@ -36,6 +36,8 @@ fi
 
 sub=$1
 shift
+# Like adb (adb shell forwards stdin to the device): read whatever stdin holds, unless it is a terminal.
+[ -t 0 ] || cat >/dev/null
 case $sub in
   get-state) echo "$state";;
   emu)
@@ -67,7 +69,8 @@ case $sub in
         cp "$first" "$D/remote-ui.xml"
         [ "$(grep -c . "$D/screens")" -gt 1 ] && sed -i 1d "$D/screens"
         echo "UI hierchary dumped to: /data/local/tmp/gs-e2e-ui.xml";;
-      "dumpsys input_method") echo "  mInputShown=$(cat "$D/ime" 2>/dev/null || echo false)";;
+      # As long as a real one (thousands of lines), so "| grep -q" on it would fail under pipefail (SIGPIPE).
+      "dumpsys input_method") echo "  mInputShown=$(cat "$D/ime" 2>/dev/null || echo false)"; seq 1 20000 | sed 's/^/  mFiller=/';;
       "wm size") echo "Physical size: 1080x2424";;
       "wm density") echo "Physical density: 420";;
       "input keyevent KEYCODE_BACK") echo false >"$D/ime";;
@@ -76,7 +79,9 @@ case $sub in
         # Evaluate the argument the way the device shell would, then undo input's %s = space.
         eval "set -- ${cmdline#input text }"
         printf '%s\n' "${1//%s/ }" >>"$D/typed.log";;
-      date*) echo "11-08 10:00:00.000";;
+      # Like the device's date: the format has a space, so it must arrive as one quoted word.
+      "date '+%m-%d %H:%M:%S.000'") echo "11-08 10:00:00.000";;
+      date*) echo 'date: Max 1 argument (see "date --help")' >&2;;
       "am instrument "*) cat "$D/instrument-output" 2>/dev/null;;
       "settings get "*) set -- $cmdline; cat "$D/settings/$3.$4" 2>/dev/null || echo null;;
       "settings put "*) set -- $cmdline; echo "$5" >"$D/settings/$3.$4";;

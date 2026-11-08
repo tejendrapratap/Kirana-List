@@ -36,7 +36,7 @@ res() {
   fi
   return 0
 }
-contains() { printf '%s' "$1" | grep -q -F -- "$2"; }
+contains() { grep -q -F -- "$2" <<<"$1"; }
 
 TMP=$(mktemp -d "${SELFTEST_TMP:-${TMPDIR:-/tmp}}/gs-selftest.XXXXXX")
 command -v cygpath >/dev/null 2>&1 && TMP=$(cygpath -m "$TMP")
@@ -47,7 +47,16 @@ cleanup() {
 }
 trap cleanup EXIT
 export FAKE_DIR="$TMP/fake" GS_E2E_HOME="$TMP/home" GS_ADB="$HERE/testdata/fake-adb.sh" GS_EMULATOR="$HERE/testdata/fake-emulator.sh"
-export EMU_PORTS="5554 5556 5558" EMU_BOOT_TIMEOUT=20
+# The fake emulators get console ports nothing on this machine listens on (a real emulator may hold 5554/5555).
+busy() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+fake_ports=()
+for p in $(seq 5554 2 5584); do
+  busy "$p" || busy $((p + 1)) || fake_ports+=("$p")
+  [ ${#fake_ports[@]} -eq 3 ] && break
+done
+[ ${#fake_ports[@]} -eq 3 ] || { echo "no three free emulator ports between 5554 and 5584"; exit 1; }
+P1=${fake_ports[0]} P2=${fake_ports[1]} P3=${fake_ports[2]}
+export EMU_PORTS="$P1 $P2 $P3" EMU_BOOT_TIMEOUT=20
 unset EMU_SERIAL ANDROID_SERIAL MOCK_PORT
 mkdir -p "$FAKE_DIR/devices"
 : >"$FAKE_DIR/calls.log"
@@ -113,44 +122,44 @@ out=$(bash -c '. "$1/lib.sh"; gs_adb_to emulator-5554 -s R58M123 shell true' _ "
 
 echo "== emu.sh (fake emulator)"
 serial=$("$HERE/emu.sh" 2>"$TMP/emu.err"); rc=$?
-[ $rc -eq 0 ] && [ "$serial" = emulator-5554 ]; res $? "start boots one when none runs" "$(cat "$TMP/emu.err")"
+[ $rc -eq 0 ] && [ "$serial" = emulator-$P1 ]; res $? "start boots one when none runs" "$(cat "$TMP/emu.err")"
 [ -f "$GS_E2E_HOME/state/emu.pid" ]; res $? "pid file written"
-grep -q -- '-port 5554 -read-only -no-snapshot-save -no-boot-anim -no-audio -no-window' "$FAKE_DIR/emulator-args"; res $? "headless, read-only, on port 5554" "$(cat "$FAKE_DIR/emulator-args")"
-pid1=$(cat "$FAKE_DIR/devices/emulator-5554.pid")
+grep -q -- "-port $P1 -read-only -no-snapshot-save -no-boot-anim -no-audio -no-window" "$FAKE_DIR/emulator-args"; res $? "headless, read-only, on the first free port ($P1)" "$(cat "$FAKE_DIR/emulator-args")"
+pid1=$(cat "$FAKE_DIR/devices/emulator-$P1.pid")
 serial=$("$HERE/emu.sh" start 2>"$TMP/emu.err")
-[ "$serial" = emulator-5554 ] && [ "$(cat "$FAKE_DIR/devices/emulator-5554.pid")" = "$pid1" ]; res $? "start again reuses it (no second boot)"
+[ "$serial" = emulator-$P1 ] && [ "$(cat "$FAKE_DIR/devices/emulator-$P1.pid")" = "$pid1" ]; res $? "start again reuses it (no second boot)"
 grep -q "started by emu.sh earlier" "$TMP/emu.err"; res $? "reuse says it was started by emu.sh" "$(cat "$TMP/emu.err")"
-echo device >"$FAKE_DIR/devices/emulator-5556"   # someone else's emulator
+echo device >"$FAKE_DIR/devices/emulator-$P2"   # someone else's emulator
 [ "$("$HERE/emu.sh" status | grep -c '^emulator-')" = 2 ]; res $? "status lists both emulators"
 "$HERE/emu.sh" stop 2>"$TMP/emu.err"; rc=$?
-[ $rc -eq 0 ] && [ ! -f "$FAKE_DIR/devices/emulator-5554" ] && [ ! -f "$GS_E2E_HOME/state/emu.pid" ]; res $? "stop stops the one it started" "$(cat "$TMP/emu.err")"
-[ "$(cat "$FAKE_DIR/devices/emulator-5556")" = device ]; res $? "stop leaves the other emulator running"
+[ $rc -eq 0 ] && [ ! -f "$FAKE_DIR/devices/emulator-$P1" ] && [ ! -f "$GS_E2E_HOME/state/emu.pid" ]; res $? "stop stops the one it started" "$(cat "$TMP/emu.err")"
+[ "$(cat "$FAKE_DIR/devices/emulator-$P2")" = device ]; res $? "stop leaves the other emulator running"
 out=$("$HERE/emu.sh" stop 2>&1); rc=$?
 [ $rc -eq 0 ] && contains "$out" "nothing to stop"; res $? "stop again: nothing to stop" "$out"
 serial=$("$HERE/emu.sh" 2>"$TMP/emu.err")
-[ "$serial" = emulator-5556 ] && [ ! -f "$GS_E2E_HOME/state/emu.pid" ]; res $? "start reuses a running emulator it did not start" "$(cat "$TMP/emu.err")"
+[ "$serial" = emulator-$P2 ] && [ ! -f "$GS_E2E_HOME/state/emu.pid" ]; res $? "start reuses a running emulator it did not start" "$(cat "$TMP/emu.err")"
 "$HERE/emu.sh" stop >/dev/null 2>&1
-[ "$(cat "$FAKE_DIR/devices/emulator-5556")" = device ]; res $? "stop never kills an emulator it did not start"
-echo device >"$FAKE_DIR/devices/emulator-5558"
+[ "$(cat "$FAKE_DIR/devices/emulator-$P2")" = device ]; res $? "stop never kills an emulator it did not start"
+echo device >"$FAKE_DIR/devices/emulator-$P3"
 rm -f "$GS_E2E_HOME/state/serial"
 out=$("$HERE/emu.sh" serial 2>&1); rc=$?
 [ $rc -ne 0 ] && contains "$out" "several emulators"; res $? "two emulators and no choice: an error" "$out"
-[ "$(EMU_SERIAL=emulator-5558 "$HERE/emu.sh" serial 2>/dev/null)" = emulator-5558 ]; res $? "EMU_SERIAL picks one"
-rm -f "$FAKE_DIR/devices/emulator-5558" "$FAKE_DIR/devices/emulator-5556"
+[ "$(EMU_SERIAL=emulator-$P3 "$HERE/emu.sh" serial 2>/dev/null)" = emulator-$P3 ]; res $? "EMU_SERIAL picks one"
+rm -f "$FAKE_DIR/devices/emulator-$P3" "$FAKE_DIR/devices/emulator-$P2"
 # Our emulator rebooted its guest (new boot id, same process): still ours, stop stops it.
 serial=$("$HERE/emu.sh" 2>/dev/null)
-echo "boot-after-reboot" >"$FAKE_DIR/devices/emulator-5554.bootid"
+echo "boot-after-reboot" >"$FAKE_DIR/devices/emulator-$P1.bootid"
 "$HERE/emu.sh" stop >"$TMP/emu.out" 2>&1
-[ ! -f "$FAKE_DIR/devices/emulator-5554" ] && [ ! -f "$GS_E2E_HOME/state/emu.pid" ]; res $? "stop stops its emulator after a guest reboot" "$(cat "$TMP/emu.out")"
+[ ! -f "$FAKE_DIR/devices/emulator-$P1" ] && [ ! -f "$GS_E2E_HOME/state/emu.pid" ]; res $? "stop stops its emulator after a guest reboot" "$(cat "$TMP/emu.out")"
 # Our emulator gone, and someone else's booted on the same port since: left alone.
 serial=$("$HERE/emu.sh" 2>/dev/null)
-kill "$(cat "$FAKE_DIR/devices/emulator-5554.pid")" 2>/dev/null
-for _ in 1 2 3 4 5 6 7 8 9 10; do [ -f "$FAKE_DIR/devices/emulator-5554" ] || break; sleep 0.5; done
-echo device >"$FAKE_DIR/devices/emulator-5554"; echo "boot-someone-else" >"$FAKE_DIR/devices/emulator-5554.bootid"
+kill "$(cat "$FAKE_DIR/devices/emulator-$P1.pid")" 2>/dev/null
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -f "$FAKE_DIR/devices/emulator-$P1" ] || break; sleep 0.5; done
+echo device >"$FAKE_DIR/devices/emulator-$P1"; echo "boot-someone-else" >"$FAKE_DIR/devices/emulator-$P1.bootid"
 "$HERE/emu.sh" stop >"$TMP/emu.out" 2>&1
-[ -f "$FAKE_DIR/devices/emulator-5554" ] && grep -q "boot id changed" "$TMP/emu.out" && [ ! -f "$GS_E2E_HOME/state/emu.pid" ]
+[ -f "$FAKE_DIR/devices/emulator-$P1" ] && grep -q "boot id changed" "$TMP/emu.out" && [ ! -f "$GS_E2E_HOME/state/emu.pid" ]
 res $? "stop leaves another emulator on the same port (process gone, other boot id)" "$(cat "$TMP/emu.out")"
-rm -f "$FAKE_DIR/devices/emulator-5554"*
+rm -f "$FAKE_DIR/devices/emulator-$P1"*
 ! grep -q VIOLATION "$CALLS"; res $? "no call without -s emulator-NNNN so far" "$(grep VIOLATION "$CALLS")"
 
 echo "== ui.sh (fake adb, saved dumps)"
@@ -162,6 +171,7 @@ screens "$S1"
 grep -q '^-s emulator-5556 shell input tap 797 1676$' "$CALLS"; res $? "tap-text Save taps its centre" "$(cat "$CALLS")"
 [ "$("$HERE/ui.sh" find -d Back | cut -f1)" = "74 226" ]; res $? "find -d Back"
 [ "$("$HERE/ui.sh" wait-text -r '^Version' -t 5 | cut -f3)" = '"Version 1.2"' ]; res $? "wait-text -r ^Version"
+"$HERE/ui.sh" wait-text -r '^Version' -t 5 >/dev/null; res $? "wait-text exits 0 when the text is there"
 start=$SECONDS
 "$HERE/ui.sh" wait-text -t 2 Nope 2>/dev/null; rc=$?
 [ $rc -eq 1 ] && [ $((SECONDS - start)) -lt 15 ]; res $? "wait-text times out with exit 1"
@@ -424,7 +434,7 @@ if [ -n "$with_mock" ]; then
   out=$(M start --fresh 2>&1); contains "$out" "restarting" && ! contains "$(M sheets)" '"Tea"'; res $? "start --fresh restarts with an empty sheet" "$out"
   out=$(M start --script v2 2>&1); contains "$out" '"version":2'; res $? "start --script v2 restarts with the old script" "$out"
   [ "$(M url)" = "http://10.0.2.2:$port/macros/s/TEST/exec" ] && [ "$(M url --host)" = "http://127.0.0.1:$port/macros/s/TEST/exec" ]; res $? "url / url --host"
-  ! M log 100 | grep -q e2e-test-token; res $? "log hides the token"
+  ! M log 100 | grep e2e-test-token >/dev/null; res $? "log hides the token"
   out=$(M stop); contains "$out" "stopped"; res $? "stop" "$out"
   ! (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; res $? "port $port is closed"
   contains "$(M stop)" "nothing to stop"; res $? "stop again: nothing to stop"
