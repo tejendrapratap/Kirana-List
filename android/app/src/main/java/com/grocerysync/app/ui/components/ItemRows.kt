@@ -399,8 +399,9 @@ private fun QuantityBadge(quantity: ItemValue.Quantity) {
     val text = quantity.displayText()
     Surface(
         shape = RoundedCornerShape(percent = 50),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        // Turmeric, the colour of amounts to buy: the fixed role, so the chip is bright haldi in dark mode too.
+        color = MaterialTheme.colorScheme.secondaryFixedDim,
+        contentColor = MaterialTheme.colorScheme.onSecondaryFixed,
         modifier = Modifier
             .widthIn(max = MaxBadgeWidth)
             .clearAndSetSemantics { contentDescription = "Quantity ${quantity.spokenText()}" },

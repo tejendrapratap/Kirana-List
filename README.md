@@ -1,4 +1,6 @@
-# Grocery Sync
+# Kirana List
+
+*Formerly **Grocery Sync**.* The new name keeps the app id (`com.grocerysync.app`), the signing key and the sheet's script (`Code.gs` still says Grocery Sync at the top), so it installs over Grocery Sync as a normal update and keeps the list and the setup.
 
 A shared grocery list for two phones, stored in **your own Google Sheet**. It's free: no servers, no Google Cloud project, no Play Store account.
 
@@ -105,7 +107,7 @@ The debug APK and the release APK are signed with different keys, so Android won
 
 1. Make sure nothing is waiting to be sent: the status line under the title says *Live*, and no banner mentions items waiting on this phone.
 2. Have the **Web app URL** and the **secret token** at hand. The token is the `SECRET_TOKEN` line of `Code.gs` in Apps Script (the app never shows it). A setup message you kept from an older version works too.
-3. Uninstall **Grocery Sync** (long-press the icon → **Uninstall**).
+3. Uninstall the app (**Kirana List**, called **Grocery Sync** in older versions): long-press the icon → **Uninstall**.
 4. Install `app-release.apk`.
 5. Open the app and tap **Set up**. Either copy the setup message you kept and tap **Paste setup code**, or type the **Web app URL** and the **Secret token**. Enter your name and tap **Save**. The list comes back from the sheet.
 
@@ -114,12 +116,12 @@ Later releases signed with the same key install over the app as normal updates, 
 ## 3. Connect the phones
 
 **First phone**
-1. Open **Grocery Sync** and tap **Set up**.
+1. Open **Kirana List** and tap **Set up**.
 2. Enter **Your name** (the other person sees it, e.g. "Added by Home"), the **Web app URL** and the **Secret token**.
 3. Tap **Test connection**. It should say *Connected to Groceries* (your sheet's name). Then tap **Save**.
 
 **Second phone**
-1. Open **Grocery Sync** and tap **Set up**.
+1. Open **Kirana List** and tap **Set up**.
 2. Enter **Your name**, the **Web app URL** and the **Secret token** (the `SECRET_TOKEN` from `Code.gs`). Kept a setup message from an older version? Copy it and tap **Paste setup code** instead of typing the URL and token.
 3. Tap **Test connection**, then **Save**.
 
@@ -142,7 +144,7 @@ Items that were on the list before 1.2 say "Updated by", because the sheet doesn
 
 ## Updating to amounts with units
 
-Already using Grocery Sync from before units existed (quantities were whole numbers only)? Both phones need the new app, and the sheet needs the new `Code.gs`. Update the sheet first:
+Already using the app from before units existed (quantities were whole numbers only)? Both phones need the new app, and the sheet needs the new `Code.gs`. Update the sheet first:
 
 1. **Update the script.** Follow *Updating to a newer `Code.gs`* in section 1: copy your token, paste the new `Code.gs`, put the token back, save, and deploy a **New version**. Saving alone isn't enough: the phones keep talking to the old version until you deploy.
 2. **Optional, after deploying:** choose `setupSheets` in the function dropdown and click **Run**. It adds the **Unit** column right after **Need** on the Items and History tabs. If you skip this, the first change from a phone adds the column. Either way every value, checkbox and note stays with its item, and the new column is added only once. Deploy before you run it: until you deploy, the phones still talk to the old script, which writes its columns in the old order. (If that happens anyway, those rows are still read correctly and are rewritten in the new order the next time they change.)
@@ -264,7 +266,7 @@ apps-script/Code.gs        The script you paste into your sheet
 apps-script/test/          Offline tests for the script (with a fake Apps Script runtime) + a local mock of the web app
 android/app/src/androidTest/  UI tests: the real app on an emulator against a fake web app inside the test APK
 tools/e2e/                 Emulator helper scripts (Git Bash): emulator, mock, qa build, UI tests, taps and checks
-docs/                      Planning notes: feature ideas, common Indian grocery list, removing the setup
+docs/                      Planning notes: feature ideas, common Indian grocery list, removing the setup; the app's look (palette, icon)
 ```
 
 ## Testing
@@ -287,7 +289,7 @@ tools/e2e/emu.sh && tools/e2e/uitest.sh               # UI tests on the emulator
 
 The UI tests run **on an emulator only**. Don't use `./gradlew connectedDebugAndroidTest` (or any `connected` or `install` task): it installs and runs on every device adb sees, so a phone plugged in or paired for debugging gets the test app too. `uitest.sh` builds, installs on `emulator-NNNN` and nothing else, and prints a pass/fail summary.
 
-**qa smoke test** (5-10 minutes): the **qa** build is the release build (same R8 shrinking and rules) that may also use plain HTTP to the mock, installed as a separate app called **Grocery QA** (`com.grocerysync.app.qa`, debug key), so it never replaces the real app. Don't give it to the phones.
+**qa smoke test** (5-10 minutes): the **qa** build is the release build (same R8 shrinking and rules) that may also use plain HTTP to the mock, installed as a separate app called **Kirana QA** (`com.grocerysync.app.qa`, debug key), so it never replaces the real app. Don't give it to the phones.
 
 ```bash
 cd tools/e2e

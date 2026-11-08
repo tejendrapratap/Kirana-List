@@ -104,7 +104,7 @@ object Protocol {
         "In Apps Script use Deploy > Manage deployments and set 'Who has access' to 'Anyone'."
     const val MSG_HTML = "Google returned a web page instead of data. $HINT_ACCESS"
     const val MSG_NO_DOGET =
-        "The web app doesn't run the Grocery Sync script. Paste Code.gs into Apps Script and deploy a new version."
+        "The web app doesn't run the Kirana List script (Code.gs). Paste Code.gs into Apps Script and deploy a new version."
     const val MSG_ACCESS_DENIED = "Google refused access to the web app. $HINT_ACCESS"
     const val MSG_NOT_FOUND = "Web app not found (404). Check the URL, or deploy the script as a Web app."
     const val MSG_DEPLOYMENT_GONE =
@@ -115,7 +115,7 @@ object Protocol {
         "The script still has SECRET_TOKEN = 'CHANGE_ME'. Set your own token in Code.gs and deploy a new version."
     const val MSG_INVALID_URL = "The web app URL isn't valid. Check it in Settings."
     const val MSG_NOT_OUR_SCRIPT =
-        "This web app isn't the Grocery Sync script. Paste the latest Code.gs into Apps Script and deploy a new version."
+        "This web app isn't the Kirana List script (Code.gs). Paste the latest Code.gs into Apps Script and deploy a new version."
 
     /** Starts the message of a top-level "internal: <detail>" answer; the detail follows. */
     const val SCRIPT_ERROR_PREFIX = "The sheet's script reported an error: "

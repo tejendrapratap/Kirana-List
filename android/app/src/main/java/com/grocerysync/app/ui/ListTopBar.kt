@@ -26,19 +26,22 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import com.grocerysync.app.ui.components.AppBarTitle
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
+import com.grocerysync.app.ui.theme.appBarColors
 
 /**
- * The list screen's app bar: the title (the sheet's name), then Search, Share (the To buy list as a message) and
- * the ⋮ menu ([ListMenu]). [groupBySection] is the menu's tick for "Group by shop section".
+ * The list screen's app bar, deep green ([appBarColors]): the app's name after a turmeric cart ([AppBarTitle]),
+ * then Search, Share (the To buy list as a message) and the ⋮ menu ([ListMenu]), all three in the bar's light
+ * icon colour (onAppBar). [groupBySection] is the menu's tick for "Group by shop section".
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ListTopBar(title: String, groupBySection: Boolean, actions: ListActions) {
+internal fun ListTopBar(groupBySection: Boolean, actions: ListActions) {
     TopAppBar(
-        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        title = { AppBarTitle() },
+        colors = appBarColors(),
         actions = {
             IconButton(onClick = actions.openSearch) {
                 Icon(Icons.Default.Search, contentDescription = "Search items")
@@ -117,11 +120,11 @@ private val PreviewActions = ListActions(
     setGroupBySection = {},
 )
 
-/** A long sheet name on a small phone with large text, in dark theme: the title is shortened, the icons stay. */
+/** A small phone with large text, in dark theme: the title is shortened if need be, the icons stay. */
 @Preview(widthDp = 360, fontScale = 1.3f, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 private fun ListTopBarPreview() {
     GrocerySyncTheme(dynamicColor = false) {
-        ListTopBar(title = "Sharma family groceries", groupBySection = true, actions = PreviewActions)
+        ListTopBar(groupBySection = true, actions = PreviewActions)
     }
 }

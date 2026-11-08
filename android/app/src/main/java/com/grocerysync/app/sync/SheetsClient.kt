@@ -126,7 +126,7 @@ class SheetsClient(
      * Sends [request] and reads the answer. The token is taken out of the whole answer first ([TokenRedaction]),
      * before anything reads it: the messages made from it are cut short (a page title, an error), and a cut
      * could otherwise land inside an echoed token and leave its first part in view. That also covers what a
-     * success shows, such as the spreadsheet name ("Connected to ...", the list's title).
+     * success shows, such as the spreadsheet name ("Connected to ..." in Settings).
      */
     private suspend fun <T> call(request: Request, client: OkHttpClient, token: String, parse: (JSONObject) -> ApiResult<T>): ApiResult<T> {
         val outcome = execute(request, client)

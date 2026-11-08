@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Adaptive icon foreground: a shopping basket with a check mark, drawn in a single color so the
-    same drawable also works as the monochrome (themed) icon. Everything stays inside the 66dp
-    safe zone centred in the 108dp canvas.
+    Adaptive icon foreground (also the Android 12+ splash icon): a cream cloth bag (jhola) with a
+    turmeric check mark. Everything stays inside the 66dp safe zone centred in the 108dp canvas.
+    The same artwork, with its background, is docs/images/app-icon.svg.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -10,33 +10,29 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Handle -->
+    <!-- Strap -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M41,46 C41,35 46.5,29 54,29 C61.5,29 67,35 67,46"
+        android:pathData="M39.5,47 C39.5,27 51,27 51,47 M57,47 C57,27 68.5,27 68.5,47"
         android:strokeWidth="4"
-        android:strokeColor="@color/ic_launcher_foreground"
+        android:strokeColor="@color/ic_launcher_cream"
         android:strokeLineCap="round" />
 
-    <!-- Rim -->
+    <!-- Bag -->
     <path
-        android:fillColor="@color/ic_launcher_foreground"
-        android:pathData="M33.5,44 H74.5 A2.5,2.5 0 0 1 77,46.5 V48.5 A2.5,2.5 0 0 1 74.5,51 H33.5 A2.5,2.5 0 0 1 31,48.5 V46.5 A2.5,2.5 0 0 1 33.5,44 Z" />
+        android:fillColor="@color/ic_launcher_cream"
+        android:pathData="M36,46 H72 Q73.6,46 73.8,47.6 L76.4,74 Q76.8,79 71.8,79 H36.2 Q31.2,79 31.6,74 L34.2,47.6 Q34.4,46 36,46 Z" />
 
-    <!-- Basket body -->
+    <!-- Folded hem along the top of the bag -->
     <path
-        android:fillColor="#00000000"
-        android:pathData="M35,55 H73 L69,77 Q68.6,79 66.6,79 H41.4 Q39.4,79 39,77 Z"
-        android:strokeWidth="4"
-        android:strokeColor="@color/ic_launcher_foreground"
-        android:strokeLineJoin="round" />
+        android:fillColor="@color/ic_launcher_hem"
+        android:pathData="M34.3,46.6 Q34.6,46 36,46 H72 Q73.4,46 73.7,46.6 L74.1,51 H33.9 Z" />
 
-    <!-- Check mark -->
+    <!-- Check mark: turmeric, edged in the brand green so it stands out on the cream bag -->
     <path
-        android:fillColor="#00000000"
-        android:pathData="M45.5,66.5 L51,72 L62.5,60.5"
-        android:strokeWidth="4"
-        android:strokeColor="@color/ic_launcher_foreground"
-        android:strokeLineCap="round"
+        android:fillColor="@color/ic_launcher_turmeric"
+        android:pathData="M41.45,65.55 L51,75.09 L68.05,58.05 L62.95,52.95 L51,64.91 L46.55,60.45 Z"
+        android:strokeWidth="2.4"
+        android:strokeColor="@color/brand_green"
         android:strokeLineJoin="round" />
 </vector>

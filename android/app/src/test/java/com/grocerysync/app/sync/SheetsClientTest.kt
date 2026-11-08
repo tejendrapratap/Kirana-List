@@ -275,7 +275,7 @@ class SheetsClientTest {
 
     @Test
     fun anEchoedTokenIsHiddenInWhatASuccessShowsToo() = runTest {
-        // The spreadsheet name becomes "Connected to ..." in Settings and the list's title.
+        // The spreadsheet name becomes "Connected to ..." in Settings.
         val token = "s3cret-Token-42"
         server.enqueue(json("""{"ok":true,"app":"grocery-sync","version":3,"spreadsheet":"$token"}"""))
         assertEquals(PingResult.Ok("(hidden)", 3), client.ping(url, token))

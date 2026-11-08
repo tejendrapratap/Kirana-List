@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <title>Kirana List app icon</title>
+  <!-- Brand green background (the adaptive icon's background layer). -->
+  <rect width="108" height="108" fill="#376A26"/>
+  <!-- Foreground: a cream cloth bag (jhola) with a turmeric check mark, inside the 66 x 66 safe zone. -->
+  <path d="M39.5,47 C39.5,27 51,27 51,47 M57,47 C57,27 68.5,27 68.5,47" fill="none" stroke="#FFF3D6" stroke-width="4" stroke-linecap="round"/>
+  <path d="M36,46 H72 Q73.6,46 73.8,47.6 L76.4,74 Q76.8,79 71.8,79 H36.2 Q31.2,79 31.6,74 L34.2,47.6 Q34.4,46 36,46 Z" fill="#FFF3D6"/>
+  <path d="M34.3,46.6 Q34.6,46 36,46 H72 Q73.4,46 73.7,46.6 L74.1,51 H33.9 Z" fill="#EAD7B0"/>
+  <path d="M41.45,65.55 L51,75.09 L68.05,58.05 L62.95,52.95 L51,64.91 L46.55,60.45 Z" fill="#FEBB04" stroke="#376A26" stroke-width="2.4" stroke-linejoin="round"/>
+</svg>

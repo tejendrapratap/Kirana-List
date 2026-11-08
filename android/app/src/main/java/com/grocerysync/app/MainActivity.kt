@@ -1,8 +1,10 @@
 package com.grocerysync.app
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -33,7 +35,9 @@ class MainActivity : ComponentActivity() {
     private var sharedLists by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // Every screen's app bar is deep green in both themes (appBarColors), so the status bar icons over it are
+        // always light. The navigation bar shows the list's surface: dark icons in light theme, light in dark.
+        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
         super.onCreate(savedInstanceState)
         // Only on a fresh start: after rotation or process death the shared text was taken already (the list screen
         // keeps it), and Recents starts the activity again with the intent that once shared it.
@@ -52,7 +56,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Share > Grocery Sync (ACTION_SEND, text/plain): opens the "Paste a list" preview of the text
+     * Share > Kirana List (ACTION_SEND, text/plain): opens the "Paste a list" preview of the text
      * ([ListViewModel.openSharedText]), or says it couldn't be read (a file, an empty text). The text comes from
      * another app, so it is only parsed, and nothing changes until the user confirms. Started again from Recents
      * with the intent that once shared it, the share is not read again.

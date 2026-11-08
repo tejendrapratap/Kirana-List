@@ -9,6 +9,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.grocerysync.app.R
 import com.grocerysync.app.data.SyncSettings
 import com.grocerysync.app.testing.AppState
 import com.grocerysync.app.testing.FakeSheetServer.Companion.yesNo
@@ -56,10 +58,10 @@ class SettingsTest : GroceryUiTest() {
         assertEquals(1, fake.pingRequests)
 
         node(button("Save")).performScrollTo().assertIsDisplayed().performClick()
-        // Back on the list, which syncs at once and is named after the sheet.
+        // Back on the list, which syncs at once. Its title is the app's name, whatever the sheet is called.
         waitForNode(gotIt("Coffee"), SYNC_TIMEOUT_MS)
         waitForNode(liveStatus)
-        waitForNode(hasText(fake.spreadsheetName))
+        waitForNode(hasText(InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.app_name)))
         assertEquals(SyncSettings(fake.url, fake.token, ME), AppState.settings())
     }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-test-apk.sh - build a Grocery Sync APK for emulator checks against the mock web app.
+# build-test-apk.sh - build a Kirana List APK for emulator checks against the mock web app.
 #
 # Usage: build-test-apk.sh [qa|debug|release] [--src DIR] [--work DIR] [--clean] [-- <gradle args>]
 #   qa (default)       ./gradlew assembleQa in the project itself: the release build (same R8 shrinking and
@@ -50,7 +50,7 @@ if [ "$variant" != release ] && { [ -n "$work" ] || [ -n "$clean" ]; }; then
 fi
 
 src=$(gs_path "${src:-$(gs_repo)/android}")
-[ -f "$src/gradlew" ] && [ -d "$src/app/src/main" ] || gs_die "$src is not the android/ folder of Grocery Sync"
+[ -f "$src/gradlew" ] && [ -d "$src/app/src/main" ] || gs_die "$src is not the android/ folder of Kirana List"
 if [ "$variant" = qa ] && ! grep -q 'create("qa")' "$src/app/build.gradle.kts" 2>/dev/null; then
   gs_die "$src/app/build.gradle.kts has no qa build type: build release or debug instead"
 fi

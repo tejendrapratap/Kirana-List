@@ -74,9 +74,6 @@ data class ListUiState(
     /** [toBuy] by shop section in walking order while [groupBySection]; null while To buy is A to Z. */
     val toBuySections: List<ShopSectionGroup>? = null,
 ) {
-    val title: String
-        get() = status.spreadsheetName?.takeIf { it.isNotBlank() } ?: DEFAULT_TITLE
-
     /**
      * Set while the list is live but changes can't be saved (the sheet answers pushes with a failure)
      * and some are waiting; also while a Retry runs ("Connecting..."), so the warning doesn't vanish
@@ -115,7 +112,6 @@ data class ListUiState(
     fun sectionOf(item: GroceryItem): ShopSection = shopSections.sectionOf(item)
 
     companion object {
-        const val DEFAULT_TITLE = "Grocery Sync"
         private val WARNING_STATES = setOf(ConnectionState.LIVE, ConnectionState.CONNECTING)
     }
 }
