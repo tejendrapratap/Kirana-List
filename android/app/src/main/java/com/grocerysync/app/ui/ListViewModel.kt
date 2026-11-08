@@ -63,9 +63,6 @@ data class ListUiState(
     /** True only while a pull-to-refresh sync is running. */
     val isRefreshing: Boolean = false,
 ) {
-    val title: String
-        get() = status.spreadsheetName?.takeIf { it.isNotBlank() } ?: DEFAULT_TITLE
-
     /**
      * Set while the list is live but changes can't be saved (the sheet answers pushes with a failure)
      * and some are waiting; also while a Retry runs ("Connecting..."), so the warning doesn't vanish
@@ -89,7 +86,6 @@ data class ListUiState(
     fun item(key: String): GroceryItem? = allItems.firstOrNull { it.key == key }
 
     companion object {
-        const val DEFAULT_TITLE = "Grocery Sync"
         private val WARNING_STATES = setOf(ConnectionState.LIVE, ConnectionState.CONNECTING)
     }
 }

@@ -1,7 +1,9 @@
 package com.grocerysync.app
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,7 +20,9 @@ import com.grocerysync.app.ui.theme.GrocerySyncTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // Every screen's app bar is deep green in both themes (appBarColors), so the status bar icons over it are
+        // always light. The navigation bar shows the list's surface: dark icons in light theme, light in dark.
+        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
         super.onCreate(savedInstanceState)
         setContent {
             GrocerySyncTheme {

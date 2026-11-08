@@ -85,6 +85,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.grocerysync.app.data.UrlCheck
 import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
+import com.grocerysync.app.ui.theme.appBarColors
 import kotlinx.coroutines.launch
 
 /** Help under "Paste setup code". The app no longer makes setup messages, so it doesn't say who shared one. */
@@ -157,6 +158,7 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
+                colors = appBarColors(),
                 navigationIcon = {
                     IconButton(onClick = leave) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

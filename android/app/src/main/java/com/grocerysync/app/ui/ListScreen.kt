@@ -85,6 +85,7 @@ import com.grocerysync.app.data.ValueType
 import com.grocerysync.app.sync.ConnectionState
 import com.grocerysync.app.sync.SyncStatus
 import com.grocerysync.app.ui.components.AllItemsRow
+import com.grocerysync.app.ui.components.AppBarTitle
 import com.grocerysync.app.ui.components.EmptyListState
 import com.grocerysync.app.ui.components.FailedChangesBanner
 import com.grocerysync.app.ui.components.LiveStatusLine
@@ -96,6 +97,7 @@ import com.grocerysync.app.ui.components.SyncErrorBanner
 import com.grocerysync.app.ui.components.ToBuyRow
 import com.grocerysync.app.ui.components.rememberTickingTime
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
+import com.grocerysync.app.ui.theme.appBarColors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ensureActive
@@ -384,7 +386,8 @@ private fun ListContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = { AppBarTitle() },
+                colors = appBarColors(),
                 actions = {
                     IconButton(onClick = actions.openSearch) {
                         Icon(Icons.Default.Search, contentDescription = "Search items")
