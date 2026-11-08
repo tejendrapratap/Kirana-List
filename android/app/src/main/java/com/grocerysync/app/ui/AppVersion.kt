@@ -3,10 +3,14 @@ package com.grocerysync.app.ui
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import com.grocerysync.app.text.Texts
 
-/** The line at the bottom of Settings, e.g. "Version 1.2"; null (no line) when the name is unknown. */
+/**
+ * The line at the bottom of Settings, e.g. "Version 1.2", in the language shown; null (no line) when the name is
+ * unknown.
+ */
 internal fun versionText(versionName: String?): String? =
-    versionName?.trim()?.takeIf { it.isNotEmpty() }?.let { "Version $it" }
+    versionName?.trim()?.takeIf { it.isNotEmpty() }?.let(Texts.current.settings::version)
 
 /**
  * The installed app's versionName, read from PackageManager rather than BuildConfig or a hard-coded text,

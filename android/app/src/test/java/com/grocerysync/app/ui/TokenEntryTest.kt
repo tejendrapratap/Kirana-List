@@ -1,5 +1,9 @@
 package com.grocerysync.app.ui
 
+import com.grocerysync.app.text.AppTexts
+import com.grocerysync.app.text.EnglishSettingsTexts
+import com.grocerysync.app.text.HindiSettingsTexts
+import com.grocerysync.app.text.withTexts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -16,14 +20,14 @@ class TokenEntryTest {
         assertEquals(TokenSource.SAVED, TokenEntry.source("", null, hasSavedToken = true))
         assertEquals(saved, TokenEntry.choose("", null, saved))
         assertEquals(saved, TokenEntry.choose("   ", null, saved))
-        assertEquals(TokenEntry.HELP_SAVED, TokenEntry.supportingText("", null, hasSavedToken = true))
+        assertEquals(EnglishSettingsTexts.tokenSaved, TokenEntry.supportingText("", null, hasSavedToken = true))
     }
 
     @Test
     fun aTypedTokenReplacesTheSavedOne() {
         assertEquals(TokenSource.TYPED, TokenEntry.source(typed, null, hasSavedToken = true))
         assertEquals(typed, TokenEntry.choose("  $typed  ", null, saved))
-        assertEquals(TokenEntry.HELP_REPLACES_SAVED, TokenEntry.supportingText(typed, null, hasSavedToken = true))
+        assertEquals(EnglishSettingsTexts.tokenReplacesSaved, TokenEntry.supportingText(typed, null, hasSavedToken = true))
     }
 
     @Test
@@ -31,13 +35,13 @@ class TokenEntryTest {
         assertEquals(TokenSource.SETUP_CODE, TokenEntry.source("", code, hasSavedToken = true))
         assertEquals(code, TokenEntry.choose("", code, saved))
         assertEquals(code, TokenEntry.choose("", code, ""))
-        assertEquals(TokenEntry.HELP_SETUP_CODE, TokenEntry.supportingText("", code, hasSavedToken = false))
+        assertEquals(EnglishSettingsTexts.tokenFromSetupCode, TokenEntry.supportingText("", code, hasSavedToken = false))
     }
 
     @Test
     fun typingWinsOverTheSetupCodeAndClearingFallsBackToIt() {
         assertEquals(typed, TokenEntry.choose(typed, code, saved))
-        assertEquals(TokenEntry.HELP_REPLACES_SETUP_CODE, TokenEntry.supportingText(typed, code, hasSavedToken = true))
+        assertEquals(EnglishSettingsTexts.tokenReplacesSetupCode, TokenEntry.supportingText(typed, code, hasSavedToken = true))
         assertEquals(code, TokenEntry.choose("", code, saved))
     }
 
@@ -47,8 +51,8 @@ class TokenEntryTest {
         assertEquals(TokenSource.NONE, TokenEntry.source(" ", " ", hasSavedToken = false))
         assertEquals("", TokenEntry.choose("", null, ""))
         assertEquals("", TokenEntry.choose(" ", "", "  "))
-        assertEquals(TokenEntry.HELP_NEW, TokenEntry.supportingText("", null, hasSavedToken = false))
-        assertEquals(TokenEntry.HELP_NEW, TokenEntry.supportingText(typed, null, hasSavedToken = false))
+        assertEquals(EnglishSettingsTexts.tokenNew, TokenEntry.supportingText("", null, hasSavedToken = false))
+        assertEquals(EnglishSettingsTexts.tokenNew, TokenEntry.supportingText(typed, null, hasSavedToken = false))
     }
 
     @Test
@@ -73,8 +77,25 @@ class TokenEntryTest {
 
     @Test
     fun pasteHelpNoLongerSaysSomeoneSharedIt() {
-        assertEquals("Have a setup message? Copy it, then tap Paste setup code.", PASTE_SETUP_HELP)
-        assertFalse(PASTE_SETUP_HELP.contains("share", ignoreCase = true))
+        assertEquals("Have a setup message? Copy it, then tap Paste setup code.", EnglishSettingsTexts.pasteSetupHelp)
+        assertFalse(EnglishSettingsTexts.pasteSetupHelp.contains("share", ignoreCase = true))
+        assertFalse(HindiSettingsTexts.pasteSetupHelp, HindiSettingsTexts.pasteSetupHelp.contains("शेयर"))
+    }
+
+    @Test
+    fun supportingTextsAreInTheLanguageShown() {
+        val hindi = HindiSettingsTexts
+        withTexts(AppTexts.Hindi) {
+            assertEquals(hindi.tokenSaved, TokenEntry.supportingText("", null, hasSavedToken = true))
+            assertEquals(hindi.tokenReplacesSaved, TokenEntry.supportingText(typed, null, hasSavedToken = true))
+            assertEquals(hindi.tokenFromSetupCode, TokenEntry.supportingText("", code, hasSavedToken = false))
+            assertEquals(hindi.tokenReplacesSetupCode, TokenEntry.supportingText(typed, code, hasSavedToken = true))
+            assertEquals(hindi.tokenNew, TokenEntry.supportingText("", null, hasSavedToken = false))
+            assertEquals(
+                hindi.tokenOtherUrl,
+                TokenEntry.supportingText("", null, hasSavedToken = false, hiddenTokenForOtherUrl = true),
+            )
+        }
     }
 
     @Test
@@ -97,9 +118,9 @@ class TokenEntryTest {
         assertFalse(TokenEntry.sameUrl(null, saved))
         assertFalse(TokenEntry.sameUrl("", ""))
         // The view model passes no hidden token for another URL; the help says why the field needs one.
-        assertEquals(TokenEntry.HELP_OTHER_URL, TokenEntry.supportingText("", null, hasSavedToken = false, hiddenTokenForOtherUrl = true))
-        assertEquals(TokenEntry.HELP_NEW, TokenEntry.supportingText(typed, null, hasSavedToken = false, hiddenTokenForOtherUrl = true))
-        assertFalse(TokenEntry.HELP_OTHER_URL.contains(this.saved))
+        assertEquals(EnglishSettingsTexts.tokenOtherUrl, TokenEntry.supportingText("", null, hasSavedToken = false, hiddenTokenForOtherUrl = true))
+        assertEquals(EnglishSettingsTexts.tokenNew, TokenEntry.supportingText(typed, null, hasSavedToken = false, hiddenTokenForOtherUrl = true))
+        assertFalse(EnglishSettingsTexts.tokenOtherUrl.contains(this.saved))
     }
 
     @Test

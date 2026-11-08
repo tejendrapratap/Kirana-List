@@ -18,6 +18,7 @@ import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.PingResult
 import com.grocerysync.app.sync.SheetsClient
 import com.grocerysync.app.text.AppLanguage
+import com.grocerysync.app.text.Texts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -27,16 +28,35 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * The result of Test connection. It lives in the view model, which outlives a change of language, so it keeps what
+ * happened and the sheet's own words, never a finished sentence: the screen says it in the language it shows.
+ */
 sealed interface ConnectionTest {
     data object Idle : ConnectionTest
     data object Running : ConnectionTest
     /** [scriptOutdated]: the sheet runs a script older than protocol 3 (no units); it needs updating. */
     data class Success(val spreadsheetName: String, val scriptOutdated: Boolean = false) : ConnectionTest
-    data class Failure(val message: String) : ConnectionTest
+
+    /** [message]: for [Reason.NO_ANSWER] only, the sync layer's English message (the token in it redacted). */
+    data class Failure(val reason: Reason, val message: String = "") : ConnectionTest {
+        enum class Reason {
+            /** Not tried: the Web app URL field holds no usable URL. The screen says why, as the field does. */
+            INVALID_URL,
+
+            /** Not tried: there is no secret token to send. */
+            NO_TOKEN,
+
+            /** The web app couldn't be reached, or answered with a problem ([message] says which). */
+            NO_ANSWER,
+        }
+    }
 }
 
 sealed interface SettingsEvent {
     data object Saved : SettingsEvent
+
+    /** A snackbar's [text], in the language shown when it was sent (a one-shot event, see Texts). */
     data class Message(val text: String) : SettingsEvent
 
     /**
@@ -110,7 +130,10 @@ class SettingsViewModel(
     /** Which token Save and Test connection use. */
     val tokenSource: TokenSource by derivedStateOf { TokenEntry.source(tokenInput, usableSetupCodeToken, savedTokenUsable) }
 
-    /** The token field's supporting text (which token will be used; never the token). */
+    /**
+     * The token field's supporting text (which token will be used; never the token). Worked out from Texts.current
+     * too, so it follows a change of language although this view model outlives the screen.
+     */
     val tokenHelp: String by derivedStateOf {
         val setupCode = usableSetupCodeToken
         val savedUsable = savedTokenUsable
@@ -171,11 +194,11 @@ class SettingsViewModel(
         val secret = chosenToken()
         when {
             check is UrlCheck.Invalid -> {
-                connectionTest = ConnectionTest.Failure(check.message)
+                connectionTest = ConnectionTest.Failure(ConnectionTest.Failure.Reason.INVALID_URL)
                 return
             }
             secret.isEmpty() -> {
-                connectionTest = ConnectionTest.Failure("Enter the secret token first.")
+                connectionTest = ConnectionTest.Failure(ConnectionTest.Failure.Reason.NO_TOKEN)
                 return
             }
         }
@@ -185,7 +208,10 @@ class SettingsViewModel(
         testJob = viewModelScope.launch {
             connectionTest = when (val result = sheetsClient.ping(url, secret)) {
                 is PingResult.Ok -> ConnectionTest.Success(result.spreadsheetName, result.scriptOutdated)
-                is PingResult.Failure -> ConnectionTest.Failure(TokenEntry.redact(result.message, secret))
+                is PingResult.Failure -> ConnectionTest.Failure(
+                    ConnectionTest.Failure.Reason.NO_ANSWER,
+                    TokenEntry.redact(result.message, secret),
+                )
             }
         }
     }
@@ -220,7 +246,7 @@ class SettingsViewModel(
     fun pasteSetupCode(clipboardText: String?) {
         val decoded = clipboardText?.let(SetupCode::decode)
         if (decoded == null) {
-            _events.trySend(SettingsEvent.Message("No setup code found on the clipboard"))
+            _events.trySend(SettingsEvent.Message(Texts.current.settings.noSetupCode))
             return
         }
         val (url, secret) = decoded
@@ -230,7 +256,7 @@ class SettingsViewModel(
         setupCodeUrl = url
         savedStateHandle[KEY_SETUP_CODE_TOKEN] = secret
         savedStateHandle[KEY_SETUP_CODE_URL] = url
-        _events.trySend(SettingsEvent.Message("Setup code pasted - tap Save"))
+        _events.trySend(SettingsEvent.Message(Texts.current.settings.setupCodePasted))
         _events.trySend(SettingsEvent.ClearClipboard)
     }
 

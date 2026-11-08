@@ -92,6 +92,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.UrlCheck
 import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.text.AppLanguage
@@ -103,8 +104,8 @@ import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.appBarColors
 import kotlinx.coroutines.launch
 
-/** Help under "Paste setup code". The app no longer makes setup messages, so it doesn't say who shared one. */
-internal const val PASTE_SETUP_HELP = "Have a setup message? Copy it, then tap Paste setup code."
+/** The Web app URL field's example: a URL, the same in every language. */
+private const val WEB_APP_URL_EXAMPLE = "https://script.google.com/macros/s/.../exec"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,7 +120,7 @@ fun SettingsScreen(
     val phoneSettings by viewModel.phoneSettings.collectAsStateWithLifecycle()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    val versionLine = remember(context) { versionText(installedVersionName(context)) }
+    val versionName = remember(context) { installedVersionName(context) }
 
     // The ViewModel is activity-scoped, so forget unsaved edits when the user leaves this screen
     // (but not when the activity is merely recreated for a configuration change).
@@ -175,11 +176,11 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(t.common.settings) },
                 colors = appBarColors(),
                 navigationIcon = {
                     IconButton(onClick = leave) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = t.settings.back)
                     }
                 },
             )
@@ -196,13 +197,14 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SectionTitle("You")
+            SectionTitle(t.settings.you)
             OutlinedTextField(
                 value = viewModel.deviceName,
                 onValueChange = viewModel::onDeviceNameChange,
-                label = { Text("Your name") },
-                placeholder = { Text(Build.MODEL.orEmpty().ifBlank { "Phone" }) },
-                supportingText = { Text("Shown to the other person as \"Added by\" or \"Updated by\".") },
+                label = { Text(t.settings.yourName) },
+                // The name the sheet gets when none is typed (in English in every language: the sheet keeps it).
+                placeholder = { Text(Build.MODEL.orEmpty().ifBlank { SettingsStore.DEFAULT_DEVICE_NAME }) },
+                supportingText = { Text(t.settings.yourNameHelp) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
@@ -227,7 +229,7 @@ fun SettingsScreen(
             )
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
-            SectionTitle("Google Sheet")
+            SectionTitle(t.settings.googleSheet)
             OutlinedButton(
                 onClick = {
                     scope.launch {
@@ -235,9 +237,9 @@ fun SettingsScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Paste setup code") }
+            ) { Text(t.settings.pasteSetupCode) }
             Text(
-                text = PASTE_SETUP_HELP,
+                text = t.settings.pasteSetupHelp,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -262,16 +264,17 @@ fun SettingsScreen(
                     onClick = viewModel::testConnection,
                     enabled = viewModel.connectionTest != ConnectionTest.Running,
                     modifier = Modifier.weight(1f),
-                ) { Text("Test connection") }
+                ) { Text(t.settings.testConnection) }
                 Button(
                     onClick = viewModel::save,
                     enabled = viewModel.canSave,
                     modifier = Modifier.weight(1f),
-                ) { Text("Save") }
+                ) { Text(t.common.save) }
             }
-            ConnectionTestResult(viewModel.connectionTest)
+            ConnectionTestResult(viewModel.connectionTest, viewModel.urlCheck)
 
             HelpCard()
+            val versionLine = versionText(versionName)
             if (versionLine != null) {
                 Text(
                     text = versionLine,
@@ -383,9 +386,10 @@ private fun LanguageChoicePreview() {
 
 @Composable
 private fun WebAppUrlField(value: String, check: UrlCheck, onValueChange: (String) -> Unit) {
+    val t = Texts.current
     val isBlank = value.isBlank()
     val (message, color) = when {
-        isBlank -> "From Deploy > Manage deployments in Apps Script (ends in /exec)." to Color.Unspecified
+        isBlank -> t.settings.webAppUrlHelp to Color.Unspecified
         check is UrlCheck.Invalid -> check.message to Color.Unspecified
         check is UrlCheck.Warning -> check.message to MaterialTheme.colorScheme.tertiary
         else -> null to Color.Unspecified
@@ -393,8 +397,8 @@ private fun WebAppUrlField(value: String, check: UrlCheck, onValueChange: (Strin
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text("Web app URL") },
-        placeholder = { Text("https://script.google.com/macros/s/.../exec") },
+        label = { Text(t.settings.webAppUrl) },
+        placeholder = { Text(WEB_APP_URL_EXAMPLE) },
         singleLine = true,
         isError = !isBlank && check is UrlCheck.Invalid,
         supportingText = if (message != null) {
@@ -424,7 +428,7 @@ private fun TokenField(value: String, help: String, showLock: Boolean, onValueCh
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text("Secret token") },
+        label = { Text(Texts.current.settings.secretToken) },
         supportingText = { Text(help) },
         singleLine = true,
         visualTransformation = PasswordVisualTransformation(),
@@ -448,9 +452,10 @@ private fun TokenFieldPreview() {
     GrocerySyncTheme(dynamicColor = false) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Saved token in use (field empty), a new one typed, and none yet.
-            TokenField(value = "", help = TokenEntry.HELP_SAVED, showLock = true, onValueChange = {})
-            TokenField(value = "new-token", help = TokenEntry.HELP_REPLACES_SAVED, showLock = true, onValueChange = {})
-            TokenField(value = "", help = TokenEntry.HELP_NEW, showLock = false, onValueChange = {})
+            val t = Texts.current.settings
+            TokenField(value = "", help = t.tokenSaved, showLock = true, onValueChange = {})
+            TokenField(value = "new-token", help = t.tokenReplacesSaved, showLock = true, onValueChange = {})
+            TokenField(value = "", help = t.tokenNew, showLock = false, onValueChange = {})
             versionText("1.2")?.let {
                 Text(
                     text = it,
@@ -464,36 +469,56 @@ private fun TokenFieldPreview() {
     }
 }
 
+/** [urlCheck]: the Web app URL field's check now, which says what is wrong with an invalid URL. */
 @Composable
-private fun ConnectionTestResult(test: ConnectionTest) {
+private fun ConnectionTestResult(test: ConnectionTest, urlCheck: UrlCheck) {
+    val t = Texts.current
     when (test) {
         ConnectionTest.Idle -> Unit
         ConnectionTest.Running -> Row(verticalAlignment = Alignment.CenterVertically) {
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             Spacer(Modifier.width(12.dp))
-            Text("Testing connection...", style = MaterialTheme.typography.bodyMedium)
+            Text(t.settings.testingConnection, style = MaterialTheme.typography.bodyMedium)
         }
         is ConnectionTest.Success -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ResultLine(
                 icon = Icons.Default.Check,
-                text = "Connected to ${test.spreadsheetName}",
+                text = t.settings.connectedTo(test.spreadsheetName),
                 color = MaterialTheme.colorScheme.primary,
             )
             if (test.scriptOutdated) {
                 ResultLine(
                     icon = Icons.Default.Warning,
-                    text = Protocol.MSG_SCRIPT_OUTDATED + " Until then the list syncs, but changes wait on this phone.",
+                    text = scriptOutdatedText(t),
                     color = MaterialTheme.colorScheme.tertiary,
                 )
             }
         }
-        is ConnectionTest.Failure -> ResultLine(
-            icon = Icons.Default.Warning,
-            text = test.message,
-            color = MaterialTheme.colorScheme.error,
-        )
+        is ConnectionTest.Failure -> connectionFailureText(test, urlCheck, t)?.let { text ->
+            ResultLine(
+                icon = Icons.Default.Warning,
+                text = text,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
+
+/**
+ * What a failed Test connection says, in [texts]' language: the sync layer's message is translated here, where it
+ * is shown. An invalid URL is described by [urlCheck], the field's check now (the result is cleared whenever the
+ * URL changes, so that is the URL that was tried); null in the one case that can't happen, a URL that became valid.
+ */
+internal fun connectionFailureText(failure: ConnectionTest.Failure, urlCheck: UrlCheck, texts: AppTexts): String? =
+    when (failure.reason) {
+        ConnectionTest.Failure.Reason.INVALID_URL -> (urlCheck as? UrlCheck.Invalid)?.message
+        ConnectionTest.Failure.Reason.NO_TOKEN -> texts.settings.enterTokenFirst
+        ConnectionTest.Failure.Reason.NO_ANSWER -> texts.sync.message(failure.message)
+    }
+
+/** The warning under a working Test connection when the sheet's script is too old for units, in [texts]' language. */
+internal fun scriptOutdatedText(texts: AppTexts): String =
+    texts.settings.scriptOutdated(texts.sync.message(Protocol.MSG_SCRIPT_OUTDATED))
 
 @Composable
 private fun ResultLine(icon: ImageVector, text: String, color: Color) {
@@ -506,6 +531,7 @@ private fun ResultLine(icon: ImageVector, text: String, color: Color) {
 
 @Composable
 private fun HelpCard() {
+    val t = Texts.current.settings
     var expanded by rememberSaveable { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -514,10 +540,10 @@ private fun HelpCard() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(role = Role.Button, onClickLabel = if (expanded) "Collapse" else "Expand") {
+                .clickable(role = Role.Button, onClickLabel = if (expanded) t.collapse else t.expand) {
                     expanded = !expanded
                 }
-                .semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" }
+                .semantics { stateDescription = if (expanded) t.expanded else t.collapsed }
                 .heightIn(min = 56.dp)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -525,7 +551,7 @@ private fun HelpCard() {
             Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
             Text(
-                text = "How to connect a Google Sheet",
+                text = t.helpTitle,
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f),
             )
@@ -539,7 +565,7 @@ private fun HelpCard() {
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                HELP_STEPS.forEachIndexed { index, step ->
+                t.helpSteps.forEachIndexed { index, step ->
                     Row {
                         Text("${index + 1}.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(24.dp))
                         Text(step, style = MaterialTheme.typography.bodyMedium)
@@ -549,13 +575,6 @@ private fun HelpCard() {
         }
     }
 }
-
-private val HELP_STEPS = listOf(
-    "Open your sheet > Extensions > Apps Script, paste Code.gs.",
-    "Set SECRET_TOKEN to your own secret.",
-    "Deploy > New deployment > Web app; Execute as: Me; Who has access: Anyone.",
-    "Copy the Web app URL (ends in /exec) here.",
-)
 
 /** All text on the clipboard (a chat message may come as several items); null if empty or unreadable. */
 private suspend fun readClipboardText(context: Context, clipboard: Clipboard): String? =

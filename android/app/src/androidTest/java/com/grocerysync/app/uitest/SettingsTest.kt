@@ -1,10 +1,14 @@
 package com.grocerysync.app.uitest
 
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
@@ -12,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.grocerysync.app.R
 import com.grocerysync.app.data.SyncSettings
+import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.testing.AppState
 import com.grocerysync.app.testing.FakeSheetServer.Companion.yesNo
 import com.grocerysync.app.testing.GroceryUiTest
@@ -25,16 +30,26 @@ import com.grocerysync.app.testing.mentions
 import com.grocerysync.app.testing.showsText
 import com.grocerysync.app.testing.tab
 import com.grocerysync.app.testing.textField
+import com.grocerysync.app.text.EnglishSettingsTexts
+import com.grocerysync.app.text.HindiSettingsTexts
+import com.grocerysync.app.text.HindiSyncTexts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** The Settings screen: connecting through it, and the secret token that is never shown. */
+/** The Settings screen: connecting through it, the secret token that is never shown, and its texts in Hindi. */
 @RunWith(AndroidJUnit4::class)
 class SettingsTest : GroceryUiTest() {
 
     private val tokenField = textField("Secret token")
+
+    /** The Secret token field, whatever its label says in the language shown. */
+    private val anyTokenField = hasSetTextAction() and isPasswordField
+
+    /** A row of the Language choice by the language's own name, not the "Phone's language" row that may name it too. */
+    private fun languageRow(name: String): SemanticsMatcher = isSelectable() and hasText(name) and
+        !hasText(EnglishSettingsTexts.phonesLanguage) and !hasText(HindiSettingsTexts.phonesLanguage)
 
     @Test
     fun connectsThroughTheSettingsScreen() {
@@ -99,5 +114,31 @@ class SettingsTest : GroceryUiTest() {
         node(hasContentDescription("Back") and hasClickAction()).performClick()
         waitForNode(tab("To buy"))
         assertEquals(fake.token, AppState.settings().token)
+    }
+
+    @Test
+    fun testConnectionResultsAreSaidInTheLanguageShown() {
+        launchApp()
+        openSettings()
+        waitForNode(textField("Web app URL")).performTextInput(fake.url)
+        node(button("Test connection")).performScrollTo().performClick()
+        waitForNode(hasText("Enter the secret token first."))
+
+        // In Hindi the screen says the same result again in Hindi: the view model kept what happened, not the sentence.
+        node(languageRow("हिन्दी")).performScrollTo().performClick()
+        waitForNode(isHeading() and hasText(HindiSettingsTexts.thisPhone))
+        node(hasText(HindiSettingsTexts.enterTokenFirst)).performScrollTo().assertIsDisplayed()
+        assertEquals(0, count(hasText("Enter the secret token first.")))
+
+        // A wrong token: the sheet's answer (an English message of the sync layer) is shown in Hindi.
+        node(anyTokenField).performScrollTo().performTextInput("wrong-token-0123456789")
+        node(button(HindiSettingsTexts.testConnection)).performScrollTo().performClick()
+        waitForNode(hasText(HindiSyncTexts.message(Protocol.MSG_UNAUTHORIZED)), SYNC_TIMEOUT_MS)
+
+        // And in English again after switching back.
+        node(languageRow("English")).performScrollTo().performClick()
+        waitForNode(isHeading() and hasText(EnglishSettingsTexts.thisPhone))
+        node(hasText(Protocol.MSG_UNAUTHORIZED)).performScrollTo().assertIsDisplayed()
+        node(button("Test connection")).performScrollTo().assertIsDisplayed()
     }
 }
