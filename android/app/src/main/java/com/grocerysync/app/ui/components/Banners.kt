@@ -49,6 +49,7 @@ import com.grocerysync.app.R
 import com.grocerysync.app.data.FailedChange
 import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.sync.PushProblem
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.leafTonalButtonColors
 
@@ -93,21 +94,22 @@ private fun BannerCard(
 /** Shown while no web app URL / token is saved. The list still works locally meanwhile. */
 @Composable
 fun SetupBanner(onSetUp: () -> Unit, modifier: Modifier = Modifier) {
+    val t = Texts.current
     BannerCard(
         icon = Icons.Default.Info,
-        title = "Connect your Google Sheet",
-        message = "Share one live list between phones. Until then, items are only saved on this phone.",
+        title = t.list.setupTitle,
+        message = t.list.setupMessage,
         containerColor = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         modifier = modifier,
     ) {
         Button(onClick = onSetUp, modifier = Modifier.padding(end = 8.dp)) {
-            Text("Set up")
+            Text(t.list.setUp)
         }
     }
 }
 
-/** Sync stopped and needs the user (wrong token, deployment access, ...). */
+/** Sync stopped and needs the user (wrong token, deployment access, ...): [message] is the sync layer's (English). */
 @Composable
 fun SyncErrorBanner(
     message: String?,
@@ -115,23 +117,34 @@ fun SyncErrorBanner(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val t = Texts.current
     BannerCard(
         icon = Icons.Default.Warning,
-        title = "Not syncing",
-        message = message?.takeIf { it.isNotBlank() } ?: "Something is wrong with the connection to your sheet.",
+        title = t.list.notSyncing,
+        message = syncErrorText(message),
         containerColor = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         modifier = modifier,
     ) {
-        TextButton(onClick = onOpenSettings) { Text("Open settings") }
-        TextButton(onClick = onRetry) { Text("Retry") }
+        TextButton(onClick = onOpenSettings) { Text(t.list.openSettings) }
+        TextButton(onClick = onRetry) { Text(t.common.retry) }
     }
+}
+
+/**
+ * Text of [SyncErrorBanner]: the sync layer's [message] in the language shown (SyncTexts.message: the script's own
+ * words stay as they are), or a general one without it.
+ */
+internal fun syncErrorText(message: String?): String {
+    val t = Texts.current
+    return message?.takeIf { it.isNotBlank() }?.let(t.sync::message) ?: t.list.syncErrorFallback
 }
 
 /**
  * The list is live (reading works) but sending changes keeps failing: says why and what happens to the
  * waiting changes; Retry sends them now. Shown under the status line, outside the scrolling list, so it
- * is in view however far the list is scrolled; accessibility services announce it when it appears.
+ * is in view however far the list is scrolled; accessibility services announce it when it appears. At most
+ * six lines, shortened if need be, or with [showAll] (Simple mode, whose text is bigger) as many as it takes.
  */
 @Composable
 fun PushWarningLine(
@@ -139,7 +152,9 @@ fun PushWarningLine(
     pendingItems: Int,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    showAll: Boolean = false,
 ) {
+    val t = Texts.current
     val text = pushWarningText(problem, pendingItems)
     Surface(
         modifier = modifier
@@ -161,7 +176,7 @@ fun PushWarningLine(
                     append(text.removePrefix(PUSH_WARNING_TITLE))
                 },
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 6,
+                maxLines = if (showAll) Int.MAX_VALUE else 6,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)
@@ -169,22 +184,22 @@ fun PushWarningLine(
             )
             TextButton(
                 onClick = onRetry,
-                modifier = Modifier.semantics { contentDescription = "Retry sending changes" },
-            ) { Text("Retry") }
+                modifier = Modifier.semantics { contentDescription = t.list.retrySendingChanges },
+            ) { Text(t.common.retry) }
         }
     }
 }
 
-internal const val PUSH_WARNING_TITLE = "Changes aren't saving"
+/** The start of [pushWarningText], shown in bold. */
+internal val PUSH_WARNING_TITLE: String get() = Texts.current.list.pushWarningTitle
 
-/** Text of [PushWarningLine]: the reason, then what happens to the waiting changes. */
+/** Text of [PushWarningLine]: the reason (in the language shown), then what happens to the waiting changes. */
 internal fun pushWarningText(problem: PushProblem, pendingItems: Int): String {
+    val t = Texts.current
     // Transient-failure messages already end with "Changes are saved on this phone ..."; say it once.
-    val cause = problem.message.removeSuffix(Protocol.SAVED_ON_PHONE).trim()
-    val waiting = if (pendingItems == 1) "1 item is waiting on this phone" else "$pendingItems items are waiting on this phone"
+    val cause = t.sync.message(problem.message.removeSuffix(Protocol.SAVED_ON_PHONE).trim())
     // Retrying alone won't help a request the script rejects: don't promise that it will.
-    val next = if (problem.needsFix) "until that is fixed." else "and will be sent again automatically."
-    return "$PUSH_WARNING_TITLE: $cause $waiting $next"
+    return t.list.pushWarning(cause, pendingItems, needsFix = problem.needsFix)
 }
 
 /**
@@ -221,17 +236,16 @@ fun ScriptUpdateLine(pendingItems: Int, modifier: Modifier = Modifier) {
     }
 }
 
-/** The first sentence of [Protocol.MSG_SCRIPT_OUTDATED], shown in bold. */
-internal const val SCRIPT_UPDATE_TITLE = "The sheet's script is out of date."
+/** The first sentence of [Protocol.MSG_SCRIPT_OUTDATED] as the sync layer writes it (English; translated where shown). */
+private const val SCRIPT_OUTDATED_FIRST_SENTENCE = "The sheet's script is out of date."
+
+/** The start of [scriptUpdateText] in the language shown, shown in bold. */
+internal val SCRIPT_UPDATE_TITLE: String get() = Texts.current.sync.message(SCRIPT_OUTDATED_FIRST_SENTENCE)
 
 /** Text of [ScriptUpdateLine]: what to do, then what happens to the changes made on this phone. */
 internal fun scriptUpdateText(pendingItems: Int): String {
-    val waiting = when (pendingItems) {
-        0 -> "Until then, changes made here wait on this phone."
-        1 -> "1 item is waiting on this phone until then."
-        else -> "$pendingItems items are waiting on this phone until then."
-    }
-    return "${Protocol.MSG_SCRIPT_OUTDATED} $waiting"
+    val t = Texts.current
+    return "${t.sync.message(Protocol.MSG_SCRIPT_OUTDATED)} ${t.list.scriptUpdateWaiting(pendingItems)}"
 }
 
 /** Local changes the server rejected; they stay visible until retried or discarded. */
@@ -242,27 +256,37 @@ fun FailedChangesBanner(
     onDiscard: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val first = failed.firstOrNull() ?: return
-    val count = failed.size
-    val what = if (count == 1) "1 change couldn't be saved" else "$count changes couldn't be saved"
-    val detail = if (first.itemName.isNotBlank()) "${first.itemName}: ${first.error}" else first.error
+    val message = failedChangesText(failed) ?: return
+    val t = Texts.current
     BannerCard(
         icon = Icons.Default.Warning,
         title = null,
-        message = "$what: $detail",
+        message = message,
         containerColor = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite },
     ) {
         TextButton(
             onClick = onDiscard,
-            modifier = Modifier.semantics { contentDescription = "Discard failed changes" },
-        ) { Text("Discard") }
+            modifier = Modifier.semantics { contentDescription = t.list.discardFailedChanges },
+        ) { Text(t.list.discard) }
         TextButton(
             onClick = onRetry,
-            modifier = Modifier.semantics { contentDescription = "Retry failed changes" },
-        ) { Text("Retry") }
+            modifier = Modifier.semantics { contentDescription = t.list.retryFailedChanges },
+        ) { Text(t.common.retry) }
     }
+}
+
+/**
+ * Text of [FailedChangesBanner]: how many changes the sheet refused, then the first one's item and why (the sync
+ * layer's error, in the language shown); null for none.
+ */
+internal fun failedChangesText(failed: List<FailedChange>): String? {
+    val first = failed.firstOrNull() ?: return null
+    val t = Texts.current
+    val error = t.sync.message(first.error)
+    val detail = if (first.itemName.isNotBlank()) "${first.itemName}: $error" else error
+    return "${t.list.failedChanges(failed.size)}: $detail"
 }
 
 /**
@@ -348,7 +372,7 @@ private fun BannersPreview() {
         Column {
             SetupBanner(onSetUp = {})
             SyncErrorBanner(
-                message = "The secret token doesn't match SECRET_TOKEN in the script.",
+                message = Protocol.MSG_UNAUTHORIZED,
                 onOpenSettings = {},
                 onRetry = {},
             )
@@ -364,14 +388,10 @@ private fun BannersPreview() {
                 onRetry = {},
                 onDiscard = {},
             )
-            EmptyListState("Nothing to buy right now", "Tap + to add items.", actionText = "Add common items")
-            NoSearchMatches("No items match your search", "Add \"Corriander\" to the list", Icons.Default.Add, onAction = {})
-            NoSearchMatches(
-                "No items to buy match your search",
-                "Show 2 in All items",
-                Icons.AutoMirrored.Filled.ArrowForward,
-                onAction = {},
-            )
+            val t = Texts.current.list
+            EmptyListState(t.emptyToBuyTitle, t.emptyToBuyHintNewList, actionText = t.addCommonItems)
+            NoSearchMatches(t.noSearchMatch, t.addToList("Corriander"), Icons.Default.Add, onAction = {})
+            NoSearchMatches(t.noToBuySearchMatch, t.showInAllItems(2), Icons.AutoMirrored.Filled.ArrowForward, onAction = {})
         }
     }
 }

@@ -2,11 +2,12 @@ package com.grocerysync.app.ui.components
 
 import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemKeys
+import com.grocerysync.app.text.Texts
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-// Pure text for the "who - when" line of All items rows (unit-tested in ItemMetaTextTest). English only.
+// Pure text for the "who - when" line of All items rows (unit-tested in ItemMetaTextTest), in the language shown.
 
 private const val MINUTE_MS = 60_000L
 private const val HOUR_MS = 60 * MINUTE_MS
@@ -14,8 +15,6 @@ private const val DAY_MS = 24 * HOUR_MS
 
 /** A time this far ahead of the phone's clock still reads "just now" (the phone's clock runs behind the sheet's). */
 private const val FUTURE_TOLERANCE_MS = HOUR_MS
-
-private val MONTHS = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 /** No-break space: keeps "2 minutes ago" on one line, and the " -" with the name before it. */
 private const val NBSP = '\u00A0'
@@ -28,50 +27,52 @@ internal const val ELLIPSIS = "\u2026"
  * "1 minute ago", "N minutes ago", "1 hour ago", "N hours ago" (under 24 hours), then by calendar day in
  * [zone]: "yesterday", "N days ago" (2 to 6), and after that the date, "on 3 Nov" ("on 3 Nov 2025" in another
  * year). Up to an hour in the future (the phone's clock behind the sheet's) is "just now"; further ahead the
- * date. Null when the sheet has no valid time ([time] <= 0).
+ * date. Null when the sheet has no valid time ([time] <= 0). In the language shown: the words are CommonTexts'
+ * relative times and ListTexts.onDate.
  *
  * Doesn't use android.text.format.DateUtils, whose wording differs between Android versions.
  */
 internal fun relativeTimeText(time: Long, now: Long, zone: ZoneId = ZoneId.systemDefault()): String? {
     if (time <= 0L) return null
+    val words = Texts.current.common
     val elapsed = now - time
     return when {
         elapsed < -FUTURE_TOLERANCE_MS -> dateText(time, now, zone)
-        elapsed < MINUTE_MS -> "just now"
-        elapsed < HOUR_MS -> count(elapsed / MINUTE_MS, "minute") + " ago"
-        elapsed < DAY_MS -> count(elapsed / HOUR_MS, "hour") + " ago"
+        elapsed < MINUTE_MS -> words.justNow
+        elapsed < HOUR_MS -> words.minutesAgo((elapsed / MINUTE_MS).toInt())
+        elapsed < DAY_MS -> words.hoursAgo((elapsed / HOUR_MS).toInt())
         else -> {
             val days = ChronoUnit.DAYS.between(localDate(time, zone), localDate(now, zone))
             when {
                 // 24 hours or more within one calendar day: a day with an extra hour (clocks going back).
-                days < 1 -> count(elapsed / HOUR_MS, "hour") + " ago"
-                days == 1L -> "yesterday"
-                days < 7 -> "$days days ago"
+                days < 1 -> words.hoursAgo((elapsed / HOUR_MS).toInt())
+                days == 1L -> words.yesterday
+                days < 7 -> words.daysAgo(days.toInt())
                 else -> dateText(time, now, zone)
             }
         }
     }
 }
 
-private fun count(n: Long, unit: String): String = if (n == 1L) "1 $unit" else "$n ${unit}s"
-
 private fun localDate(time: Long, zone: ZoneId) = Instant.ofEpochMilli(time).atZone(zone).toLocalDate()
 
 private fun dateText(time: Long, now: Long, zone: ZoneId): String {
     val date = localDate(time, zone)
-    val year = if (date.year == localDate(now, zone).year) "" else " ${date.year}"
-    return "on ${date.dayOfMonth} ${MONTHS[date.monthValue - 1]}$year"
+    val otherYear = date.year.takeIf { it != localDate(now, zone).year }
+    return Texts.current.list.onDate(date.dayOfMonth, date.monthValue, otherYear)
 }
 
 /**
  * The "who - when" line of an All items row: "Added by Home - 2 hours ago" while nobody has changed the item
  * since it was added ([GroceryItem.isUnchangedSinceAdded]), else "Updated by Home - 2 hours ago" (also when
  * the sheet doesn't know when it was added). Without a name "Added 2 hours ago" / "Updated 2 hours ago";
- * without a valid time "Added by Home" / "Updated by Home"; null without either.
+ * without a valid time "Added by Home" / "Updated by Home"; null without either. The words are those of the
+ * language shown (CommonTexts.addedBy, ...; Hindi puts the time first when there is no name).
  *
- * [who] is the name as shown (on one line); [time] the relative time ([relativeTimeText]).
+ * [added]: "Added" rather than "Updated". [who] is the name as shown (on one line); [time] the relative time
+ * ([relativeTimeText]).
  */
-internal data class ItemMetaText(val verb: String, val who: String?, val time: String?) {
+internal data class ItemMetaText(val added: Boolean, val who: String?, val time: String?) {
 
     /** The whole line with ordinary spaces and the full name: for TalkBack and tests. */
     val text: String get() = displayText(who, keepTimeTogether = false)
@@ -83,14 +84,16 @@ internal data class ItemMetaText(val verb: String, val who: String?, val time: S
      * [breakBeforeTime]: the time starts a new line (see [breaksBeforeTime]).
      */
     fun displayText(name: String? = who, keepTimeTogether: Boolean = true, breakBeforeTime: Boolean = false): String {
+        val texts = Texts.current
         val space = if (keepTimeTogether) NBSP else ' '
         val shownTime = if (keepTimeTogether) time?.replace(' ', NBSP) else time
         val beforeTime = if (breakBeforeTime) '\n' else ' '
-        return when {
-            name != null && shownTime != null -> "$verb by $name$space-$beforeTime$shownTime"
-            name != null -> "$verb by $name"
-            else -> "$verb$beforeTime$shownTime"
+        if (name == null) {
+            val verb = if (added) texts.common.added else texts.common.updated
+            return shownTime?.let { texts.list.metaWithoutName(verb, it, beforeTime) } ?: verb
         }
+        val by = if (added) texts.common.addedBy(name) else texts.common.updatedBy(name)
+        return if (shownTime != null) "$by$space-$beforeTime$shownTime" else by
     }
 
     companion object {
@@ -103,7 +106,7 @@ internal data class ItemMetaText(val verb: String, val who: String?, val time: S
                 ?.let { shortenName(it, MAX_NAME_LENGTH) }
             val time = relativeTimeText(item.updatedAt, now, zone)
             if (who == null && time == null) return null
-            return ItemMetaText(if (item.isUnchangedSinceAdded) "Added" else "Updated", who, time)
+            return ItemMetaText(item.isUnchangedSinceAdded, who, time)
         }
     }
 }
@@ -121,9 +124,10 @@ internal fun shortenName(name: String, maxLength: Int): String {
 
 /**
  * The widest time a row's line moves through as the clock goes on: "just now", "1 minute ago" ... "59 minutes
- * ago", then "1 hour ago" ... "23 hours ago", "yesterday", "N days ago" and a date are all narrower.
+ * ago", then "1 hour ago" ... "23 hours ago", "yesterday", "N days ago" and a date are all narrower. In the
+ * language shown (Hindi "59 मिनट पहले" is wider than "23 घंटे पहले" too).
  */
-internal const val WIDEST_TICKING_TIME = "59 minutes ago"
+internal val WIDEST_TICKING_TIME: String get() = Texts.current.common.minutesAgo(59)
 
 /**
  * Whether the "who - when" line [meta] always puts its time on a line of its own ("Updated by Home -" / "just

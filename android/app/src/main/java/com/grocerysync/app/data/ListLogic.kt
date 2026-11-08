@@ -50,10 +50,10 @@ enum class EditIntent {
      */
     CREATE,
 
-    /** A change of an item that must still be there: the Undo of "Got it" (else it would re-create it). */
-    UPDATE,
-
-    /** Either: the Need switch, - / +, "Got it", an edit of the item itself. The newest change wins. */
+    /**
+     * Either: the Need switch, - / +, "Got it", an edit of the item itself. The newest change wins. (Their Undo
+     * is checked against the value they set instead: [ListLogic.updateConflict].)
+     */
     ANY,
 }
 
@@ -157,21 +157,21 @@ object ListLogic {
      * Null when an edit with [intent] may go ahead, given [existing] = the item shown under the edit's key right
      * before it is queued (null = none); otherwise why nothing may be queued. The repository checks this in
      * the same database transaction that queues the edit, so an item that arrived from the other phone after
-     * the dialog's (or the Undo snackbar's) check is never overwritten: a CREATE finds it, and an UPDATE of an
-     * item that was renamed or removed meanwhile doesn't bring the old name back as a second item.
+     * the dialog's (or the Undo snackbar's) check is never overwritten: a CREATE finds it.
      */
     fun editConflict(intent: EditIntent, existing: GroceryItem?): EditResult? = when {
         intent == EditIntent.CREATE && existing != null -> EditResult.AlreadyOnList(existing.name)
-        intent == EditIntent.UPDATE && existing == null -> EditResult.NotOnList
         else -> null
     }
 
     /**
-     * Like [editConflict], for a change that was planned on the value the user saw ([expected]): the paste
-     * preview's updates ([GroceryRepository.updateIf]) and the Undo of "Add common items"
-     * ([GroceryRepository.deleteIf]). Null when the item [existing] (as shown right before the
-     * change is queued) still has that value; [EditResult.ValueChanged] when the other phone changed it meanwhile,
-     * so it isn't overwritten; [EditResult.NotOnList] when it was renamed or removed, so it isn't re-created.
+     * Like [editConflict], for a change that was planned on the value the user saw or this phone set ([expected]):
+     * the paste preview's updates ([GroceryRepository.updateIf]), every Undo of a value ("Got it", - / +, the Need
+     * switch, an edit: [GroceryRepository.updateIf], [GroceryRepository.renameIf]), Ticked today's Put back and the
+     * Undo of "Add common items" ([GroceryRepository.deleteIf]). Null when the item [existing] (as shown right
+     * before the change is queued) still has that value; [EditResult.ValueChanged] when the other phone changed it
+     * meanwhile, so it isn't overwritten; [EditResult.NotOnList] when it was renamed or removed, so it isn't
+     * re-created under its old name.
      */
     fun updateConflict(expected: ItemValue, existing: GroceryItem?): EditResult? = when {
         existing == null -> EditResult.NotOnList

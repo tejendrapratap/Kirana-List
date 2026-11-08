@@ -4,12 +4,55 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.UUID
+
+/**
+ * What [GroceryRepository] needs of the database: the last list from the sheet with the outbox, and one transaction
+ * per local edit. [GroceryDatabase] in the app (the repository's public constructor wraps it); an interface so the
+ * JVM tests can run the repository's checks on a list in memory.
+ */
+internal interface LocalListStore {
+    /** Changes after every committed write, so the flows read the list again. */
+    val version: StateFlow<Long>
+
+    /** The mirror and the outbox, read together ([GroceryDatabase.loadSnapshot]). */
+    fun loadSnapshot(): Pair<List<GroceryItem>, List<OutboxOp>>
+
+    fun loadOutbox(): List<OutboxOp>
+
+    /** One local edit in one transaction ([GroceryDatabase.enqueuePlanned]). */
+    fun <T> enqueuePlanned(plan: (mirror: List<GroceryItem>, outbox: List<OutboxOp>) -> Pair<List<OutboxOp>, T>): Pair<List<OutboxOp>, T>
+
+    fun retryFailed()
+
+    fun discardFailed()
+}
+
+/** [GroceryDatabase] as the repository's [LocalListStore]. */
+private class DatabaseListStore(private val db: GroceryDatabase) : LocalListStore {
+    override val version: StateFlow<Long> get() = db.version
+
+    override fun loadSnapshot() = db.loadSnapshot()
+
+    override fun loadOutbox() = db.loadOutbox()
+
+    override fun <T> enqueuePlanned(plan: (mirror: List<GroceryItem>, outbox: List<OutboxOp>) -> Pair<List<OutboxOp>, T>) =
+        db.enqueuePlanned(plan)
+
+    override fun retryFailed() {
+        db.retryFailed()
+    }
+
+    override fun discardFailed() {
+        db.discardFailed()
+    }
+}
 
 /**
  * The list the UI works with. Edits are written to the outbox first (so they survive being offline
@@ -21,16 +64,26 @@ import java.util.UUID
  *
  * Each edit checks the list and queues its changes in one database transaction, so a list arriving from the
  * sheet can't slip in between: adding an item, renaming one or undoing a delete never overwrites another item
- * that has that name (see [EditIntent], [EditResult]).
+ * that has that name, and an Undo never overwrites a value the other phone set meanwhile (see [EditIntent],
+ * [EditResult], [updateIf], [renameIf]).
  */
-class GroceryRepository(
-    private val db: GroceryDatabase,
+class GroceryRepository internal constructor(
+    private val db: LocalListStore,
     private val settings: SettingsStore,
     private val clock: ServerClock,
     private val onLocalChange: () -> Unit,
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val deletedItems: DeletedItemMemory = DeletedItemMemory(),
 ) {
+
+    constructor(
+        db: GroceryDatabase,
+        settings: SettingsStore,
+        clock: ServerClock,
+        onLocalChange: () -> Unit,
+        io: CoroutineDispatcher = Dispatchers.IO,
+        deletedItems: DeletedItemMemory = DeletedItemMemory(),
+    ) : this(DatabaseListStore(db), settings, clock, onLocalChange, io, deletedItems)
 
     /** Server list with pending local changes applied, sorted by name ignoring case. */
     val items: Flow<List<GroceryItem>> = db.version
@@ -71,23 +124,17 @@ class GroceryRepository(
     suspend fun add(name: String, value: ItemValue): EditResult = save(name, value, EditIntent.CREATE)
 
     /**
-     * Sets the value of an item that must still be on the list: the Undo of "Got it" ([EditIntent.UPDATE]).
-     * When it was renamed or removed on the other phone meanwhile, nothing is queued ([EditResult.NotOnList]):
-     * writing it anyway would bring the old name back as a second item.
-     */
-    suspend fun update(name: String, value: ItemValue): EditResult = save(name, value, EditIntent.UPDATE)
-
-    /**
-     * Sets the value of the item [key] to [value], but only while it still has [expected], the value the user saw:
-     * the paste preview's updates. Checked in the same transaction as the enqueue ([ListLogic.updateConflict]), so
-     * a list from the sheet that lands while a long paste is being applied can't slip in between: a value set on
-     * the other phone meanwhile is never overwritten ([EditResult.ValueChanged]), and an item renamed or removed
-     * there is never re-created ([EditResult.NotOnList]). Keeps the item's name.
+     * Sets the value of the item [key] to [value], but only while it still has [expected]: the value the user saw
+     * (the paste preview's updates), or the value this phone set (every Undo of a value: "Got it", - / +, the Need
+     * switch, an edit; and Ticked today's Put back). Checked in the same transaction as the enqueue
+     * ([ListLogic.updateConflict]), so a list from the sheet that lands meanwhile can't slip in between: a value set
+     * on the other phone is never overwritten ([EditResult.ValueChanged]), and an item renamed or removed there is
+     * never re-created under its old name ([EditResult.NotOnList]). Keeps the item's name.
      */
     suspend fun updateIf(key: String, expected: ItemValue, value: ItemValue): EditResult = withContext(io) {
         edit { list ->
             val current = list.current(key)
-            val conflict = ListLogic.updateConflict(expected, current?.item)
+            val conflict = ListLogic.updateConflict(expected.sanitized(), current?.item)
             if (current == null || conflict != null) return@edit refuse(conflict ?: EditResult.NotOnList)
             val item = current.item
             val name = ListLogic.nameForChange(item.name, item) ?: return@edit refuse(EditResult.InvalidName)
@@ -119,7 +166,22 @@ class GroceryRepository(
      * arrived from the other phone), nothing is queued ([EditResult.AlreadyOnList]). [EditResult.NotOnList] when
      * the item itself is gone.
      */
-    suspend fun rename(key: String, newName: String, value: ItemValue? = null): EditResult {
+    suspend fun rename(key: String, newName: String, value: ItemValue? = null): EditResult =
+        renameItem(key, newName, value, expected = null)
+
+    /**
+     * [rename] for the Undo of an edit that renamed the item [key] (and maybe changed its value): gives it [newName]
+     * (its old name) and [value] (its old value) back, but only while it still has [expected], the value the edit
+     * set, like [updateIf]. Checked in the same transaction as the enqueue, with [rename]'s own checks: an item that
+     * has taken the old name meanwhile (added, or renamed to it, on the other phone) is never overwritten
+     * ([EditResult.AlreadyOnList]), and an item renamed or removed there is never re-created
+     * ([EditResult.NotOnList]); [EditResult.ValueChanged] when the other phone changed its value.
+     */
+    suspend fun renameIf(key: String, expected: ItemValue, newName: String, value: ItemValue): EditResult =
+        renameItem(key, newName, value, expected)
+
+    /** [rename]; with [expected], [renameIf]. */
+    private suspend fun renameItem(key: String, newName: String, value: ItemValue?, expected: ItemValue?): EditResult {
         if (InputValidation.validateName(newName) != null) {
             Log.w(TAG, "Ignoring rename to an invalid item name")
             return EditResult.InvalidName
@@ -128,6 +190,7 @@ class GroceryRepository(
             edit { list ->
                 val current = list.current(key) ?: return@edit refuse(EditResult.NotOnList)
                 val item = current.item
+                if (expected != null) ListLogic.updateConflict(expected.sanitized(), item)?.let { return@edit refuse(it) }
                 val cleanName = ItemKeys.clean(newName)
                 val newKey = ItemKeys.normalize(cleanName)
                 val newValue = value?.sanitized() ?: item.value

@@ -14,12 +14,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.grocerysync.app.R
+import com.grocerysync.app.text.EnglishListTexts
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 
 /**
  * The list's app bar title: the turmeric jhola (the cloth bag of the launcher icon, R.drawable.ic_jhola), then the
- * app's name (R.string.app_name, so a rename is one line in strings.xml; the qa build says "Kirana QA"). The bag is
- * decoration only.
+ * app's name in the language shown ([appBarTitle]; the qa build says "Kirana QA"). The bag is decoration only.
  */
 @Composable
 fun AppBarTitle(modifier: Modifier = Modifier) {
@@ -31,6 +32,15 @@ fun AppBarTitle(modifier: Modifier = Modifier) {
             modifier = Modifier.size(24.dp),
         )
         Spacer(Modifier.width(10.dp))
-        Text(stringResource(R.string.app_name), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(appBarTitle(stringResource(R.string.app_name)), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
+
+/**
+ * The title for a build named [appName] (R.string.app_name, which also names the app on the launcher): the app's
+ * name in the language shown when [appName] is its English name. A build with a name of its own (the qa build's
+ * "Kirana QA") keeps that, in every language, so it stays easy to tell apart from the real app. (Renaming the app
+ * means strings.xml and ListTexts.appTitle in every language.)
+ */
+internal fun appBarTitle(appName: String): String =
+    if (appName == EnglishListTexts.appTitle) Texts.current.list.appTitle else appName

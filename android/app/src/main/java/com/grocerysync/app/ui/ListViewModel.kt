@@ -19,12 +19,16 @@ import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.ShopSectionSettings
 import com.grocerysync.app.data.ShopSectionStore
 import com.grocerysync.app.data.SyncSettings
+import com.grocerysync.app.data.TickedEntry
+import com.grocerysync.app.data.TickedTodayStore
 import com.grocerysync.app.data.notNeeded
+import com.grocerysync.app.data.shownTickedToday
 import com.grocerysync.app.data.stepped
 import com.grocerysync.app.sync.ConnectionState
 import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.PushProblem
 import com.grocerysync.app.sync.SyncStatus
+import com.grocerysync.app.text.Texts
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -74,6 +78,11 @@ data class ListUiState(
     val shopSections: ShopSectionSettings = ShopSectionSettings(),
     /** [toBuy] by shop section in walking order while [groupBySection]; null while To buy is A to Z. */
     val toBuySections: List<ShopSectionGroup>? = null,
+    /**
+     * "Ticked today" under To buy: the items this phone took off To buy today that are still as it left them
+     * ([shownTickedToday]), newest first.
+     */
+    val tickedToday: List<TickedEntry> = emptyList(),
 ) {
     /**
      * Set while the list is live but changes can't be saved (the sheet answers pushes with a failure)
@@ -140,9 +149,63 @@ sealed interface ItemDialog {
     }
 }
 
-/** One-shot messages for the snackbar. */
+/**
+ * One-shot messages for the snackbar. A [Message] carries its finished text, made in the language shown when the
+ * event is sent; the others carry data, and the screen makes their text when it shows them ([snackbarText]).
+ */
 sealed interface ListEvent {
-    data class GotIt(val name: String, val previous: ItemValue) : ListEvent
+    /**
+     * A change of one item's value this phone made, shown with Undo: the item [key] ([name]) had [before] and was set
+     * to [after]. Its Undo ([ListViewModel.undoChange]) writes [before] back only while the item still has [after].
+     */
+    sealed interface ValueChange : ListEvent {
+        val key: String
+        val name: String
+        val before: ItemValue
+        val after: ItemValue
+    }
+
+    /** "Got it" took [name] off To buy. */
+    data class GotIt(
+        override val key: String,
+        override val name: String,
+        override val before: ItemValue,
+        override val after: ItemValue,
+    ) : ValueChange
+
+    /**
+     * - / + of a quantity. Steps of one item that follow each other while its snackbar is still the one shown are one
+     * change: [before] is the amount before the first of them ([stepEvent]).
+     */
+    data class Stepped(
+        override val key: String,
+        override val name: String,
+        override val before: ItemValue.Quantity,
+        override val after: ItemValue.Quantity,
+    ) : ValueChange
+
+    /** The Need switch of a yes / no item set it to [needed]. */
+    data class NeedChanged(override val key: String, override val name: String, val needed: Boolean) : ValueChange {
+        override val before: ItemValue get() = ItemValue.BoolValue(!needed)
+        override val after: ItemValue get() = ItemValue.BoolValue(needed)
+    }
+
+    /**
+     * The Edit dialog saved the item [oldName] ([before]) as [newName] ([after]), now under [key]: a new name, a new
+     * type, amount or unit, or both. Its Undo ([ListViewModel.undoEdit]) gives both back, only while the item still
+     * has [after].
+     */
+    data class Edited(
+        val key: String,
+        val oldName: String,
+        val newName: String,
+        val before: ItemValue,
+        val after: ItemValue,
+    ) : ListEvent {
+        /** A new name, also only new capitals or spaces. */
+        val renamed: Boolean get() = newName != oldName
+    }
+
     data class Deleted(val name: String, val previous: ItemValue) : ListEvent
     data class Message(val text: String) : ListEvent
 
@@ -158,9 +221,11 @@ class ListViewModel(
     private val liveSync: LiveSync,
     private val settingsStore: SettingsStore,
     private val shopSectionStore: ShopSectionStore,
-    /** This phone's own preferences (never synced): the list lane reads Simple mode from it. */
+    /** This phone's own preferences (never synced): Simple mode ([simpleMode]). */
     private val phoneSettingsStore: PhoneSettingsStore,
     private val savedStateHandle: SavedStateHandle,
+    /** "Ticked today" (this phone only). Without one given, kept in memory only, as for tests and previews. */
+    private val tickedTodayStore: TickedTodayStore = TickedTodayStore(prefs = null),
 ) : ViewModel() {
 
     private val manualRefresh = MutableStateFlow(false)
@@ -168,6 +233,12 @@ class ListViewModel(
 
     // Serialises local edits so read-modify-write actions (stepper taps, "Got it") always see the previous edit.
     private val editMutex = Mutex()
+
+    /**
+     * The - / + snackbar on screen now, until the screen says it has gone ([snackbarClosed]): the next step of the
+     * same item joins it ([stepEvent]). Main thread only (the edits run there between their database calls).
+     */
+    private var shownStep: ListEvent.Stepped? = null
 
     private val _events = Channel<ListEvent>(Channel.BUFFERED)
     val events: Flow<ListEvent> = _events.receiveAsFlow()
@@ -177,8 +248,9 @@ class ListViewModel(
         repository.outboxStatus,
         liveSync.status,
         settingsStore.settings,
-        combine(manualRefresh, shopSectionStore.settings, ::Pair),
-    ) { items, outbox, status, settings, (refreshing, shopSections) ->
+        // Ticked today's changes only say when to read it again (see buildState).
+        combine(manualRefresh, shopSectionStore.settings, tickedTodayStore.changes, ::Triple),
+    ) { items, outbox, status, settings, (refreshing, shopSections, _) ->
         buildState(items, outbox, status, settings, refreshing, shopSections)
     }
         .flowOn(Dispatchers.Default)
@@ -191,6 +263,15 @@ class ListViewModel(
                 shopSections = shopSectionStore.current(),
             ),
         )
+
+    /**
+     * Simple mode (Settings > This phone): the list screen shows only To buy, with bigger text and buttons. Followed
+     * all the time (not only while the screen collects it, unlike [uiState]), so the screen shows the choice made
+     * in Settings from its first frame back, without a frame of the other look.
+     */
+    val simpleMode: StateFlow<Boolean> = phoneSettingsStore.settings
+        .map { it.simpleMode }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, phoneSettingsStore.current().simpleMode)
 
     val dialog: StateFlow<ItemDialog?> = savedStateHandle.getStateFlow<String?>(KEY_DIALOG, null)
         .map { ItemDialog.decode(it) }
@@ -218,6 +299,8 @@ class ListViewModel(
             isRefreshing = refreshing,
             shopSections = shopSections,
             toBuySections = if (shopSections.groupBySection) groupBySection(needed, shopSections::sectionOf) else null,
+            // Read here, so entries from before midnight go as soon as the list is shown again.
+            tickedToday = shownTickedToday(tickedTodayStore.today(), items),
         )
     }
 
@@ -299,32 +382,65 @@ class ListViewModel(
     // region Item edits
 
     /**
-     * "Got it" in the To buy view: marks the item as not needed (a quantity becomes 0 and keeps its unit)
-     * and offers Undo with the exact previous value.
+     * "Got it" in the To buy view: marks the item as not needed (a quantity becomes 0 and keeps its unit), puts it
+     * under Ticked today and offers Undo with the exact previous value ([undoChange]).
      */
     fun markGotIt(key: String) = edit {
         val item = currentItem(key) ?: return@edit
         if (!item.value.isNeeded) return@edit
-        if (repository.upsert(item.name, item.value.notNeeded())) {
-            _events.send(ListEvent.GotIt(item.name, item.value))
+        val set = item.value.notNeeded()
+        if (repository.upsert(item.name, set)) {
+            sendChange(ListEvent.GotIt(key, item.name, before = item.value, after = set))
         } else {
             _events.send(cantChange(item))
         }
     }
 
+    /** The Need switch of a yes / no item, with Undo ([undoChange]); turned off, the item goes under Ticked today. */
     fun setNeeded(key: String, needed: Boolean) = edit {
         val item = currentItem(key) ?: return@edit
-        if (item.value is ItemValue.BoolValue && item.value.value != needed) {
-            if (!repository.upsert(item.name, ItemValue.BoolValue(needed))) _events.send(cantChange(item))
+        if (item.value !is ItemValue.BoolValue || item.value.value == needed) return@edit
+        if (repository.upsert(item.name, ItemValue.BoolValue(needed))) {
+            sendChange(ListEvent.NeedChanged(key, item.name, needed))
+        } else {
+            _events.send(cantChange(item))
         }
     }
 
-    /** - / + on a quantity: one step of its unit ([com.grocerysync.app.data.Units.step]), never below 0. */
+    /**
+     * - / + on a quantity: one step of its unit ([com.grocerysync.app.data.Units.step]), never below 0, with Undo
+     * ([undoChange]). Steps of the same item while its snackbar is shown are one change ([stepEvent]); one that ends
+     * at 0 puts the item under Ticked today with the amount from before the steps.
+     */
     fun stepQuantity(key: String, up: Boolean) = edit {
         val item = currentItem(key) ?: return@edit
         val current = item.value as? ItemValue.Quantity ?: return@edit
         val next = current.stepped(up)
-        if (next != current && !repository.upsert(item.name, next)) _events.send(cantChange(item))
+        if (next == current) return@edit
+        if (repository.upsert(item.name, next)) {
+            val event = stepEvent(shownStep, key, item.name, current, next)
+            shownStep = event
+            sendChange(event)
+        } else {
+            _events.send(cantChange(item))
+        }
+    }
+
+    /**
+     * Sends the Undo snackbar of a [change] that was saved. One that took a needed item off To buy ([ticksOff]) puts
+     * it under Ticked today, with the value it had before.
+     */
+    private suspend fun sendChange(change: ListEvent.ValueChange) {
+        if (change.ticksOff) tickedTodayStore.record(change.key, change.name, change.before, change.after)
+        _events.send(change)
+    }
+
+    /**
+     * The snackbar of [event] has gone: timed out, swiped away, its action tapped, or replaced by the next one. A
+     * - / + after that is a change of its own, not part of [event]'s.
+     */
+    fun snackbarClosed(event: ListEvent) {
+        if (event === shownStep) shownStep = null
     }
 
     /**
@@ -353,12 +469,22 @@ class ListViewModel(
                     } else {
                         editRefused(result, plan.name)?.let { _events.send(it) }
                     }
-                } else if (!repository.upsert(plan.name, plan.value)) {
+                } else if (repository.upsert(plan.name, plan.value)) {
+                    // A new value and / or new capitals or spaces: the same item.
+                    _events.send(ListEvent.Edited(current.key, current.name, plan.name, current.value, plan.value))
+                } else {
                     _events.send(couldNotSave(plan.name))
                 }
                 is ItemSavePlan.Rename -> {
                     val result = repository.rename(plan.key, plan.newName, plan.value)
-                    if (result == EditResult.Saved) keepShopSection(plan.key, plan.newName)
+                    if (result == EditResult.Saved) {
+                        keepShopSection(plan.key, plan.newName)
+                        if (current != null) {
+                            val newName = ItemKeys.clean(plan.newName)
+                            val after = plan.value ?: current.value
+                            _events.send(ListEvent.Edited(ItemKeys.normalize(newName), current.name, newName, current.value, after))
+                        }
+                    }
                     // "Not on the list" is about the item being renamed (its old name).
                     editRefused(result, plan.newName, goneName = current?.name ?: plan.newName)?.let { _events.send(it) }
                 }
@@ -378,21 +504,19 @@ class ListViewModel(
         EditResult.InvalidName -> couldNotSave(name)
     }
 
-    private fun couldNotSave(name: String) =
-        ListEvent.Message("Couldn't save \"${quotedItemName(name)}\". Check the name and try again.")
+    private fun couldNotSave(name: String) = ListEvent.Message(Texts.current.list.couldNotSave(quotedItemName(name)))
 
     /** The open edit dialog's item was renamed or removed on another phone (or in the sheet). */
     fun onEditedItemRemoved(name: String?) {
         closeDialog()
-        val text = if (name != null) changedElsewhereText(name) else "That item was changed on another phone"
+        val text = if (name != null) changedElsewhereText(name) else Texts.current.list.itemChangedElsewhere
         viewModelScope.launch { _events.send(ListEvent.Message(text)) }
     }
 
-    private fun changedElsewhereText(name: String) = "\"${quotedItemName(name)}\" was changed on another phone"
+    private fun changedElsewhereText(name: String) = Texts.current.list.changedElsewhere(quotedItemName(name))
 
-    private fun cantChange(item: GroceryItem) = ListEvent.Message(
-        "Couldn't change \"${ItemKeys.singleLine(item.name).take(40)}\". Open it and shorten its name.",
-    )
+    private fun cantChange(item: GroceryItem) =
+        ListEvent.Message(Texts.current.list.cantChange(ItemKeys.singleLine(item.name).take(40)))
 
     fun deleteItem(key: String) {
         closeDialog()
@@ -404,12 +528,44 @@ class ListViewModel(
     }
 
     /**
-     * Undo of "Got it": writes the previous value back, if the item is still on the list. When it was renamed or
-     * removed on the other phone meanwhile, nothing is written (it would come back as a second item under its
-     * old name) and a snackbar says so.
+     * Undo of a change of one item's value ("Got it", - / +, the Need switch): writes the value from before back,
+     * but only while the item still has the value the change set ([GroceryRepository.updateIf], checked as it is
+     * queued). When the other phone changed, renamed or removed it meanwhile, nothing is written (a renamed one would
+     * come back as a second item under its old name) and a snackbar says so. The Undo of a tick also takes the item
+     * off Ticked today.
      */
-    fun undoGotIt(name: String, value: ItemValue) = edit {
-        editRefused(repository.update(name, value), name)?.let { _events.send(it) }
+    fun undoChange(change: ListEvent.ValueChange) = edit {
+        // Steps that came back to where they started have nothing to undo.
+        val result = if (change.after == change.before) EditResult.Saved else repository.updateIf(change.key, change.after, change.before)
+        if (change.ticksOff) tickedTodayStore.remove(change.key)
+        editRefused(result, change.name)?.let { _events.send(it) }
+    }
+
+    /**
+     * Undo of an Edit dialog save: the old name and the old value come back, but only while the item still has the
+     * value the edit set: [GroceryRepository.updateIf], or for a new name [GroceryRepository.renameIf], which also
+     * never overwrites an item that has taken the old name meanwhile ("already on the list"). This phone's shop
+     * section for it goes back to the old name too.
+     */
+    fun undoEdit(change: ListEvent.Edited) = edit {
+        val result = if (change.renamed) {
+            repository.renameIf(change.key, expected = change.after, newName = change.oldName, value = change.before)
+        } else {
+            repository.updateIf(change.key, expected = change.after, value = change.before)
+        }
+        if (result == EditResult.Saved) keepShopSection(change.key, change.oldName)
+        editRefused(result, change.newName)?.let { _events.send(it) }
+    }
+
+    /**
+     * Ticked today's Put back: the item gets back the value it had before this phone ticked it, but only while it
+     * still has the value the tick set ([GroceryRepository.updateIf]); otherwise nothing is written and a snackbar
+     * says it was changed on another phone. Either way it leaves Ticked today.
+     */
+    fun putBack(entry: TickedEntry) = edit {
+        val result = repository.updateIf(entry.key, expected = entry.set, value = entry.before)
+        tickedTodayStore.remove(entry.key)
+        editRefused(result, entry.name)?.let { _events.send(it) }
     }
 
     /**
@@ -428,19 +584,35 @@ class ListViewModel(
     private suspend fun currentItem(key: String): GroceryItem? =
         repository.items.first().firstOrNull { it.key == key }
 
+    /**
+     * Runs a local edit after the ones before it ([editMutex]), then prunes Ticked today ([pruneTickedToday]). A
+     * failure is logged, and the snackbar says the change couldn't be saved.
+     */
     private fun edit(block: suspend () -> Unit) {
         viewModelScope.launch {
             editMutex.withLock {
                 try {
                     block()
+                    pruneTickedToday()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "Local edit failed", e)
-                    _events.send(ListEvent.Message("Couldn't save that change. Please try again."))
+                    _events.send(ListEvent.Message(Texts.current.list.editFailed))
                 }
             }
         }
+    }
+
+    /**
+     * Takes the entries whose item is needed again, renamed or gone off Ticked today ([TickedEntry.isStillTicked]),
+     * after each change this phone makes. The list is read again here, not taken from [uiState]: that may not have
+     * caught up with the change just made yet, and a tick recorded a moment ago would look needed again.
+     */
+    private suspend fun pruneTickedToday() {
+        if (tickedTodayStore.isEmpty) return
+        val byKey = repository.items.first().associateBy { it.key }
+        tickedTodayStore.retain { it.isStillTicked(byKey[it.key]) }
     }
 
     // endregion

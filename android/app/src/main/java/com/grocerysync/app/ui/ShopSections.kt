@@ -3,6 +3,7 @@ package com.grocerysync.app.ui
 import androidx.compose.runtime.Immutable
 import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ShopSection
+import com.grocerysync.app.text.Texts
 import java.util.EnumMap
 
 // To buy by shop section (unit-tested in ShopSectionsTest): which section each needed item is in comes from
@@ -24,6 +25,8 @@ internal fun groupBySection(items: List<GroceryItem>, sectionOf: (GroceryItem) -
     return bySection.map { (section, sectionItems) -> ShopSectionGroup(section, sectionItems) }
 }
 
-/** What TalkBack reads for a section header: "Masala, 3 items", "Puja, 1 item". */
-internal fun sectionHeaderDescription(section: ShopSection, count: Int): String =
-    "${section.label}, $count ${if (count == 1) "item" else "items"}"
+/** What TalkBack reads for a section header: "Masala, 3 items", "Puja, 1 item" (in the language shown). */
+internal fun sectionHeaderDescription(section: ShopSection, count: Int): String {
+    val texts = Texts.current.common
+    return "${texts.sectionName(section)}, ${texts.itemCount(count)}"
+}
