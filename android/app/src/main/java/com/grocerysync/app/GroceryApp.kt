@@ -8,12 +8,24 @@ import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.grocerysync.app.data.ListLogic
+import com.grocerysync.app.notify.ChangeNotifier
+import com.grocerysync.app.notify.ChangeWatcher
+import com.grocerysync.app.notify.SeenListStore
+import com.grocerysync.app.sync.SyncScheduler
 import com.grocerysync.app.text.Texts
 import com.grocerysync.app.text.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 class GroceryApp : Application() {
 
     lateinit var container: AppContainer
+
+    /** Change notifications: what someone else put on To buy while the app was closed (ListCheckWorker). */
+    lateinit var changeWatcher: ChangeWatcher
+        private set
 
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
@@ -23,9 +35,24 @@ class GroceryApp : Application() {
         // For what the app shows without a screen (background work); MainActivity sets it again for its own.
         updateTexts(resources.configuration)
 
-        // Poll the sheet only while some activity of the app is visible.
+        val notifier = ChangeNotifier(this)
+        // The channel's name in Android's settings, in the language shown now.
+        notifier.createChannel()
+        changeWatcher = ChangeWatcher(
+            seenList = SeenListStore(this),
+            alerts = notifier,
+            shownList = {
+                val (mirror, ops) = container.database.loadSnapshot()
+                ListLogic.overlay(mirror, ops, container.settings.effectiveDeviceName())
+            },
+            myName = container.settings::effectiveDeviceName,
+        )
+
+        // Poll the sheet only while some activity of the app is visible. Visible, the person sees the list: no change
+        // notification then, and what the list shows when the app leaves is what they saw.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
+                changeWatcher.onForeground()
                 container.liveSync.start()
                 registerNetworkCallback()
             }
@@ -33,10 +60,26 @@ class GroceryApp : Application() {
             override fun onStop(owner: LifecycleOwner) {
                 unregisterNetworkCallback()
                 container.liveSync.stop()
+                changeWatcher.onBackground()
+                container.applicationScope.launch { changeWatcher.markSeen() }
             }
         })
 
         container.syncScheduler.schedulePeriodic()
+        scheduleListChecks()
+    }
+
+    /**
+     * Plans the background check for change notifications now and again whenever the connection or the notifications
+     * switch changes: only while the phone is set up and the switch is on ([SyncScheduler.shouldCheckList]).
+     */
+    private fun scheduleListChecks() {
+        container.applicationScope.launch {
+            container.settings.settings
+                .combine(container.phoneSettings.settings, SyncScheduler::shouldCheckList)
+                .distinctUntilChanged()
+                .collect { enabled -> container.syncScheduler.scheduleListCheck(enabled) }
+        }
     }
 
     /** The phone's language may have changed (PHONE follows it) while no activity of the app is running. */

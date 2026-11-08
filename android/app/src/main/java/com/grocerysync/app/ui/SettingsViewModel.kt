@@ -239,6 +239,21 @@ class SettingsViewModel(
         phoneSettingsStore.setLanguage(language)
     }
 
+    /** Simple mode on or off, saved at once; the list screen follows it. */
+    fun setSimpleMode(on: Boolean) {
+        phoneSettingsStore.setSimpleMode(on)
+    }
+
+    /**
+     * Change notifications on or off, saved at once (GroceryApp plans or cancels the background check). Either way
+     * this answers the list screen's one-time offer too: someone who chose here isn't asked there again. Asking
+     * Android for the permission is the screen's part (it needs the activity).
+     */
+    fun setNotifyChanges(on: Boolean) {
+        phoneSettingsStore.setNotifyChanges(on)
+        phoneSettingsStore.setNotifyOfferDone(true)
+    }
+
     /**
      * [clipboardText] is everything on the clipboard; the setup code may sit inside a longer chat message.
      * Fills the URL; the token is kept aside, hidden (the field stays empty), and Save uses it.

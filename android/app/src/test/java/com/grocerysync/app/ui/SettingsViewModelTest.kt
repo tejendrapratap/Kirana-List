@@ -2,6 +2,7 @@ package com.grocerysync.app.ui
 
 import androidx.lifecycle.SavedStateHandle
 import com.grocerysync.app.data.FakeSharedPreferences
+import com.grocerysync.app.data.PhoneSettings
 import com.grocerysync.app.data.PhoneSettingsStore
 import com.grocerysync.app.data.ServerClock
 import com.grocerysync.app.data.SettingsStore
@@ -94,6 +95,9 @@ class SettingsViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /** This phone's own settings of the view model [viewModel] makes. */
+    private val phoneStore = PhoneSettingsStore(FakeSharedPreferences())
+
     private fun viewModel(handle: SavedStateHandle = SavedStateHandle()): SettingsViewModel {
         val syncStore = FakeSyncStore()
         val liveSync = LiveSync(
@@ -102,7 +106,7 @@ class SettingsViewModelTest {
             store = syncStore,
             scope = scope,
         )
-        return SettingsViewModel(store, SheetsClient(), liveSync, PhoneSettingsStore(FakeSharedPreferences()), handle)
+        return SettingsViewModel(store, SheetsClient(), liveSync, phoneStore, handle)
     }
 
     private fun saveConfigured(token: String = SAVED_TOKEN) {
@@ -499,6 +503,30 @@ class SettingsViewModelTest {
             ),
             events,
         )
+    }
+
+    @Test
+    fun simpleModeIsSavedAtOnce() {
+        val vm = viewModel()
+        assertFalse(vm.phoneSettings.value.simpleMode)
+        vm.setSimpleMode(true)
+        assertTrue(phoneStore.current().simpleMode)
+        assertTrue(vm.phoneSettings.value.simpleMode)
+        vm.setSimpleMode(false)
+        assertFalse(phoneStore.current().simpleMode)
+    }
+
+    @Test
+    fun theNotificationsSwitchIsSavedAtOnceAndAnswersTheListsOffer() {
+        val vm = viewModel()
+        assertTrue(vm.phoneSettings.value.notifyChanges)
+        assertFalse(vm.phoneSettings.value.notifyOfferDone)
+        vm.setNotifyChanges(false)
+        assertEquals(PhoneSettings(notifyChanges = false, notifyOfferDone = true), phoneStore.current())
+        vm.setNotifyChanges(true)
+        assertEquals(PhoneSettings(notifyChanges = true, notifyOfferDone = true), phoneStore.current())
+        // Not part of Save: nothing typed is touched.
+        assertEquals("", vm.webAppUrl)
     }
 
     private fun assertHandleHasNoToken(handle: SavedStateHandle, vararg tokens: String) {

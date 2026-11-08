@@ -32,6 +32,24 @@ interface SettingsTexts {
     /** The Language choice that follows the phone's language (the default); the language it means is shown under it. */
     val phonesLanguage: String
 
+    /** This phone: the Simple mode switch. */
+    val simpleMode: String
+
+    /** Under [simpleMode]: what it changes on the list screen. */
+    val simpleModeHelp: String
+
+    /** This phone: the switch for notifications about what someone else adds to To buy. */
+    val notifyChanges: String
+
+    /** Under [notifyChanges]: how often the app looks (Android runs background work every 15 minutes at most). */
+    val notifyChangesHelp: String
+
+    /** Under [notifyChanges] while it is on but Android doesn't let the app show notifications. */
+    val notificationsBlocked: String
+
+    /** The button under [notificationsBlocked]: opens the app's notification settings in Android. */
+    val allowNotifications: String
+
     /** The section of the connection to the sheet. */
     val googleSheet: String
 
@@ -128,6 +146,13 @@ object EnglishSettingsTexts : SettingsTexts {
     override val thisPhone = "This phone"
     override val language = "Language"
     override val phonesLanguage = "Phone's language"
+    override val simpleMode = "Simple mode"
+    override val simpleModeHelp = "Bigger text and buttons. Shows only ${EnglishCommonTexts.toBuy}, and " +
+        "${EnglishCommonTexts.undo} stays on screen."
+    override val notifyChanges = "Notify me when someone adds to ${EnglishCommonTexts.toBuy}"
+    override val notifyChangesHelp = "Checks about every 15 minutes while the app is closed"
+    override val notificationsBlocked = "Notifications are blocked for this app."
+    override val allowNotifications = "Allow in Android settings"
     override val googleSheet = "Google Sheet"
     override val pasteSetupCode = "Paste setup code"
     override val pasteSetupHelp = "Have a setup message? Copy it, then tap $pasteSetupCode."
@@ -173,6 +198,13 @@ object HindiSettingsTexts : SettingsTexts {
     override val thisPhone = "यह फ़ोन"
     override val language = "भाषा"
     override val phonesLanguage = "फ़ोन की भाषा"
+    override val simpleMode = "आसान मोड"
+    override val simpleModeHelp = "बड़े अक्षर और बड़े बटन। सिर्फ़ ${quoted(HindiCommonTexts.toBuy)} दिखेगा, और " +
+        "${quoted(HindiCommonTexts.undo)} स्क्रीन पर बना रहेगा।"
+    override val notifyChanges = "कोई ${quoted(HindiCommonTexts.toBuy)} में कुछ जोड़े, तो मुझे सूचना दें"
+    override val notifyChangesHelp = "ऐप बंद होने पर लगभग हर 15 मिनट में लिस्ट जाँचता है"
+    override val notificationsBlocked = "इस ऐप की सूचनाएँ बंद हैं।"
+    override val allowNotifications = "Android सेटिंग्स में चालू करें"
     override val googleSheet = "Google शीट"
     override val pasteSetupCode = "सेटअप कोड पेस्ट करें"
     override val pasteSetupHelp = "सेटअप मैसेज है? उसे कॉपी करें, फिर ${quoted(pasteSetupCode)} दबाएँ।"

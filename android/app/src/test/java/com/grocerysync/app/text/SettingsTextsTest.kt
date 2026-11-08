@@ -109,6 +109,27 @@ class SettingsTextsTest {
     }
 
     @Test
+    fun thisPhonesSwitches() {
+        assertEquals("Simple mode", english.simpleMode)
+        assertEquals("Bigger text and buttons. Shows only To buy, and Undo stays on screen.", english.simpleModeHelp)
+        assertEquals("Notify me when someone adds to To buy", english.notifyChanges)
+        assertEquals("Checks about every 15 minutes while the app is closed", english.notifyChangesHelp)
+        assertEquals("Notifications are blocked for this app.", english.notificationsBlocked)
+        assertEquals("Allow in Android settings", english.allowNotifications)
+
+        assertEquals("आसान मोड", hindi.simpleMode)
+        // The page and the button are named as they are shown, quoted.
+        assertEquals(
+            "बड़े अक्षर और बड़े बटन। सिर्फ़ \"ख़रीदना है\" दिखेगा, और \"पहले जैसा करें\" स्क्रीन पर बना रहेगा।",
+            hindi.simpleModeHelp,
+        )
+        assertTrue(hindi.simpleModeHelp.contains("\"${HindiCommonTexts.toBuy}\""))
+        assertTrue(hindi.simpleModeHelp.contains("\"${HindiCommonTexts.undo}\""))
+        assertEquals("कोई \"ख़रीदना है\" में कुछ जोड़े, तो मुझे सूचना दें", hindi.notifyChanges)
+        assertTrue(hindi.notifyChangesHelp.contains("15"))
+    }
+
+    @Test
     fun theCurrentTextsAreTheLanguageShown() {
         assertEquals("Test connection", Texts.current.settings.testConnection)
         assertEquals("कनेक्शन जाँचें", withTexts(AppTexts.Hindi) { Texts.current.settings.testConnection })

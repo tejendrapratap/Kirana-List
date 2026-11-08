@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -49,6 +50,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -94,6 +96,9 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.UrlCheck
+import com.grocerysync.app.notify.openNotificationSettings
+import com.grocerysync.app.notify.rememberNotificationAccess
+import com.grocerysync.app.notify.rememberNotificationPermissionRequest
 import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.text.AppLanguage
 import com.grocerysync.app.text.AppTexts
@@ -227,6 +232,13 @@ fun SettingsScreen(
                     }
                 },
             )
+            SwitchRow(
+                title = t.settings.simpleMode,
+                detail = t.settings.simpleModeHelp,
+                checked = phoneSettings.simpleMode,
+                onCheckedChange = viewModel::setSimpleMode,
+            )
+            NotifyChangesSwitch(on = phoneSettings.notifyChanges, onChange = viewModel::setNotifyChanges)
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
             SectionTitle(t.settings.googleSheet)
@@ -380,6 +392,90 @@ private fun LanguageChoicePreview() {
     GrocerySyncTheme(dynamicColor = false) {
         Column(Modifier.padding(16.dp)) {
             LanguageChoice(selected = AppLanguage.PHONE, phoneTexts = AppTexts.English, onChoose = {})
+        }
+    }
+}
+
+/**
+ * A switch of This phone with its [title] and a line under it ([detail]). The whole row is the switch (at least
+ * 56 dp tall), so TalkBack reads the title, the line and the state together ("Simple mode, ..., switch, off").
+ */
+@Composable
+private fun SwitchRow(title: String, detail: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 8.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+        Switch(checked = checked, onCheckedChange = null)
+    }
+}
+
+/**
+ * This phone > "Notify me when someone adds to To buy" ([on]: the saved choice). Turning it on on Android 13+ without
+ * the permission asks Android for it. Refused (now or before), the switch stays on and a line says the notifications
+ * are blocked, with a button to Android's settings for them; that line goes once they are allowed (checked again each
+ * time the screen comes back).
+ */
+@Composable
+private fun NotifyChangesSwitch(on: Boolean, onChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val access = rememberNotificationAccess()
+    val askPermission = rememberNotificationPermissionRequest { access.refresh() }
+    NotifyChangesSetting(
+        on = on,
+        blocked = on && !access.allowed,
+        onChange = { turnOn ->
+            onChange(turnOn)
+            if (turnOn && access.mayAsk) askPermission()
+        },
+        onAllow = { openNotificationSettings(context) },
+    )
+}
+
+/**
+ * What [NotifyChangesSwitch] shows: the switch and, while [blocked], the line saying so and the "Allow in Android
+ * settings" button ([onAllow]). Without state of its own, so a UI test can show it in either case.
+ */
+@Composable
+internal fun NotifyChangesSetting(on: Boolean, blocked: Boolean, onChange: (Boolean) -> Unit, onAllow: () -> Unit) {
+    val t = Texts.current.settings
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SwitchRow(title = t.notifyChanges, detail = t.notifyChangesHelp, checked = on, onCheckedChange = onChange)
+        if (blocked) {
+            ResultLine(
+                icon = Icons.Default.Warning,
+                text = t.notificationsBlocked,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+            OutlinedButton(onClick = onAllow, modifier = Modifier.fillMaxWidth()) { Text(t.allowNotifications) }
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+private fun ThisPhoneSwitchesPreview() {
+    GrocerySyncTheme(dynamicColor = false) {
+        Column(Modifier.padding(16.dp)) {
+            val t = Texts.current.settings
+            SwitchRow(title = t.simpleMode, detail = t.simpleModeHelp, checked = false, onCheckedChange = {})
+            NotifyChangesSetting(on = true, blocked = true, onChange = {}, onAllow = {})
         }
     }
 }
