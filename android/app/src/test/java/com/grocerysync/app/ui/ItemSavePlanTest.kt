@@ -106,6 +106,9 @@ class ItemSavePlanTest {
         assertEquals("\"Rice\" is already on the list", alreadyOnListText("Rice"))
         assertEquals("Another item is already called \"Rice\"", anotherItemCalledText("Rice"))
         assertEquals("Open \"Rice\"", openItemText("Rice"))
+        // Simple mode, for an item that isn't needed.
+        assertEquals("\"Dahi\" is on the list but isn't needed now", onListNotNeededText("Dahi"))
+        assertEquals("Put \"Dahi\" back on To buy", putBackOnToBuyText("Dahi"))
     }
 
     @Test

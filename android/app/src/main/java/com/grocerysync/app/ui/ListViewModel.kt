@@ -579,6 +579,31 @@ class ListViewModel(
     }
 
     /**
+     * Simple mode's add dialog, for a name of an item that is on the list but not needed ([ItemEditDialog]'s
+     * onNeedExisting): closes the dialog and makes that item needed again ([neededAgainChange]), with Undo
+     * ([undoChange]). Written only while the item still has the value read here ([GroceryRepository.updateIf]): one
+     * the other phone changed meanwhile is left as it is and a snackbar says so; one needed already is left alone.
+     */
+    fun needAgain(key: String) {
+        closeDialog()
+        edit {
+            val item = currentItem(key)
+            if (item == null) {
+                _events.send(ListEvent.Message(Texts.current.list.itemChangedElsewhere))
+                return@edit
+            }
+            if (item.value.isNeeded) return@edit
+            val change = neededAgainChange(item, tickedTodayStore.today().firstOrNull { it.key == key })
+            val result = repository.updateIf(key, expected = change.before, value = change.after)
+            if (result == EditResult.Saved) {
+                sendChange(change)
+            } else {
+                editRefused(result, item.name)?.let { _events.send(it) }
+            }
+        }
+    }
+
+    /**
      * Undo of a delete: adds the item back with its previous value, unless an item with its name is on the list
      * again meanwhile (added or renamed to it on the other phone): that one is never overwritten, and a snackbar
      * says the name is already on the list.

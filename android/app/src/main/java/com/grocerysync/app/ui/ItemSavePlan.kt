@@ -102,6 +102,13 @@ fun anotherItemCalledText(existingName: String): String =
 fun openItemText(existingName: String): String =
     Texts.current.item.openItem(quotedItemName(existingName, OPEN_BUTTON_NAME_MAX))
 
+/** Simple mode's add dialog, for an item on the list that isn't needed: "Dahi" is on the list but isn't needed now. */
+fun onListNotNeededText(existingName: String): String = Texts.current.item.onListNotNeeded(quotedItemName(existingName))
+
+/** Simple mode's add dialog's button that makes that item needed again: Put "Dahi" back on To buy. */
+fun putBackOnToBuyText(existingName: String): String =
+    Texts.current.item.putBackOnToBuy(quotedItemName(existingName, OPEN_BUTTON_NAME_MAX))
+
 /**
  * The unit picker's prompt while a quantity has no unit; Save stays disabled until one is chosen. In the language
  * shown, like the other texts in this file.

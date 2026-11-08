@@ -1,9 +1,12 @@
 package com.grocerysync.app.ui
 
 import com.grocerysync.app.data.Amount
+import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemValue.BoolValue
 import com.grocerysync.app.data.ItemValue.Quantity
+import com.grocerysync.app.data.TickedEntry
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.data.stepped
 import com.grocerysync.app.text.AppTexts
 import com.grocerysync.app.text.withTexts
 import org.junit.Assert.assertEquals
@@ -55,6 +58,29 @@ class ListUndoTest {
         assertFalse(ListEvent.Stepped("rice", "Rice", kg("2"), kg("1.5")).ticksOff)
         // + then - back to 0 while one snackbar is shown: nothing was ticked off.
         assertFalse(ListEvent.Stepped("rice", "Rice", kg("0"), kg("0")).ticksOff)
+    }
+
+    @Test
+    fun neededAgainAYesNoItemBecomesYes() {
+        val dahi = GroceryItem("dahi", "Dahi", BoolValue(false), 0L, "Home", pendingSync = false, addedAt = 0L)
+        assertEquals(ListEvent.NeedChanged("dahi", "Dahi", needed = true), neededAgainChange(dahi, ticked = null))
+    }
+
+    @Test
+    fun neededAgainAQuantityGetsTheAmountItWasTickedOffWithElseOneStep() {
+        val rice = GroceryItem("rice", "Rice", kg("0"), 0L, "Home", pendingSync = false, addedAt = 0L)
+        val tickedRice = TickedEntry("rice", "Rice", before = kg("2"), set = kg("0"), at = 0L)
+        assertEquals(ListEvent.Stepped("rice", "Rice", kg("0"), kg("2")), neededAgainChange(rice, tickedRice))
+        val oneStep = kg("0").stepped(up = true)
+        assertEquals(ListEvent.Stepped("rice", "Rice", kg("0"), oneStep), neededAgainChange(rice, ticked = null))
+        // An entry the item no longer matches (changed on the other phone since: a new unit) doesn't count.
+        val inGrams = rice.copy(value = Quantity.of(0, Units.G))
+        assertEquals(
+            ListEvent.Stepped("rice", "Rice", Quantity.of(0, Units.G), Quantity.of(0, Units.G).stepped(up = true)),
+            neededAgainChange(inGrams, tickedRice),
+        )
+        // Nor does another item's.
+        assertEquals(oneStep, neededAgainChange(rice, tickedRice.copy(key = "dal")).after)
     }
 
     @Test

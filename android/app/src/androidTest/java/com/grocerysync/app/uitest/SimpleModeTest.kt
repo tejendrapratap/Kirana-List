@@ -3,6 +3,7 @@ package com.grocerysync.app.uitest
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
@@ -189,6 +190,61 @@ class SimpleModeTest : GroceryUiTest() {
 
         waitForNode(gotItButton("Stapler")).assertIsDisplayed()
         waitFor("Stapler needed on the sheet") { fake.item("Stapler")?.need == Need.YesNo(true) }
+    }
+
+    @Test
+    fun addingAnItemThatIsThereButNotNeededPutsItBackOnToBuy() {
+        fake.seed("Coffee", yesNo(false))
+        launchInSimpleMode()
+
+        waitForNode(hasText("Everything is ticked off. Tap Add item when you need something."))
+        addButton().performClick()
+        waitForNode(nameField).performTextInput("coffee")
+        // Simple mode shows Coffee nowhere: the dialog says so, and needs it again in one tap instead of adding it.
+        waitForNode(hasText("\"Coffee\" is on the list but isn't needed now"))
+        node(button("Save")).assertIsNotEnabled()
+        node(button("Put \"Coffee\" back on To buy")).performClick()
+
+        waitForNoNode(nameField)
+        waitForNode(gotItButton("Coffee")).assertIsDisplayed()
+        waitForNode(hasText("Coffee: needed"))
+        waitFor("Coffee needed on the sheet") { fake.item("Coffee")?.need == Need.YesNo(true) }
+    }
+
+    @Test
+    fun anItemCalledHeaderGoesUnderTickedToday() {
+        // Its row under Ticked today once had the same list key as the section's header, which crashed the list.
+        fake.seed("Header", yesNo(true))
+        fake.seed("Stapler", yesNo(true))
+        launchInSimpleMode()
+
+        waitForNode(gotItButton("Header")).performClick()
+        waitForNode(tickedToday(1) and state("Expanded"))
+        waitForNode(hasContentDescription("Put back Header") and hasClickAction())
+        node(gotItButton("Stapler")).assertIsDisplayed()
+    }
+
+    @Test
+    fun turningItOnOrOffInSettingsStartsTickedTodayOverTheModesWay() {
+        fake.seed("Stapler", yesNo(true))
+        fake.seed("Glue", yesNo(true))
+        launchConnected()
+        waitForNode(gotIt("Stapler")).performClick()
+        waitForNode(tickedToday(1) and state("Collapsed"))
+
+        // On: open, as Simple mode starts it, though it was left closed (the list's saved state comes back).
+        openSettings()
+        waitForNode(isHeading() and hasText("This phone"))
+        AppState.container.phoneSettings.setSimpleMode(true)
+        node(hasContentDescription("Back") and hasClickAction()).performClick()
+        waitForNode(tickedToday(1) and state("Expanded"))
+
+        // Off again: closed, as the usual screen starts it.
+        openSettings()
+        waitForNode(isHeading() and hasText("This phone"))
+        AppState.container.phoneSettings.setSimpleMode(false)
+        node(hasContentDescription("Back") and hasClickAction()).performClick()
+        waitForNode(tickedToday(1) and state("Collapsed"))
     }
 
     @Test

@@ -1,6 +1,9 @@
 package com.grocerysync.app.ui
 
+import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemValue
+import com.grocerysync.app.data.TickedEntry
+import com.grocerysync.app.data.stepped
 import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.components.spokenText
 
@@ -23,6 +26,22 @@ internal fun stepEvent(
     val before = if (shown != null && shown.key == key && shown.after == current) shown.before else current
     return ListEvent.Stepped(key, name, before, next)
 }
+
+/**
+ * The change that makes [item], which isn't needed, needed again ([ListViewModel.needAgain]): a yes / no item becomes
+ * yes; a quantity gets the amount it had before this phone ticked it off today, as Put back gives it ([ticked], its
+ * entry under Ticked today, if any, while the item is still as the tick left it), else one step of its unit, as +
+ * gives it.
+ */
+internal fun neededAgainChange(item: GroceryItem, ticked: TickedEntry?): ListEvent.ValueChange =
+    when (val value = item.value) {
+        is ItemValue.BoolValue -> ListEvent.NeedChanged(item.key, item.name, needed = true)
+        is ItemValue.Quantity -> {
+            val before = (ticked?.takeIf { it.key == item.key && it.isStillTicked(item) }?.before as? ItemValue.Quantity)
+                ?.takeIf { it.isNeeded }
+            ListEvent.Stepped(item.key, item.name, value, before ?: value.stepped(up = true))
+        }
+    }
 
 /**
  * The change took a needed item off To buy ("Got it", the Need switch turned off, - down to 0; for steps, counted

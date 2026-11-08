@@ -19,6 +19,7 @@ import com.grocerysync.app.data.SyncSettings
 import com.grocerysync.app.data.TickedEntry
 import com.grocerysync.app.data.TickedTodayStore
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.data.stepped
 import com.grocerysync.app.sync.FakeSyncStore
 import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.SheetsClient
@@ -375,5 +376,63 @@ class ListViewModelUndoTest {
         assertEquals("\"Rice\" was changed on another phone", lastMessage())
         assertEquals(Quantity.of(0, Units.G), shown("Rice")!!.value)
         assertTrue(ticked.today().isEmpty())
+    }
+
+    // ---- Simple mode's add dialog: an item on the list that isn't needed -------------------------------------------
+
+    @Test
+    fun needAgainMakesAYesNoItemNeededWithUndo() = test {
+        store.synced(listOf(item("Dahi", BoolValue(false))))
+        viewModel.openAdd()
+        viewModel.needAgain("dahi")
+        settle()
+        assertEquals(BoolValue(true), shown("Dahi")!!.value)
+        assertEquals(listOf(ListEvent.NeedChanged("dahi", "Dahi", needed = true)), events)
+        assertNull(viewModel.dialog.value)
+
+        viewModel.undoChange(events.single() as ListEvent.NeedChanged)
+        settle()
+        assertEquals(BoolValue(false), shown("Dahi")!!.value)
+    }
+
+    @Test
+    fun needAgainGivesAQuantityTheAmountItWasTickedOffWithToday() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.markGotIt("rice")
+        settle()
+        viewModel.needAgain("rice")
+        settle()
+        assertEquals(kg("2"), shown("Rice")!!.value)
+        assertEquals(ListEvent.Stepped("rice", "Rice", kg("0"), kg("2")), events.last())
+        // Needed again, so no longer under Ticked today.
+        assertTrue(ticked.today().isEmpty())
+    }
+
+    @Test
+    fun needAgainGivesAQuantityOneStepOfItsUnitOtherwise() = test {
+        store.synced(listOf(item("Rice", kg("0"))))
+        viewModel.needAgain("rice")
+        settle()
+        val oneStep = kg("0").stepped(up = true)
+        assertEquals(oneStep, shown("Rice")!!.value)
+        assertEquals(listOf(ListEvent.Stepped("rice", "Rice", kg("0"), oneStep)), events)
+    }
+
+    @Test
+    fun needAgainLeavesAnItemNeededMeanwhileAsItIs() = test {
+        store.synced(listOf(item("Rice", kg("3"))))
+        viewModel.needAgain("rice")
+        settle()
+        assertEquals(kg("3"), shown("Rice")!!.value)
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
+    fun needAgainOfAnItemGoneMeanwhileSaysSo() = test {
+        store.synced(listOf(item("Rice", kg("0"))))
+        viewModel.needAgain("dahi")
+        settle()
+        assertEquals("That item was changed on another phone", lastMessage())
+        assertNull(shown("Dahi"))
     }
 }

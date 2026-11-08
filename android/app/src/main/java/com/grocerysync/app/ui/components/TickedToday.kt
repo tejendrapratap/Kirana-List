@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -114,6 +115,39 @@ fun TickedTodayRow(entry: TickedEntry, onPutBack: () -> Unit, modifier: Modifier
             }
         },
     )
+}
+
+/** The list key of Ticked today's header. No row's key ([tickedTodayRowKey]) can be the same. */
+internal const val TICKED_TODAY_HEADER_KEY = "ticked:header"
+
+/**
+ * The list key of [entry]'s row under Ticked today. Its item's key can be any name ("header" too), so it goes after a
+ * prefix of its own that no fixed key of the list starts with: two items with one key would crash the list.
+ */
+internal fun tickedTodayRowKey(entry: TickedEntry): String = "ticked:item:" + entry.key
+
+/**
+ * Whether Ticked today is open, as the person left it while Simple mode was [simpleMode] (on or off): the list saves
+ * it like the page shown. A state left in the other mode doesn't count ([expandedIn]): Simple mode is switched in
+ * Settings, and the list's saved state comes back from there, so the mode is kept with it.
+ */
+internal data class TickedTodayOpen(val simpleMode: Boolean, val expanded: Boolean) {
+
+    /**
+     * Open or not now that Simple mode is [simpleMode]: as left in that mode, else as that mode starts it (closed, but
+     * open in Simple mode, where nothing should be hidden away).
+     */
+    fun expandedIn(simpleMode: Boolean): Boolean = if (simpleMode == this.simpleMode) expanded else simpleMode
+
+    companion object {
+        /** As [simpleMode] starts it. */
+        fun startIn(simpleMode: Boolean) = TickedTodayOpen(simpleMode, expanded = simpleMode)
+
+        val Saver = listSaver<TickedTodayOpen, Boolean>(
+            save = { listOf(it.simpleMode, it.expanded) },
+            restore = { TickedTodayOpen(simpleMode = it[0], expanded = it[1]) },
+        )
+    }
 }
 
 @Composable
