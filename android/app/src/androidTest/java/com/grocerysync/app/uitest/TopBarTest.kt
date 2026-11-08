@@ -20,7 +20,6 @@ import com.grocerysync.app.testing.anySectionHeader
 import com.grocerysync.app.testing.button
 import com.grocerysync.app.testing.gotIt
 import com.grocerysync.app.testing.sectionHeader
-import com.grocerysync.app.testing.tab
 import com.grocerysync.app.testing.textField
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -28,24 +27,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The list's app bar: Share with nothing to buy, and the ⋮ menu (More options) and what its choices open. Sharing a
- * list opens Android's share sheet, another app's screen, so only the text it sends is tested (ShareListTest and
- * ShareRoundTripTest, on the JVM). "Paste a list" is in PasteListTest.
+ * The list's app bar: the ⋮ menu (More options) and what its choices open. Share is in ShareTest, "Paste a list" in
+ * PasteListTest.
  */
 @RunWith(AndroidJUnit4::class)
 class TopBarTest : GroceryUiTest() {
-
-    @Test
-    fun shareWithNothingToBuySaysSo() {
-        fake.seed("Coffee", yesNo(false))
-        launchConnected()
-        // To buy's empty state says it already; the snackbar says it a second time.
-        waitForNode(tab("To buy", 0))
-        waitForNode(hasText(NOTHING_TO_BUY))
-
-        shareButton().performClick()
-        waitFor("the snackbar \"$NOTHING_TO_BUY\"") { count(hasText(NOTHING_TO_BUY)) == 2 }
-    }
 
     @Test
     fun theMenuHoldsTheListChoicesAndSettings() {
@@ -94,9 +80,5 @@ class TopBarTest : GroceryUiTest() {
         waitForNode(sectionHeader("Other", 1))
         assertTrue(AppState.container.shopSections.current().groupBySection)
         assertTrue(fake.sentChanges().isEmpty())
-    }
-
-    private companion object {
-        const val NOTHING_TO_BUY = "Nothing to buy right now"
     }
 }

@@ -3,6 +3,7 @@ package com.grocerysync.app.uitest
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -16,13 +17,15 @@ import com.grocerysync.app.testing.gotIt
 import com.grocerysync.app.testing.itemRow
 import com.grocerysync.app.testing.nameField
 import com.grocerysync.app.testing.searchField
+import com.grocerysync.app.testing.tab
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Hindi / English names (1.4): search finds an item by another name of it in the built-in dictionary, and adding
- * another name of an item on the list warns ("Similar") without blocking Save.
+ * Hindi / English names (1.4): search on either page finds an item by another name of it in the built-in
+ * dictionary, and adding (or renaming an item to) another name of an item on the list warns ("Similar") without
+ * blocking Save.
  */
 @RunWith(AndroidJUnit4::class)
 class OtherNamesTest : GroceryUiTest() {
@@ -83,5 +86,49 @@ class OtherNamesTest : GroceryUiTest() {
         waitForNoNode(nameField)
         waitFor("Curd on the sheet") { fake.item("Curd") != null }
         assertTrue(fake.item("Dahi") != null)
+    }
+
+    @Test
+    fun allItemsFindsAnItemByItsOtherNameToo() {
+        fake.seed("Dahi", yesNo(false))
+        fake.seed("Kishmish", yesNo(false))
+        fake.seed("Milk", quantity("1", Units.L))
+        launchConnected()
+
+        // Dahi isn't needed: To buy offers it in All items, which finds it by "curd" too.
+        searchButton().performClick()
+        waitForNode(searchField).performTextInput("curd")
+        waitForNode(hasText("No items to buy match your search"))
+        waitForNode(button("Show 1 in All items")).performClick()
+        waitForNode(tab("All items") and isSelected())
+        waitForNode(itemRow("Dahi"))
+        waitForNoNode(itemRow("Milk"))
+        waitForNoNode(itemRow("Kishmish"))
+
+        node(searchField).performTextReplacement("raisins")
+        waitForNode(itemRow("Kishmish"))
+        waitForNoNode(itemRow("Dahi"))
+    }
+
+    @Test
+    fun renamingToAnotherNameOfAnItemWarnsButSaves() {
+        fake.seed("Dahi", yesNo(false))
+        fake.seed("Bread", yesNo(false))
+        launchConnected()
+        showAllItems()
+
+        node(itemRow("Bread")).performClick()
+        waitForNode(hasText("Edit item"))
+        node(nameField).performTextReplacement("Curd")
+        waitForNode(hasText("Similar: \"Dahi\" is already on the list"))
+        // Editing offers no Open button (as for a name on the list); Save stays on.
+        assertNoNode(button("Open \"Dahi\""))
+        node(button("Save")).assertIsEnabled().performClick()
+
+        waitForNoNode(nameField)
+        waitForNode(itemRow("Curd"))
+        waitFor("the rename on the sheet") { fake.item("Curd") != null && fake.item("Bread") == null }
+        assertTrue(fake.item("Dahi") != null)
+        assertTrue(fake.changesFromApp("Dahi").isEmpty())
     }
 }

@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,9 +54,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -67,6 +71,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.grocerysync.app.data.Amount
 import com.grocerysync.app.data.ItemValue
@@ -114,12 +120,31 @@ fun PasteListDialog(
         onDismissRequest = if (state.previewing) onEditText else onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
+        SystemBarIconsFor(MaterialTheme.colorScheme.surface)
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             if (state.previewing) {
                 PastePreviewStep(state, onRowSelected, onEditText, onApply, onDismiss)
             } else {
                 PasteTextStep(state.text, onPreview, onDismiss)
             }
+        }
+    }
+}
+
+/**
+ * A dialog drawn under the system bars (decorFitsSystemWindows = false) has its own window, which sets the colour
+ * of the status bar's clock and icons (and of the navigation buttons); it doesn't follow the activity's
+ * (enableEdgeToEdge). Dark icons over a light [background], light ones over a dark one, so they stay readable.
+ */
+@Composable
+private fun SystemBarIconsFor(background: Color) {
+    val view = LocalView.current
+    val light = background.luminance() > 0.5f
+    SideEffect {
+        val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = light
+            isAppearanceLightNavigationBars = light
         }
     }
 }

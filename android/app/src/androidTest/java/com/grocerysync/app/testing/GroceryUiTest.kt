@@ -97,6 +97,15 @@ abstract class GroceryUiTest {
             .setType("text/plain")
             .putExtra(Intent.EXTRA_TEXT, text)
 
+    /**
+     * Share > Grocery Sync of [text] while the app is open: started from the app itself, so it reaches the running
+     * MainActivity (singleTop, on top of its task) through onNewIntent, as a share from another app does then.
+     */
+    protected fun shareIntoOpenApp(text: String) {
+        val open = checkNotNull(scenario) { "Open the app first (launchConnected or launchApp)" }
+        open.onActivity { activity -> activity.startActivity(sharedTextIntent(text)) }
+    }
+
     // ---- Waiting ----------------------------------------------------------------------------------------
 
     /**
