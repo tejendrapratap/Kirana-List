@@ -37,6 +37,10 @@ android {
         // 1.2 = search, swipe, unique names, hidden token, "Added by" and required units, 1.3 = search
         // on To buy too: it searches the page shown).
         versionName = "1.3"
+
+        // UI tests (src/androidTest): run them on an emulator with tools/e2e/uitest.sh, not with
+        // ./gradlew connectedDebugAndroidTest (that runs on every connected device). How they work: GroceryUiTest.kt.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -90,6 +94,15 @@ android {
     testOptions {
         // android.* stubs return defaults instead of throwing in JVM unit tests.
         unitTests.isReturnDefaultValues = true
+        // UI tests run without window and transition animations (Compose animations follow the test clock).
+        animationsDisabled = true
+    }
+
+    sourceSets {
+        // The fake web app (FakeSheetServer) is shared: the JVM tests check it against the real SheetsClient
+        // and SyncEngine, and the UI tests on a device sync with it.
+        getByName("test").kotlin.directories += "src/sharedTest/java"
+        getByName("androidTest").kotlin.directories += "src/sharedTest/java"
     }
 
     packaging {
@@ -130,4 +143,16 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     // org.json ships with Android, but the android.jar stubs used by JVM unit tests are empty.
     testImplementation(libs.org.json)
+
+    // UI tests: test APK only, except ui-test-manifest (debug builds only), which declares the empty
+    // activity Compose tests can host content in. None of these reach the release (or qa) APK.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.okhttp.mockwebserver)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
