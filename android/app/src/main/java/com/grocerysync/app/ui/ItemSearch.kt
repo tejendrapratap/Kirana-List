@@ -100,11 +100,11 @@ internal object ItemSearch {
     /**
      * The [words] of a query, ready to test many names. A word matches a name that contains it, or the name's
      * dictionary entry ([ItemCatalog.entryFor]) when one of the entry's names has a word starting with it
-     * ([CatalogEntry.matchesWord]: "pya" and "प्याज" find the onion entry; "dal" only the whole word dal). The
+     * ([CatalogEntry.matchesWord]: "pya" and "प्याज" find the onion entry; "dal" finds the dals, not Dalchini). The
      * entries a word finds are worked out once per query, so testing a name costs at most one dictionary lookup.
      */
     private class Query(private val words: List<String>) {
-        /** For each word, the entries it finds, once needed; most whole words find none. */
+        /** For each word, the entries it finds, once needed; most words find none. */
         private val entriesByWord = arrayOfNulls<Set<CatalogEntry>>(words.size)
 
         fun matches(name: String): Boolean {

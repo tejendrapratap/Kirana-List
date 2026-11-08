@@ -124,6 +124,10 @@ class ItemSearchTest {
         assertTrue(matches("Cinnamon", "dalc"))
         // An item called Dalchini still has "dal" in its own name, as before.
         assertTrue(matches("Dalchini", "dal"))
+        // Only "dal" (and "makhan") are kept from longer names: "rai" (mustard seeds) still finds Raisins as it is
+        // typed, so Kishmish doesn't vanish at the third letter and come back at the fourth.
+        for (query in listOf("ra", "rai", "rais")) assertTrue(query, matches("Kishmish", query))
+        assertTrue(matches("Lauki", "ghi"))
         // Not inside a word of another name: "nion" is only in the name Onion itself.
         assertFalse(matches("Pyaaz", "nion"))
         assertTrue(matches("Onion", "nion"))

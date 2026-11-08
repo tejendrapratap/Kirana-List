@@ -79,6 +79,22 @@ class ShareRoundTripTest {
     }
 
     @Test
+    fun itemsTheFamilyBuysSeparatelyBothArrive() {
+        // Two lines of a Diwali list, and whole moong next to moong dal: different things, so both come back.
+        val separate = listOf(
+            yesNo("Kheel"), yesNo("Batashe"),
+            quantity("Moong", "1", Units.KG), quantity("Moong dal", "2", Units.KG),
+        )
+        for (sectionOf in listOf(::catalogSectionOf, null)) {
+            val text = buildShareText(separate, sectionOf)
+            assertEquals(
+                separate.map { it.name }.sorted(),
+                pasted(text).map { (it as PasteAction.Add).name }.sorted(),
+            )
+        }
+    }
+
+    @Test
     fun onAPhoneThatHasTheSameListNothingChanges() {
         val text = buildShareText(shared, ::catalogSectionOf)
         val actions = pasted(text, onList = shared)

@@ -64,8 +64,43 @@ class ItemCatalogTest {
         // Punctuation separates words.
         assertEntry("Rui batti", "Rui-batti")
         assertEntry("Rui batti", "rui  batti.")
-        assertEntry("Kheel batashe", "Khil-batashe")
+        assertEntry("Kheel", "Khil-batashe")
         assertEntry("Dahi", "*Dahi*")
+    }
+
+    @Test
+    fun thingsBoughtSeparatelyAreSeparateEntries() {
+        // Kheel and batashe: two lines of a Diwali list. "Kheel batashe" on one line is the kheel.
+        assertEntry("Kheel", "Khil")
+        assertEntry("Kheel", "खील")
+        assertEntry("Kheel", "Kheel batashe")
+        assertEntry("Batashe", "Batasha")
+        assertEntry("Batashe", "बताशे")
+        assertNull(similarExisting("Batashe", listOf("Kheel")))
+        // Whole pulses (sabut moong for sprouts, urad for dal makhani) are not the split dals...
+        for (whole in listOf("Moong", "Mung", "Urad", "Masoor", "Malka masoor", "Sabut moong")) {
+            assertNull(whole, entryFor(whole))
+            // ...but they sort with them.
+            assertEquals(whole, ShopSection.ATTA_RICE_DAL, sectionFor(whole))
+        }
+        assertNull(similarExisting("Moong", listOf("Moong dal")))
+        assertEntry("Moong dal", "Mung dal")
+        assertEntry("Masoor dal", "Masur dal")
+        assertEntry("Urad dal", "Urd dal")
+        // A word inside a longer one decides nothing: peanuts stay nuts.
+        assertEquals(ShopSection.DRY_FRUITS_NUTS, sectionFor("Moongphali"))
+    }
+
+    @Test
+    fun mirchAndChilliAloneAreGreenChilli() {
+        for (name in listOf("Mirch", "Mirchi", "Chilli", "Chili", "Chillies", "Green chillies")) assertEntry("Hari mirch", name)
+        assertEquals(ShopSection.SABZI_FRUIT, sectionFor("Mirch"))
+        // The other mirch and chilli names keep their own entries.
+        assertEntry("Lal mirch", "Lal mirch")
+        assertEntry("Lal mirch", "Red chilli")
+        assertEntry("Lal mirch", "Chilli powder")
+        assertEntry("Kali mirch", "Kali mirch")
+        assertEntry("Capsicum", "Shimla mirch")
     }
 
     @Test
@@ -141,11 +176,37 @@ class ItemCatalogTest {
         assertFalse(matchesQuery("makhan", "Makhana"))
         assertTrue(matchesQuery("makhan", "Butter"))
         assertTrue(matchesQuery("makha", "Makhana"))
+        // Also in Devanagari: "दाल" finds the dals, never दालचीनी.
+        assertTrue(matchesQuery("दाल", "Toor dal"))
+        assertFalse(matchesQuery("दाल", "Cinnamon"))
         // Not inside a word (the list's own search still finds "ric" in "Licorice"; this is only the catalog).
         assertFalse(matchesQuery("ric", "Licorice"))
         assertFalse(matchesQuery("chawal", "Basmati rice")) // no entry: "Basmati rice" isn't Rice
         assertFalse(matchesQuery("curd", "Rice"))
         assertFalse(matchesQuery("curd dal", "Dahi"))
+    }
+
+    @Test
+    fun anItemNeverDropsOutWhileItsOtherNameIsTyped() {
+        // Every start of the other name finds the item, also where it is a name of something else ("rai" is
+        // mustard seeds, "sem" beans, "ghi" ghee, "tur" toor dal, "pan" paan).
+        val typed = listOf(
+            "Kishmish" to "raisins", "Suji" to "semolina", "Sewai" to "semiya", "Sewai" to "sevai",
+            "Lauki" to "ghiya", "Lauki" to "doodhi", "Amchur" to "aamchur", "Haldi" to "turmeric",
+            "Cottage cheese" to "paneer", "Bath soap" to "sabun", "Rai" to "sarson", "Moongphali" to "peanuts",
+            "Kalava" to "kalawa", "Tori" to "toori", "Dalchini" to "cinnamon",
+        )
+        for ((item, otherName) in typed) {
+            for (end in 2..otherName.length) {
+                val query = otherName.take(end)
+                assertTrue("\"$query\" for $item", matchesQuery(query, item))
+            }
+        }
+        // The only exceptions: "dal" and "makhan" are items of their own, so they don't find Dalchini or Makhana.
+        assertFalse(matchesQuery("dal", "Cinnamon"))
+        assertFalse(matchesQuery("makhan", "Fox nuts"))
+        assertTrue(matchesQuery("dalc", "Cinnamon"))
+        assertTrue(matchesQuery("makhana", "Fox nuts"))
     }
 
     @Test
@@ -252,7 +313,7 @@ class ItemCatalogTest {
         val diwali = names(CatalogSet.DIWALI_PUJA)
         for (name in listOf(
             "Diya", "Rui batti", "Ghee", "Kapoor", "Agarbatti", "Roli", "Kalava", "Supari", "Paan patta", "Nariyal",
-            "Genda phool mala", "Kheel batashe", "Mithai", "Rangoli colours", "Candles", "Machis",
+            "Genda phool mala", "Kheel", "Batashe", "Mithai", "Rangoli colours", "Candles", "Machis",
         )) assertTrue(name, name in diwali)
         assertFalse("Onion" in diwali)
 

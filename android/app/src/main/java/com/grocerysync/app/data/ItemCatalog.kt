@@ -111,20 +111,22 @@ object ItemCatalog {
 
     val entries: List<CatalogEntry> = BuiltInCatalog.entries
 
-    /**
-     * A query word this long or longer that is a whole word of some name ("dal", "tel") matches only that
-     * whole word: "dal" never finds Dalchini. Shorter or partial words match any word starting with them.
-     */
-    internal const val MIN_WHOLE_WORD_LENGTH = 3
-
     /** Every name's key ([CatalogText.key]); the tests check that no key belongs to two entries. */
     private val byKey: Map<String, CatalogEntry> = buildMap {
         for (entry in ItemCatalog.entries) for (name in entry.names) putIfAbsent(CatalogText.key(name), entry)
     }
 
-    /** Every word of every name, at least [MIN_WHOLE_WORD_LENGTH] characters long. */
-    private val vocabulary: Set<String> =
-        entries.flatMapTo(HashSet()) { entry -> entry.words.filter { it.length >= MIN_WHOLE_WORD_LENGTH } }
+    /**
+     * Search words that name an item of their own and must not find another item only because its name starts
+     * with them: "dal" (and "दाल") never finds Dalchini, "makhan" (butter) never Makhana. Every other word finds
+     * any word starting with it, so an item never drops out of the results halfway through typing its name ("rai"
+     * still finds Raisins, "sem" Semolina, "tur" Turmeric). Keys and words as [CatalogText.key] folds them.
+     */
+    private val NOT_A_PREFIX_OF: Map<String, Set<String>> = mapOf(
+        "dal" to setOf("dalchini", "dalcheeni"),
+        "दाल" to setOf("दालचीनी"),
+        "makhan" to setOf("makhana", "makhane"),
+    ).entries.associate { (word, longer) -> CatalogText.key(word) to longer.mapTo(HashSet(), CatalogText::key) }
 
     /**
      * Words that never decide a section on their own inside a longer name: "Haldi powder" is a masala, not
@@ -132,10 +134,18 @@ object ItemCatalog {
      */
     private val GENERIC_WORDS = setOf("powder", "cream", "paste", "brush")
 
-    /** Words that are no item but say where a longer name belongs ("Chole masala", "Rice flour"). */
+    /**
+     * Words that are no item but say where a longer name belongs ("Chole masala", "Rice flour"), or where the
+     * name itself does: the whole pulses ("Moong", "Sabut urad") sort with the dals, though only the split dals
+     * are entries.
+     */
     private val SECTION_WORDS = mapOf(
         "masala" to ShopSection.MASALA,
         "flour" to ShopSection.ATTA_RICE_DAL,
+        "moong" to ShopSection.ATTA_RICE_DAL,
+        "mung" to ShopSection.ATTA_RICE_DAL,
+        "urad" to ShopSection.ATTA_RICE_DAL,
+        "masoor" to ShopSection.ATTA_RICE_DAL,
         "sabzi" to ShopSection.SABZI_FRUIT,
         "fruit" to ShopSection.SABZI_FRUIT,
         "cleaner" to ShopSection.CLEANING_HOUSEHOLD,
@@ -149,10 +159,10 @@ object ItemCatalog {
 
     /**
      * True when every word of [query] matches, at the start of a word, the item's own name or a name of the
-     * item's entry ([entryFor]): "curd" finds Dahi, "pyaaz" and "प्याज" find Onion, "kish" finds Raisins. A
-     * word that is a whole word of some catalog name ("dal", "tel"; see [MIN_WHOLE_WORD_LENGTH]) must match
-     * that whole word (or its plural): "dal" finds Toor dal but not Dalchini, "tel" never finds Hotel. True for
-     * an empty query.
+     * item's entry ([entryFor]): "curd" finds Dahi, "pyaaz" and "प्याज" find Onion, "kish" finds Raisins. A word
+     * also matches its plural or singular ("tomatoes" finds Tomato, "dals" Toor dal), never the inside of a word
+     * ("tel" never finds Hotel), and a few words never the longer names of other items ([NOT_A_PREFIX_OF]: "dal"
+     * finds Toor dal but not Dalchini). True for an empty query.
      */
     fun matchesQuery(query: String, itemName: String): Boolean {
         val queryWords = CatalogText.words(query)
@@ -211,17 +221,15 @@ object ItemCatalog {
     internal fun matchesAllWords(queryWords: List<String>, words: List<String>): Boolean =
         queryWords.all { matchesWord(it, words) }
 
+    /** [queryWord] starts one of [words] (not one of [NOT_A_PREFIX_OF]'s), or is one of them but for a plural. */
     private fun matchesWord(queryWord: String, words: List<String>): Boolean {
         if (words.isEmpty()) return false
-        return if (isWholeWord(queryWord)) {
-            words.any { CatalogText.sameWord(queryWord, it) }
-        } else {
-            words.any { it.startsWith(queryWord) }
+        val notPrefixOf = NOT_A_PREFIX_OF[queryWord]
+        return words.any { word ->
+            (word.startsWith(queryWord) && (notPrefixOf == null || word !in notPrefixOf)) ||
+                CatalogText.sameWord(queryWord, word)
         }
     }
-
-    private fun isWholeWord(word: String): Boolean =
-        word.length >= MIN_WHOLE_WORD_LENGTH && CatalogText.singularForms(word).any { it in vocabulary }
 
     /** The entry of [key] ([CatalogText.key]), also with or without a plural ending on its last word. */
     private fun lookup(key: String): CatalogEntry? {

@@ -27,7 +27,9 @@ import com.grocerysync.app.data.Units.PCS
  * "pcs" (one bunch), and items bought by eye (green chilli, ginger, garlic, dahi) are yes/no.
  *
  * Every core and common item has a Devanagari name. Brand names are names only where families use them for
- * the thing itself (Maggi, Colgate, Vim, Harpic, Surf, ...).
+ * the thing itself (Maggi, Colgate, Vim, Harpic, Surf, ...). Two things a family buys separately never share a
+ * name: a split dal is named only as a dal ("Moong", "Urad" and "Masoor" alone are the whole pulses, which have
+ * no entry but sort with the dals, see [ItemCatalog.sectionFor]), and kheel and batashe are two entries.
  */
 internal object BuiltInCatalog {
 
@@ -38,7 +40,7 @@ internal object BuiltInCatalog {
         item("Tomato", KG, COMMON, "Tamatar, टमाटर", "Tamaatar")
         item(
             "Hari mirch", YES_NO, CORE, "Green chilli, हरी मिर्च",
-            "Green chili, Hari mirchi, Mirchi, हरी मिर्ची",
+            "Green chili, Hari mirchi, Mirchi, Mirch, Chilli, Chili, हरी मिर्ची",
             VRAT,
         )
         item("Garlic", YES_NO, CORE, "Lahsun, लहसुन", "Lehsun, Lasun, Lassan, Lahasun")
@@ -152,7 +154,7 @@ internal object BuiltInCatalog {
         )
         item(
             "Moong dal", KG, COMMON, "Green gram, मूंग दाल",
-            "Moong, Mung, Mung dal, Moong daal, Split green gram",
+            "Mung dal, Moong daal, Split green gram",
             MONTHLY_KIRANA,
         )
         item(
@@ -162,12 +164,12 @@ internal object BuiltInCatalog {
         )
         item(
             "Masoor dal", KG, COMMON, "Red lentil, मसूर दाल",
-            "Masoor, Masur dal, Masoor daal, Malka masoor",
+            "Masur dal, Masoor daal",
             MONTHLY_KIRANA,
         )
         item(
             "Urad dal", KG, COMMON, "Black gram, उड़द दाल",
-            "Urad, Urd dal, Udad dal, Urad daal, Split black gram",
+            "Urd dal, Udad dal, Urad daal, Split black gram",
             MONTHLY_KIRANA,
         )
         item(
@@ -378,11 +380,13 @@ internal object BuiltInCatalog {
             "Genda mala, Genda phool, Genda, Phool mala, Marigold, Garland, फूल माला",
             DIWALI_PUJA,
         )
+        // Two things, often two lines; "Kheel batashe" on one line is the kheel (Batashe can still be added).
         item(
-            "Kheel batashe", PACK, REGIONAL, "Khil batashe, खील बताशे",
-            "Kheel, Khil, Batashe, Batasha, Kheel batasha, खील, बताशे",
+            "Kheel", PACK, REGIONAL, "Khil, खील",
+            "Kheel batashe, Khil batashe, Kheel batasha, खील बताशे",
             DIWALI_PUJA,
         )
+        item("Batashe", PACK, REGIONAL, "Batasha, बताशे", "Batase, बताशा", DIWALI_PUJA)
         item(
             "Rangoli colours", PACK, REGIONAL, "Rangoli, रंगोली",
             "Rangoli colors, Rangoli powder, Rangoli rang",
