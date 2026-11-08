@@ -194,9 +194,6 @@ fun ListScreen(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
-    // To buy, and the list Share sends, grouped by shop section: on until the ⋮ menu's tick can turn it off.
-    val groupBySection = true
-    val currentGroupBySection by rememberUpdatedState(groupBySection)
     // Saved: the page shown survives rotation, process death and a trip to Settings.
     val pagerState = rememberPagerState(initialPage = ListFilter.TO_BUY.page) { ListFilter.entries.size }
     val pages = remember(pagerState, scope) { PageSwitcher(pagerState, scope) }
@@ -244,13 +241,15 @@ fun ListScreen(
             },
             // On the page shown: the search never switches pages.
             openSearch = search::openAndFocus,
-            // Every needed item, whatever the search shows, grouped like To buy.
+            // Every needed item, whatever the search shows, grouped like To buy: the same sections, this phone's
+            // choices from the Edit dialog included, or A to Z while grouping is off.
             share = {
                 focusManager.clearFocus()
+                val current = viewModel.uiState.value
                 shareToBuy(
                     context = context,
-                    toBuy = viewModel.uiState.value.toBuy,
-                    sectionOf = if (currentGroupBySection) ::catalogSectionOf else null,
+                    toBuy = current.toBuy,
+                    sectionOf = if (current.groupBySection) current::sectionOf else null,
                 ) { message -> scope.showReplacingSnackbar(snackbarHostState, message) }
             },
             refresh = viewModel::refresh,
@@ -274,15 +273,17 @@ fun ListScreen(
                 focusManager.clearFocus()
                 viewModel.openStarterList()
             },
-            // The ⋮ menu's other choices: not in this version of the screen yet.
-            openPasteList = {},
-            setGroupBySection = {},
+            // ⋮ > Paste a list. A list shared into the app opens the same dialog (MainActivity).
+            openPasteList = {
+                focusManager.clearFocus()
+                viewModel.openPasteList()
+            },
+            setGroupBySection = viewModel::setGroupBySection,
         )
     }
 
     ListContent(
         state = state,
-        groupBySection = groupBySection,
         pagerState = pagerState,
         shownFilter = filterOfPage(pages.shownPage),
         // Also To buy's "Show n in All items". An open search stays open and searches the page now shown.
@@ -396,14 +397,13 @@ class ListActions(
 /**
  * The screen: status lines, the To buy / All items row, the search field while search is open (shared by
  * both pages: it searches the page shown), and a pager with one list per page (swipe or tap the row to
- * switch). Each page keeps its own scroll position, banners and pull to refresh. [groupBySection] is the
- * app bar menu's tick ([ListTopBar]).
+ * switch). Each page keeps its own scroll position, banners and pull to refresh. The app bar menu's
+ * "Group by shop section" tick ([ListTopBar]) shows [ListUiState.groupBySection].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ListContent(
     state: ListUiState,
-    groupBySection: Boolean,
     pagerState: PagerState,
     shownFilter: ListFilter,
     onFilterChange: (ListFilter) -> Unit,
@@ -432,7 +432,7 @@ private fun ListContent(
     val now = { rowClock.value }
 
     Scaffold(
-        topBar = { ListTopBar(title = state.title, groupBySection = groupBySection, actions = actions) },
+        topBar = { ListTopBar(title = state.title, groupBySection = state.groupBySection, actions = actions) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             // Always a blank Add dialog, also during a search.
@@ -885,7 +885,6 @@ private fun ListContentPreviewOf(filter: ListFilter, search: SearchState) {
     GrocerySyncTheme(dynamicColor = false) {
         ListContent(
             state = previewState(PreviewItems),
-            groupBySection = true,
             pagerState = rememberPagerState(initialPage = filter.page) { ListFilter.entries.size },
             shownFilter = filter,
             onFilterChange = {},

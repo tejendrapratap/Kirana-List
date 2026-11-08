@@ -7,10 +7,10 @@ Researched on 2026-11-08 from other shared-list apps (Bring!, AnyList, OurGrocer
 | # | Feature | Effort | Needs a sheet/script change? | Status |
 |---|---|---|---|---|
 | 1 | [Share the To buy list as text (WhatsApp / copy)](#1-share-the-to-buy-list-as-text-whatsapp-copy) | Small | No | Done in 1.4 |
-| 2 | [Starter list of common Indian items + built-in sets (puja, monthly kirana, vrat)](#2-starter-list-of-common-indian-items-built-in-sets-puja-monthly-kirana-vrat) | Medium | No | Planned for 1.4 |
-| 3 | [Hindi / Hinglish / English name matching in search, plus a 'similar item' warning](#3-hindi-hinglish-english-name-matching-in-search-plus-a-similar-item-warning) | Medium | No | Planned for 1.4 |
+| 2 | [Starter list of common Indian items + built-in sets (puja, monthly kirana, vrat)](#2-starter-list-of-common-indian-items-built-in-sets-puja-monthly-kirana-vrat) | Medium | No | Done in 1.4 |
+| 3 | [Hindi / Hinglish / English name matching in search, plus a 'similar item' warning](#3-hindi-hinglish-english-name-matching-in-search-plus-a-similar-item-warning) | Medium | No | Done in 1.4 |
 | 4 | [Paste a list / share a WhatsApp message into the app (bulk add)](#4-paste-a-list-share-a-whatsapp-message-into-the-app-bulk-add) | Medium | No | Done in 1.4 |
-| 5 | [Group To buy by shop section (automatic categories)](#5-group-to-buy-by-shop-section-automatic-categories) | Medium | No | Planned for 1.4 |
+| 5 | [Group To buy by shop section (automatic categories)](#5-group-to-buy-by-shop-section-automatic-categories) | Medium | No | Done in 1.4 |
 | 6 | [Join the family list without setup (invite link, QR or short code)](#6-join-the-family-list-without-setup-invite-link-qr-or-short-code) | Large | Replaces both | Later |
 | 7 | [Notification when someone else changes the list, and an 'I'm going shopping' alert](#7-notification-when-someone-else-changes-the-list-and-an-im-going-shopping-alert) | Medium | Yes | Later |
 | 8 | [More Undo (-/+, Need switch, rename, type) and a 'Ticked today' strip](#8-more-undo---need-switch-rename-type-and-a-ticked-today-strip) | Small | No | Later |
@@ -53,7 +53,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: yes
 - Much easier after the backend move: no
-- Status: Planned for 1.4
+- Status: Done in 1.4 (Add common items, in the ⋮ menu and on the empty list: sets Everyday, Monthly kirana, Diwali puja, Vrat / fasting and All, added to All items as not needed; offered once the phone is connected to the sheet)
 
 ## 3. Hindi / Hinglish / English name matching in search, plus a 'similar item' warning
 
@@ -68,7 +68,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: yes
 - Much easier after the backend move: no
-- Status: Planned for 1.4
+- Status: Done in 1.4 (search on both pages also matches other names at word starts, and the Add and Edit dialogs warn 'Similar: "Dahi" is already on the list' without blocking Save)
 
 ## 4. Paste a list / share a WhatsApp message into the app (bulk add)
 
@@ -83,7 +83,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: no
 - Much easier after the backend move: no
-- Status: Done in 1.4
+- Status: Done in 1.4 (⋮ > Paste a list, and Share > Grocery Sync from another app, open a preview of what each line does; offered once the phone is connected to the sheet)
 
 ## 5. Group To buy by shop section (automatic categories)
 
@@ -98,7 +98,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: no
 - Much easier after the backend move: no
-- Status: Planned for 1.4
+- Status: Done in 1.4 (sticky section headers in walking order with counts, not collapsible; ⋮ > Group by shop section turns it off; the Edit dialog's Shop section is kept on this phone only; Share uses the same sections)
 
 ## 6. Join the family list without setup (invite link, QR or short code)
 
@@ -235,7 +235,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Much easier after the backend move: yes
 - Status: Later
 
-## Already in the app (1.3)
+## Already in the app (1.4)
 
 - Near-real-time sync between phones: about every 5 s while the app is open, edits sent at once (300 ms grouping), pull-to-refresh
 - Works offline: local SQLite copy plus an outbox of unsent changes, retries with backoff, and a WorkManager send when the app is closed (no background fetch)
@@ -254,6 +254,12 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - The Sheet itself can be edited by hand (a basic web/desktop view)
 - Dark theme and dynamic colour on Android 12+, TalkBack labels, layouts that handle large text, HTTPS-only release build, token excluded from backup
 - Hindi item names work as free text (family list has Batti, Dahi, Diya, Kishmish)
+- A built-in dictionary of about 150 common Indian grocery items (English, Roman Hindi and Devanagari names, a shop section and a usual unit), used by the 1.4 features below
+- Share the To buy list as text (WhatsApp bold section headings, or A to Z), with an app bar of Search, Share and a ⋮ menu that holds Settings (1.4)
+- Add common items: tick items from built-in sets (Everyday, Monthly kirana, Diwali puja, Vrat / fasting, All); items already on the list under any of their names are skipped (1.4)
+- Search by another name ('curd' finds Dahi, 'pyaaz' or 'प्याज' finds Onion, at word starts only) and a 'Similar' warning in the Add and Edit dialogs (1.4)
+- Paste a list, or Share > Grocery Sync from another app: a preview of what each line does (add, mark needed, change an amount, skip with the reason) before anything changes; a list shared from the app pastes back as the same items (1.4)
+- To buy grouped by shop section in walking order with sticky headers; this phone can turn it off or move an item to another section (1.4)
 
 ## Considered and left out
 

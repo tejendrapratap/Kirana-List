@@ -64,7 +64,7 @@ internal object StarterList {
     /** Above the rows instead of [HINT] when every item of the set is on the list already. */
     const val ALL_ON_LIST_HINT = "Everything in this set is on your list already."
 
-    /** The snackbar when it is opened before the phone is connected to the sheet. */
+    /** The snackbar when it (or ⋮ > Paste a list) is opened before the phone is connected to the sheet. */
     const val NOT_CONNECTED_TEXT = "Connect to your sheet in Settings first, so items already on it aren't replaced."
 
     const val SELECT_ALL = "Select all"

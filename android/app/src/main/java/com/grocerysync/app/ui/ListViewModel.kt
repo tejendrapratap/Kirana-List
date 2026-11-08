@@ -484,8 +484,18 @@ class ListViewModel(
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** "Paste a list": the dialog with an empty text field. */
-    fun openPasteList() = setPasteDraft(PasteDraft(text = "", previewing = false))
+    /**
+     * "Paste a list": the dialog with an empty text field. Not before the phone is connected to the sheet, like "Add
+     * common items" and a shared list: without the family's list every line would be a new item, and could replace
+     * the family's item of the same name (its type and amount) once it is sent.
+     */
+    fun openPasteList() {
+        if (!settingsStore.current().isConfigured) {
+            viewModelScope.launch { _events.send(ListEvent.Message(StarterList.NOT_CONNECTED_TEXT)) }
+            return
+        }
+        setPasteDraft(PasteDraft(text = "", previewing = false))
+    }
 
     /**
      * A text shared into the app (Share > Grocery Sync): its preview at once. It comes from another app, so it is
