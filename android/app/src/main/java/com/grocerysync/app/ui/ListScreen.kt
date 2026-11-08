@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -43,7 +42,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -189,6 +188,10 @@ fun ListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    // To buy, and the list Share sends, grouped by shop section: on until the ⋮ menu's tick can turn it off.
+    val groupBySection = true
+    val currentGroupBySection by rememberUpdatedState(groupBySection)
     // Saved: the page shown survives rotation, process death and a trip to Settings.
     val pagerState = rememberPagerState(initialPage = ListFilter.TO_BUY.page) { ListFilter.entries.size }
     val pages = remember(pagerState, scope) { PageSwitcher(pagerState, scope) }
@@ -228,7 +231,7 @@ fun ListScreen(
 
     // Everything that opens a dialog or leaves the screen clears focus first, so the keyboard never
     // stays over a dialog or comes back when it closes.
-    val actions = remember(viewModel, onOpenSettings, focusManager, search) {
+    val actions = remember(viewModel, onOpenSettings, focusManager, search, context, scope, snackbarHostState) {
         ListActions(
             openSettings = {
                 focusManager.clearFocus()
@@ -236,6 +239,15 @@ fun ListScreen(
             },
             // On the page shown: the search never switches pages.
             openSearch = search::openAndFocus,
+            // Every needed item, whatever the search shows, grouped like To buy.
+            share = {
+                focusManager.clearFocus()
+                shareToBuy(
+                    context = context,
+                    toBuy = viewModel.uiState.value.toBuy,
+                    sectionOf = if (currentGroupBySection) ::catalogSectionOf else null,
+                ) { message -> scope.showReplacingSnackbar(snackbarHostState, message) }
+            },
             refresh = viewModel::refresh,
             retrySync = viewModel::retrySync,
             retryFailed = viewModel::retryFailed,
@@ -252,11 +264,16 @@ fun ListScreen(
             gotIt = viewModel::markGotIt,
             setNeeded = viewModel::setNeeded,
             stepQuantity = viewModel::stepQuantity,
+            // The ⋮ menu's other choices: not in this version of the screen yet.
+            openStarterList = {},
+            openPasteList = {},
+            setGroupBySection = {},
         )
     }
 
     ListContent(
         state = state,
+        groupBySection = groupBySection,
         pagerState = pagerState,
         shownFilter = filterOfPage(pages.shownPage),
         // Also To buy's "Show n in All items". An open search stays open and searches the page now shown.
@@ -333,6 +350,8 @@ class ListActions(
     val openSettings: () -> Unit,
     /** The app bar's Search icon: shows the search field, focused, on the page shown (no page switch). */
     val openSearch: () -> Unit,
+    /** The app bar's Share icon: the To buy list as a message, through Android's share sheet ([shareToBuy]). */
+    val share: () -> Unit,
     val refresh: () -> Unit,
     val retrySync: () -> Unit,
     val retryFailed: () -> Unit,
@@ -343,17 +362,25 @@ class ListActions(
     val gotIt: (key: String) -> Unit,
     val setNeeded: (key: String, needed: Boolean) -> Unit,
     val stepQuantity: (key: String, up: Boolean) -> Unit,
+    /** ⋮ > Add common items: the list of common items to tick and add. */
+    val openStarterList: () -> Unit,
+    /** ⋮ > Paste a list: adds the items of a pasted message. */
+    val openPasteList: () -> Unit,
+    /** ⋮ > Group by shop section: turns grouping To buy by shop section on or off (this phone only). */
+    val setGroupBySection: (Boolean) -> Unit,
 )
 
 /**
  * The screen: status lines, the To buy / All items row, the search field while search is open (shared by
  * both pages: it searches the page shown), and a pager with one list per page (swipe or tap the row to
- * switch). Each page keeps its own scroll position, banners and pull to refresh.
+ * switch). Each page keeps its own scroll position, banners and pull to refresh. [groupBySection] is the
+ * app bar menu's tick ([ListTopBar]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ListContent(
     state: ListUiState,
+    groupBySection: Boolean,
     pagerState: PagerState,
     shownFilter: ListFilter,
     onFilterChange: (ListFilter) -> Unit,
@@ -382,19 +409,7 @@ private fun ListContent(
     val now = { rowClock.value }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(state.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                actions = {
-                    IconButton(onClick = actions.openSearch) {
-                        Icon(Icons.Default.Search, contentDescription = "Search items")
-                    }
-                    IconButton(onClick = actions.openSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                },
-            )
-        },
+        topBar = { ListTopBar(title = state.title, groupBySection = groupBySection, actions = actions) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             // Always a blank Add dialog, also during a search.
@@ -815,13 +830,14 @@ private fun previewState(items: List<GroceryItem>) = ListUiState(
     myDeviceName = "Shop",
 )
 
-private val PreviewActions = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, { _, _ -> })
+private val PreviewActions = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, { _, _ -> }, {}, {}, {})
 
 @Composable
 private fun ListContentPreviewOf(filter: ListFilter, search: SearchState) {
     GrocerySyncTheme(dynamicColor = false) {
         ListContent(
             state = previewState(PreviewItems),
+            groupBySection = true,
             pagerState = rememberPagerState(initialPage = filter.page) { ListFilter.entries.size },
             shownFilter = filter,
             onFilterChange = {},

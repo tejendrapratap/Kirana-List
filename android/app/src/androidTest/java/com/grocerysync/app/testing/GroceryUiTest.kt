@@ -161,7 +161,19 @@ abstract class GroceryUiTest {
 
     protected fun searchButton() = compose.onNodeWithContentDescription("Search items")
 
-    protected fun settingsButton() = compose.onNodeWithContentDescription("Settings")
+    protected fun shareButton() = compose.onNodeWithContentDescription("Share list")
+
+    /** The app bar's ⋮ button, which opens the menu (Add common items, ..., Settings). */
+    protected fun moreOptionsButton() = compose.onNodeWithContentDescription("More options")
+
+    /** Opens the app bar's ⋮ menu and taps [label] in it ("Settings", "Paste a list", ...). */
+    protected fun chooseFromMenu(label: String) {
+        moreOptionsButton().performClick()
+        waitForNode(button(label)).performClick()
+    }
+
+    /** Opens Settings from the app bar's ⋮ menu. */
+    protected fun openSettings() = chooseFromMenu("Settings")
 
     /** Taps the All items tab and waits until it is shown. */
     protected fun showAllItems() {

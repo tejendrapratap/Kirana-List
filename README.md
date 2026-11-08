@@ -165,9 +165,11 @@ While only some of this is updated:
 | Switch lists | Tap **To buy** / **All items**, or swipe left or right. Each list keeps its scroll position. |
 | Mark something as needed | In **All items**, flip **Need** on, or use **+** to set a quantity. Tap the amount to type an exact one. |
 | Shop | Open the **To buy** tab and tick **Got it** as you go. Each quantity shows its amount and unit, e.g. **2 kg**. **Got it** sets the amount to 0 and keeps the unit. Made a mistake? Tap **Undo**. |
+| Send the list to someone | Tap **Share list** (the share icon at the top) and pick WhatsApp, Messages or any other app. The message has everything on **To buy**, whatever the search shows: *Grocery list (3 items)*, then one item per line with its amount (*• Atta - 10 kg*, *• Dahi*), under shop section headings in WhatsApp bold (*\*Dairy, eggs & bread\**), or A to Z when **⋮ > Group by shop section** is off. With nothing to buy, the app says *Nothing to buy right now* instead. |
 | Rename, change the type, amount or unit, or delete | Tap the item. A name another item already has isn't accepted (*Another item is already called "Rice"*); changing only its capitals is fine. |
 | See who changed what | Each item in **All items** says who added or last changed it, and when: "Added by Home - 2 hours ago" until someone changes it, then "Updated by Shop - 5 minutes ago". Times are in words: just now, 3 minutes ago, 2 hours ago, yesterday, 4 days ago, then the date ("on 3 Nov"). The text wraps onto another line rather than hiding the time. Fresh changes from the other person are highlighted (in **To buy** too, as "Updated by Home"). The **History** tab in the sheet has the full log. |
 | Refresh right now | Pull the list down. |
+| Open Settings | Tap **⋮** (More options) at the top, then **Settings**. |
 
 **Amounts and units**
 
@@ -245,7 +247,7 @@ A row with a ↻ icon hasn't synced yet.
 - **Cost:** everything here is free, and Apps Script's free limits are far beyond what two phones need. Publishing on the Play Store would cost a one-time $25. Sharing the APK costs nothing.
 - **Editing the sheet by hand** works because `Code.gs` includes an `onEdit` trigger that stamps *Updated At* and *Updated By = Sheet* on edited rows (and *Added At* on new ones). That only works when the script was created from the sheet (Extensions → Apps Script).
 - **Privacy:** the token is stored only in the app's private storage and is excluded from Android backups and device-to-device transfer. With the release build (Option C), other apps and USB debugging can't read that storage; a debug build's can be read over USB debugging. The app never shows, copies or shares the token, only sends it to the Web app URL it was saved with, and no longer makes setup messages.
-- **Which version is on a phone?** The bottom of **Settings** says, e.g. *Version 1.2*.
+- **Which version is on a phone?** The bottom of **Settings** (**⋮** > **Settings**) says, e.g. *Version 1.2*.
 
 ## Project layout
 
