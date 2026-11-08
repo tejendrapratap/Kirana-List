@@ -13,6 +13,9 @@ import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
 import com.grocerysync.app.data.SettingsStore
+import com.grocerysync.app.data.ShopSection
+import com.grocerysync.app.data.ShopSectionSettings
+import com.grocerysync.app.data.ShopSectionStore
 import com.grocerysync.app.data.SyncSettings
 import com.grocerysync.app.data.notNeeded
 import com.grocerysync.app.data.stepped
@@ -63,6 +66,10 @@ data class ListUiState(
     val myDeviceName: String = "",
     /** True only while a pull-to-refresh sync is running. */
     val isRefreshing: Boolean = false,
+    /** This phone's shop sections: whether To buy is grouped, and the sections chosen in the Edit dialog. */
+    val shopSections: ShopSectionSettings = ShopSectionSettings(),
+    /** [toBuy] by shop section in walking order while [groupBySection]; null while To buy is A to Z. */
+    val toBuySections: List<ShopSectionGroup>? = null,
 ) {
     val title: String
         get() = status.spreadsheetName?.takeIf { it.isNotBlank() } ?: DEFAULT_TITLE
@@ -88,6 +95,13 @@ data class ListUiState(
             status.state != ConnectionState.NOT_CONFIGURED
 
     fun item(key: String): GroceryItem? = allItems.firstOrNull { it.key == key }
+
+    /** To buy is grouped by shop section (this phone's choice; on unless turned off). */
+    val groupBySection: Boolean
+        get() = shopSections.groupBySection
+
+    /** [item]'s shop section on this phone ([ShopSectionSettings.sectionOf]). */
+    fun sectionOf(item: GroceryItem): ShopSection = shopSections.sectionOf(item)
 
     companion object {
         const val DEFAULT_TITLE = "Grocery Sync"
@@ -132,6 +146,7 @@ class ListViewModel(
     private val repository: GroceryRepository,
     private val liveSync: LiveSync,
     private val settingsStore: SettingsStore,
+    private val shopSectionStore: ShopSectionStore,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -149,9 +164,9 @@ class ListViewModel(
         repository.outboxStatus,
         liveSync.status,
         settingsStore.settings,
-        manualRefresh,
-    ) { items, outbox, status, settings, refreshing ->
-        buildState(items, outbox, status, settings, refreshing)
+        combine(manualRefresh, shopSectionStore.settings, ::Pair),
+    ) { items, outbox, status, settings, (refreshing, shopSections) ->
+        buildState(items, outbox, status, settings, refreshing, shopSections)
     }
         .flowOn(Dispatchers.Default)
         .stateIn(
@@ -160,6 +175,7 @@ class ListViewModel(
             initialValue = ListUiState(
                 status = liveSync.status.value,
                 isConfigured = settingsStore.current().isConfigured,
+                shopSections = shopSectionStore.current(),
             ),
         )
 
@@ -173,6 +189,7 @@ class ListViewModel(
         status: SyncStatus,
         settings: SyncSettings,
         refreshing: Boolean,
+        shopSections: ShopSectionSettings,
     ): ListUiState {
         // The repository already sorts by name, and partition keeps that order inside each group.
         val (needed, rest) = items.partition { it.value.isNeeded }
@@ -186,6 +203,8 @@ class ListViewModel(
             isConfigured = settings.isConfigured,
             myDeviceName = settingsStore.effectiveDeviceName(),
             isRefreshing = refreshing,
+            shopSections = shopSections,
+            toBuySections = if (shopSections.groupBySection) groupBySection(needed, shopSections::sectionOf) else null,
         )
     }
 
@@ -296,6 +315,7 @@ class ListViewModel(
                 // queued, so an item that arrived meanwhile is never overwritten.
                 is ItemSavePlan.Upsert -> if (current == null) {
                     val result = repository.add(plan.name, plan.value)
+                    if (result == EditResult.Saved && originalKey != null) keepShopSection(originalKey, plan.name)
                     if (result == EditResult.Saved && originalKey == null) {
                         _events.send(ListEvent.Added(plan.name, plan.value))
                     } else {
@@ -306,6 +326,7 @@ class ListViewModel(
                 }
                 is ItemSavePlan.Rename -> {
                     val result = repository.rename(plan.key, plan.newName, plan.value)
+                    if (result == EditResult.Saved) keepShopSection(plan.key, plan.newName)
                     // "Not on the list" is about the item being renamed (its old name).
                     editRefused(result, plan.newName, goneName = current?.name ?: plan.newName)?.let { _events.send(it) }
                 }
@@ -388,6 +409,28 @@ class ListViewModel(
                 }
             }
         }
+    }
+
+    // endregion
+
+    // region Shop sections (this phone only, never synced)
+
+    /** To buy grouped by shop section (true) or A to Z. */
+    fun setGroupBySection(group: Boolean) {
+        shopSectionStore.setGroupBySection(group)
+    }
+
+    /**
+     * The Edit dialog's "Shop section" for the item [key], which is being saved as [name] (a new name too: the
+     * choice follows the rename, see [keepShopSection]). See [ShopSectionStore.chooseSection].
+     */
+    fun setShopSection(key: String, name: String, section: ShopSection) {
+        shopSectionStore.chooseSection(key, name, section)
+    }
+
+    /** The item [fromKey] was saved as [name] from its Edit dialog: this phone's section for it goes along. */
+    private fun keepShopSection(fromKey: String, name: String) {
+        shopSectionStore.moveSection(fromKey, ItemKeys.normalize(name))
     }
 
     // endregion

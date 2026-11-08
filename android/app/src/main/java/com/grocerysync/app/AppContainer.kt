@@ -6,6 +6,7 @@ import com.grocerysync.app.data.GroceryRepository
 import com.grocerysync.app.data.PrefsClockOffsetStore
 import com.grocerysync.app.data.ServerClock
 import com.grocerysync.app.data.SettingsStore
+import com.grocerysync.app.data.ShopSectionStore
 import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.SheetsClient
 import com.grocerysync.app.sync.SyncEngine
@@ -22,6 +23,8 @@ class AppContainer(context: Context) {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val settings = SettingsStore(appContext)
+    /** This phone's own To buy layout: grouping by shop section and sections chosen per item (never synced). */
+    val shopSections = ShopSectionStore(appContext)
     val database = GroceryDatabase(appContext)
     val serverClock = ServerClock(offsetStore = PrefsClockOffsetStore(appContext))
     val sheetsClient = SheetsClient()

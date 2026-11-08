@@ -18,6 +18,7 @@ object AppViewModelProvider {
                 repository = container.repository,
                 liveSync = container.liveSync,
                 settingsStore = container.settings,
+                shopSectionStore = container.shopSections,
                 savedStateHandle = createSavedStateHandle(),
             )
         }

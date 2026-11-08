@@ -99,6 +99,7 @@ import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.InputValidation
 import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
+import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.ValueType
 import com.grocerysync.app.data.convertTo
@@ -141,6 +142,10 @@ private val ScrollHintFadeHeight = 24.dp
  * warning ([similarItemName]) and Save stays enabled; in add mode it offers the same button.
  * [initialName]: add mode only, the name the field starts with (e.g. the All items search); when given,
  * the name field is not autofocused.
+ *
+ * [shopSection]: the item's shop section on this phone for a name (the one chosen for it, else the dictionary's
+ * for the name typed); null shows no "Shop section" picker (add mode). A section picked there is passed to
+ * [onShopSectionChange] with the name being saved, just before [onSave]; it is this phone's choice, not synced.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,6 +159,8 @@ fun ItemEditDialog(
     removedElsewhere: Boolean = false,
     onOpenExisting: (key: String) -> Unit = {},
     initialName: String = "",
+    shopSection: ((name: String) -> ShopSection)? = null,
+    onShopSectionChange: (name: String, section: ShopSection) -> Unit = { _, _ -> },
 ) {
     val isAdd = item == null
     val itemQuantity = item?.value as? ItemValue.Quantity
@@ -172,6 +179,8 @@ fun ItemEditDialog(
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     // "Other..." in the unit picker: the text typed for a custom unit; null while that dialog is closed.
     var customUnitDraft by rememberSaveable { mutableStateOf<String?>(null) }
+    // The section picked under "Shop section"; null until the user picks one.
+    var pickedSection by rememberSaveable { mutableStateOf<ShopSection?>(null) }
 
     val baseValue: ItemValue? = baseNeeded?.let { ItemValue.BoolValue(it) }
         ?: baseAmount?.let { ItemValue.Quantity(Amount(it), baseUnit.orEmpty()) }
@@ -408,11 +417,26 @@ fun ItemEditDialog(
                     Spacer(Modifier.height(spacing.sectionGapDp.dp))
                     valueEditor()
                 }
+                if (shopSection != null) {
+                    Spacer(Modifier.height(spacing.sectionGapDp.dp))
+                    ShopSectionPicker(
+                        section = pickedSection ?: shopSection(name.trim()),
+                        onSectionChange = { pickedSection = it },
+                        labelGap = spacing.labelGapDp.dp,
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { if (canSave) draftValue?.let { onSave(name.trim(), it, baseValue) } },
+                onClick = {
+                    if (canSave) {
+                        draftValue?.let {
+                            pickedSection?.let { section -> onShopSectionChange(name.trim(), section) }
+                            onSave(name.trim(), it, baseValue)
+                        }
+                    }
+                },
                 enabled = canSave,
             ) { Text("Save") }
         },
@@ -825,6 +849,7 @@ private fun ItemEditDialogPreview() {
             onDismiss = {},
             onSave = { _, _, _ -> },
             onDelete = {},
+            shopSection = { ShopSection.ATTA_RICE_DAL },
         )
     }
 }
