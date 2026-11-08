@@ -4,10 +4,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertAll
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.performClick
@@ -145,7 +148,10 @@ class NotificationCardsTest {
                 }
             }
         }
-        compose.onNode(isToggleable() and hasText(HindiSettingsTexts.notifyChanges)).assertIsOn()
+        // Both settings drawn have the switch, on.
+        compose.onAllNodes(isToggleable() and hasText(HindiSettingsTexts.notifyChanges))
+            .assertCountEquals(2)
+            .assertAll(isOn())
         compose.onNode(hasText(HindiSettingsTexts.notificationsBlocked)).assertIsDisplayed()
         compose.onNode(button(HindiSettingsTexts.allowNotifications)).assertIsDisplayed()
         compose.onNode(hasText(HindiSettingsTexts.nameForNotifications)).assertIsDisplayed()
