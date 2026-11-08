@@ -1,5 +1,8 @@
 package com.grocerysync.app.data
 
+import com.grocerysync.app.text.CommonTexts
+import com.grocerysync.app.text.EnglishCommonTexts
+import com.grocerysync.app.text.HindiCommonTexts
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -49,8 +52,10 @@ data class PastedLine(
  *   [ ], [x], emoji), numbering ("1.", "1)", "(1)"), WhatsApp formatting (*bold*, _italic_, ~strike~,
  *   `mono`) and punctuation or emoji at the end;
  * - leaves out blank lines, lines with no letter or digit ("-----"), and Share's own title and
- *   "*Dairy, eggs & bread*" section lines, so a shared list pasted on another phone gives the same items; any
- *   other line wholly in bold is marked ([PastedLine.bold]), as it may be a heading of its own ("*Sabzi*");
+ *   "*Dairy, eggs & bread*" section lines in every language the app writes them in (English, Hindi: "किराने की
+ *   लिस्ट (3 चीज़ें)", "*दूध, अंडे और ब्रेड*"), so a shared list pasted on another phone gives the same items,
+ *   whichever language either phone shows; any other line wholly in bold is marked ([PastedLine.bold]), as it
+ *   may be a heading of its own ("*Sabzi*");
  * - reads an amount after the name ("Rice 2 kg", "Rice - 2kg", "Rice: 2 kg", "Rice (2 kg)", "Rice x2",
  *   "Rice 2") or before it ("2 kg rice", "2kg rice", "2 x rice", "½ kg paneer"). Amounts may have decimals
  *   ("1.5", "1,5"), thousands ("1,000"), fractions ("1/2", "½", "1 1/2", "1½") and digits of other scripts
@@ -91,8 +96,9 @@ object PasteParser {
         line = FORMATTING.replace(line, "")
         line = trimEndDecoration(ItemKeys.collapseWhitespace(line))
         if (line.none(Char::isLetterOrDigit)) return null
-        if (SHARE_TITLE.matches(line)) return null
-        if (wholeBold && SECTION_LABELS.contains(line.lowercase())) return null
+        val key = headingKey(line)
+        if (SHARE_TITLE.matches(key)) return null
+        if (wholeBold && key in SECTION_HEADINGS) return null
         if (line.endsWith(':')) {
             val heading = line.trimEnd(':', ' ')
             return PastedLine(text = heading, name = "", problem = LineProblem.HEADING)
@@ -326,11 +332,47 @@ object PasteParser {
     /** WhatsApp's formatting marks, wherever they are. */
     private val FORMATTING = Regex("[*_~`]")
 
-    /** The first line of a shared list: "Grocery list (12 items)". */
-    private val SHARE_TITLE = Regex("""grocery list\s*\(\s*\d+\s+items?\s*\)""", RegexOption.IGNORE_CASE)
+    // Share's own lines. Share writes them in the language its phone shows; the paste may be read on a phone that
+    // shows another, so every language's are left out. (Declared before what is made from them: an object's
+    // properties are set in order.)
 
-    /** Share's section lines are these labels in bold. */
-    private val SECTION_LABELS: Set<String> = ShopSection.entries.map { it.label.lowercase() }.toSet()
+    /** The words of every language Share may have written its title and section names in. */
+    private val SHARE_LANGUAGES: List<CommonTexts> = listOf(EnglishCommonTexts, HindiCommonTexts)
+
+    /** Spaces next to a bracket, which don't count in a title: "Grocery list(12 items )" is one. */
+    private val BRACKET_SPACES = Regex("""\s*([()])\s*""")
+
+    /**
+     * [text] as Share's lines are compared: folded like search ([SearchText.fold]: capitals, the nukta (ज़ typed as
+     * one letter or as ज + ़) and extra spaces don't count), without spaces next to brackets.
+     */
+    private fun headingKey(text: String): String = SearchText.fold(text).replace(BRACKET_SPACES, "$1")
+
+    /**
+     * [texts]' title of a shared list ([CommonTexts.shareTitle]) as written for [n] items, as a pattern of its
+     * [headingKey] that takes any count instead of [n].
+     */
+    private fun titlePattern(texts: CommonTexts, n: Int): String {
+        val parts = headingKey(texts.shareTitle(n)).split(n.toString())
+        check(parts.size == 2) { "Share's title must hold its count once: ${texts.shareTitle(n)}" }
+        return Regex.escape(parts[0]) + """\d+""" + Regex.escape(parts[1])
+    }
+
+    /**
+     * The first line of a shared list, as its [headingKey]: "Grocery list (12 items)", "किराने की लिस्ट (12 चीज़ें)",
+     * for any count, with the singular or plural word (each language's forms for 1 and for 2).
+     */
+    private val SHARE_TITLE = Regex(
+        SHARE_LANGUAGES.flatMap { texts -> listOf(1, 2).map { n -> titlePattern(texts, n) } }.joinToString("|"),
+    )
+
+    /**
+     * Share's section lines (in bold) as their [headingKey]s: each section's name in every language, and its stable
+     * English name ([ShopSection.label]), which every version of the app before 1.6 wrote.
+     */
+    private val SECTION_HEADINGS: Set<String> = ShopSection.entries.flatMapTo(HashSet()) { section ->
+        (listOf(section.label) + SHARE_LANGUAGES.map { it.sectionName(section) }).map(::headingKey)
+    }
 
     /** "2", "1.5", "1,5", ".5", "1,000", "1,00,000". */
     private const val NUMBER = """\d+(?:[.,]\d+)*|[.,]\d+"""

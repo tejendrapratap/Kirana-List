@@ -7,15 +7,18 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.testing.AppState
 import com.grocerysync.app.testing.DialogWindowState
 import com.grocerysync.app.testing.FakeSheetServer.Companion.HOME
 import com.grocerysync.app.testing.FakeSheetServer.Companion.quantity
@@ -29,6 +32,7 @@ import com.grocerysync.app.testing.itemRow
 import com.grocerysync.app.testing.needSwitch
 import com.grocerysync.app.testing.openDialogWindow
 import com.grocerysync.app.testing.tab
+import com.grocerysync.app.text.AppLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -179,5 +183,38 @@ class AddCommonItemsTest : GroceryUiTest() {
         assertTrue(fake.changesFromApp("Tel").isEmpty())
         assertNull(fake.item("Rice"))
         assertNull(fake.item("Oil"))
+    }
+
+    @Test
+    fun inHindiTheDialogAndItsSnackbarAreInHindi() {
+        // Hindi chosen in Settings > This phone; the emulator's own language is English. Connected as launchConnected
+        // does, without waiting for the page tabs by their English names.
+        AppState.container.phoneSettings.setLanguage(AppLanguage.HINDI)
+        val before = System.currentTimeMillis()
+        AppState.connect(fake.url, fake.token, ME)
+        launchApp()
+        waitFor("the first sync with the fake", SYNC_TIMEOUT_MS) { AppState.syncedSince(before) }
+
+        // The empty list's button, then the dialog: sets, sections, the hint and the buttons in Hindi; item names
+        // and units as they are.
+        waitForNode(button("आम सामान जोड़ें")).performClick()
+        waitForNode(choice("रोज़ का"))
+        waitForNode(isHeading() and hasText("सब्ज़ी और फल"))
+        node(hasText("टिक की गई चीज़ें सारा सामान में जुड़ेंगी", substring = true)).assertExists()
+        node(starterRow("Onion") and hasText("kg")).assertIsOn()
+        node(starterList).performScrollToNode(starterRow("Dahi"))
+        node(starterRow("Dahi") and hasText("हाँ या नहीं") and hasContentDescription("Dahi, Curd, दही, हाँ या नहीं"))
+            .assertIsOn()
+
+        node(choice("व्रत")).performClick()
+        waitForNode(starterRow("Potato")).assertIsOn()
+        node(button("कोई न चुनें")).performClick()
+        waitForNode(button("चीज़ें जोड़ें")).assertIsNotEnabled()
+        node(starterRow("Potato")).assertIsOff().performClick()
+        node(button("1 चीज़ जोड़ें")).assertIsEnabled().performClick()
+
+        waitForNode(hasText("सारा सामान में 1 चीज़ जोड़ दी"))
+        waitFor("Potato on the sheet") { fake.item("Potato") != null }
+        assertTrue((fake.item("Potato")!!.need as Need.Quantity).amountIs("0"))
     }
 }

@@ -106,6 +106,26 @@ class PasteListTest : GroceryUiTest() {
     }
 
     @Test
+    fun aListSharedFromAHindiPhoneOpensItsPreviewOnAnEnglishOne() {
+        fake.seed("Oil", quantity("1", Units.L))
+        // As Share writes it on a phone that shows Hindi (1.6): its title and section name in Hindi, the items as
+        // they are. The ज़ of चीज़ें typed as one letter (U+095B), as some keyboards do; the app writes ज + ़.
+        val shared = "किराने की लिस्ट (2 चीज़ें)\n\n*तेल और घी*\n• Ghee - 0.5 L\n• Oil - 1 L"
+        launchConnected(sharedTextIntent(shared))
+
+        // The title and the heading are no items: just the two lines of the list.
+        waitForNode(hasText("1 new, 1 already needed"))
+        node(hasText("Add Ghee - 0.5 L")).assertExists()
+        node(hasText("Already needed: Oil")).assertExists()
+        assertNoNode(hasText("Skipped", substring = true))
+        node(button("Add 1 item")).performClick()
+
+        waitForNode(hasText("Added 1 item"))
+        waitFor("Ghee on the sheet") { fake.item("Ghee") != null }
+        assertEquals(setOf("Ghee"), fake.sentChanges().map { it.name }.toSet())
+    }
+
+    @Test
     fun aListSharedBeforeSetupIsNotRead() {
         launchApp(sharedTextIntent("Rice 2 kg"))
 

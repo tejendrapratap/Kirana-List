@@ -8,9 +8,11 @@ import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.ValueType
+import com.grocerysync.app.text.Texts
 
 // Pure rules of "Add common items" (the starter list, StarterListDialog): which rows a set shows, which of them
-// are ticked, their texts, and what adding them does (unit-tested in StarterListTest).
+// are ticked, their texts (from BulkTexts, in the language shown), and what adding them does (unit-tested in
+// StarterListTest).
 
 /**
  * One row of "Add common items": a [CatalogEntry] and, when the entry is already on the list, the name it is on
@@ -61,29 +63,19 @@ internal object StarterList {
      */
     val UNTICKED_AT_FIRST: Set<String> = ItemCatalog.entries.filter { it.optIn }.mapTo(HashSet()) { it.displayName }
 
-    /** Shown with an entry added as yes / no, where a quantity shows its unit. */
-    const val YES_NO_TEXT = "Yes / no"
+    // The texts below are read when they are used, in the language shown then ([Texts.current]).
 
     /** The dialog's title, and the empty list's button that opens it. */
-    const val TITLE = "Add common items"
-
-    /** Above the rows: where the items go. */
-    const val HINT = "Ticked items are added to All items, not needed yet. Mark them as needed when you run out."
-
-    /** Above the rows instead of [HINT] when every item of the set is on the list already. */
-    const val ALL_ON_LIST_HINT = "Everything in this set is on your list already."
+    val TITLE: String get() = Texts.current.bulk.addCommonItemsTitle
 
     /** The snackbar when it (or ⋮ > Paste a list) is opened before the phone is connected to the sheet. */
-    const val NOT_CONNECTED_TEXT = "Connect to your sheet in Settings first, so items already on it aren't replaced."
+    val NOT_CONNECTED_TEXT: String get() = Texts.current.bulk.connectFirst
 
     /**
      * The snackbar when it (or ⋮ > Paste a list) is opened while connected, but before the family's list has come
      * from the sheet (right after setup, or offline since): items already on the sheet would look new here.
      */
-    const val LIST_NOT_LOADED_TEXT = "Wait until your list has loaded from the sheet, then try again."
-
-    const val SELECT_ALL = "Select all"
-    const val SELECT_NONE = "Select none"
+    val LIST_NOT_LOADED_TEXT: String get() = Texts.current.bulk.waitForList
 
     /**
      * The rows of [set] grouped by shop section, in walking order ([ShopSection]); inside a section in the
@@ -108,7 +100,7 @@ internal object StarterList {
     /** Whether some row of [groups] can be added (else Select all / none is hidden). */
     fun hasAddable(groups: List<StarterGroup>): Boolean = groups.any { group -> group.rows.any { it.canAdd } }
 
-    /** Whether every row of [groups] that can be added is ticked: the control then offers [SELECT_NONE]. */
+    /** Whether every row of [groups] that can be added is ticked: the control then offers Select none. */
     fun allTicked(groups: List<StarterGroup>, unticked: Set<String>): Boolean =
         groups.all { group -> group.rows.all { !it.canAdd || it.id !in unticked } }
 
@@ -128,11 +120,11 @@ internal object StarterList {
     fun otherNamesText(entry: CatalogEntry): String = entry.otherNames.joinToString(" · ")
 
     /** The small text under the name of a row whose entry is on the list: "On the list as Oil". */
-    fun onListText(name: String): String = "On the list as ${quotedItemName(name)}"
+    fun onListText(name: String): String = Texts.current.bulk.onListAs(quotedItemName(name))
 
-    /** What the row says at its end: the unit the item is added with ("kg", "pack"), or [YES_NO_TEXT]. */
+    /** What the row says at its end: the unit the item is added with ("kg", "pack"), or "Yes / no". */
     fun unitText(entry: CatalogEntry): String = when (entry.type) {
-        ValueType.BOOLEAN -> YES_NO_TEXT
+        ValueType.BOOLEAN -> Texts.current.common.yesNo
         ValueType.QUANTITY -> entry.unit
     }
 
@@ -142,33 +134,25 @@ internal object StarterList {
      * "Oil, on the list as Tel".
      */
     fun rowDescription(row: StarterRow): String {
+        val texts = Texts.current.bulk
         val entry = row.entry
-        if (row.onListAs != null) return "${entry.displayName}, on the list as ${quotedItemName(row.onListAs)}"
+        if (row.onListAs != null) return texts.onListAsSpoken(entry.displayName, quotedItemName(row.onListAs))
         val names = (listOf(entry.displayName) + entry.otherNames).joinToString(", ")
         val unit = when (entry.type) {
-            ValueType.BOOLEAN -> "yes or no"
+            ValueType.BOOLEAN -> texts.yesNoSpoken
             ValueType.QUANTITY -> entry.unit
         }
         return "$names, $unit"
     }
 
     /** The confirm button: "Add 12 items", "Add 1 item"; "Add items" (disabled) while nothing is ticked. */
-    fun addButtonText(count: Int): String = when (count) {
-        0 -> "Add items"
-        1 -> "Add 1 item"
-        else -> "Add $count items"
-    }
+    fun addButtonText(count: Int): String = Texts.current.bulk.addItemsButton(count)
 
     /** The snackbar once they are added: "Added 12 items to All items" (with Undo when some were). */
-    fun addedText(count: Int): String = when (count) {
-        0 -> "Nothing added: those items are on the list already"
-        1 -> "Added 1 item to All items"
-        else -> "Added $count items to All items"
-    }
+    fun addedText(count: Int): String = Texts.current.bulk.commonItemsAdded(count)
 
     /** After Undo, when some of the items added were changed on the other phone meanwhile and stay. */
-    fun keptText(count: Int): String =
-        if (count == 1) "1 item stays: changed on another phone" else "$count items stay: changed on another phone"
+    fun keptText(count: Int): String = Texts.current.bulk.commonItemsKept(count)
 
     /**
      * Adds [entries] one by one through [add], the repository's normal add (it refuses a name that is on the list,
