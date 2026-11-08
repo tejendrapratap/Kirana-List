@@ -32,7 +32,8 @@ object HindiSyncTexts : SyncTexts {
     private const val NEW_VERSION = "नया वर्ज़न डिप्लॉय करें।"
     private const val SHEET_REFUSED = "शीट ने यह बदलाव नहीं लिया"
     private const val LATEST_SCRIPT = "देख लें कि शीट में सबसे नई Code.gs चल रही है"
-    private val tapRetry = "फिर \"${HindiCommonTexts.retry}\" दबाएँ।"
+    // "इसके बाद" (then), not "फिर": the button's own name starts with फिर.
+    private val tapRetry = "इसके बाद \"${HindiCommonTexts.retry}\" दबाएँ।"
 
     private val translator = MessageTranslator(
         sentences = mapOf(

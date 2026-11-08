@@ -124,6 +124,9 @@ class SyncTextsTest {
         // "Tap Retry" names the Retry button as it is shown in Hindi.
         assertTrue(hindi.message(bare)!!.contains("\"${HindiCommonTexts.retry}\""))
         assertTrue(hindi.message(rule)!!.contains("\"${HindiCommonTexts.retry}\""))
+        // Not "फिर "फिर से कोशिश करें"": the word for "then" isn't the one the button's name starts with.
+        assertFalse(hindi.message(bare)!!.contains("फिर \"फिर"))
+        assertTrue(hindi.message(bare)!!.endsWith("इसके बाद \"${HindiCommonTexts.retry}\" दबाएँ।"))
     }
 
     @Test

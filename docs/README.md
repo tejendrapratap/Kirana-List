@@ -6,6 +6,7 @@ Planning notes for Kirana List (formerly Grocery Sync), kept with the code.
 |---|---|
 | [Feature ideas](feature-ideas.md) | 14 ranked feature ideas with evidence, effort and status, what the app already does, and what was left out and why |
 | [Common Indian grocery list](indian-grocery-list.md) | 90 items graded core / common / regional from national survey data, with Hindi names and usual units; the source for the starter list and name matching |
+| [Hindi glossary](hindi-glossary.md) | The words the app's Hindi texts use (1.6 onwards): pages, buttons, shop sections, sets, who and when, Share's title, and how the Hindi is written |
 | [Removing the setup](zero-setup.md) | How to drop the Google Sheet + Apps Script setup (recommended: Firebase with an invite code), the migration plan, and how to get the app onto phones (sideloading, Play internal testing, public release), with a fact check of every price and policy |
 
 ## Decisions so far (2026-11-08)

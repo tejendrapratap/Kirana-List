@@ -1,5 +1,7 @@
 package com.grocerysync.app.text
 
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshots.Snapshot
 import com.grocerysync.app.data.ShopSection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -92,6 +94,76 @@ class TextsTest {
             assertNotEquals(section.name, section.label, HindiCommonTexts.sectionName(section))
         }
     }
+
+    @Test
+    fun whoAndWhenInEnglishAreTheWordsAllItemsShows() {
+        val english = EnglishCommonTexts
+        assertEquals("Added by Home", english.addedBy("Home"))
+        assertEquals("Updated by Mum's phone", english.updatedBy("Mum's phone"))
+        assertEquals("Added", english.added)
+        assertEquals("Updated", english.updated)
+        assertEquals("just now", english.justNow)
+        assertEquals("1 minute ago", english.minutesAgo(1))
+        assertEquals("59 minutes ago", english.minutesAgo(59))
+        assertEquals("1 hour ago", english.hoursAgo(1))
+        assertEquals("2 hours ago", english.hoursAgo(2))
+        assertEquals("yesterday", english.yesterday)
+        assertEquals("1 day ago", english.daysAgo(1))
+        assertEquals("3 days ago", english.daysAgo(3))
+    }
+
+    @Test
+    fun whoAndWhenInHindi() {
+        withTexts(AppTexts.Hindi) {
+            val common = Texts.current.common
+            assertEquals("Home ने जोड़ा", common.addedBy("Home"))
+            assertEquals("Mummy ने बदला", common.updatedBy("Mummy"))
+            assertEquals("जोड़ा गया", common.added)
+            assertEquals("बदला गया", common.updated)
+            assertEquals("अभी", common.justNow)
+            // पहले (ago) takes the same form for one and many.
+            assertEquals("1 मिनट पहले", common.minutesAgo(1))
+            assertEquals("5 मिनट पहले", common.minutesAgo(5))
+            assertEquals("1 घंटे पहले", common.hoursAgo(1))
+            assertEquals("2 घंटे पहले", common.hoursAgo(2))
+            assertEquals("कल", common.yesterday)
+            assertEquals("1 दिन पहले", common.daysAgo(1))
+            assertEquals("3 दिन पहले", common.daysAgo(3))
+        }
+        assertSame(AppTexts.English, Texts.current)
+    }
+
+    @Test
+    fun shareTitlesCountTheItemsPerLanguage() {
+        // English as Share writes it today.
+        assertEquals("Grocery list (1 item)", EnglishCommonTexts.shareTitle(1))
+        assertEquals("Grocery list (3 items)", EnglishCommonTexts.shareTitle(3))
+        assertEquals("Grocery list (0 items)", EnglishCommonTexts.shareTitle(0))
+        assertEquals("किराने की लिस्ट (1 चीज़)", HindiCommonTexts.shareTitle(1))
+        assertEquals("किराने की लिस्ट (3 चीज़ें)", HindiCommonTexts.shareTitle(3))
+        assertEquals("किराने की लिस्ट (3 चीज़ें)", withTexts(AppTexts.Hindi) { Texts.current.common.shareTitle(3) })
+    }
+
+    @Test
+    fun textsWorkedOutFromTheCurrentOnesFollowALanguageChange() {
+        // As a derivedStateOf in a view model, which outlives the activity's recreate(): worked out once, then read
+        // again after the language changed, without any of its other inputs changing.
+        val undo = derivedStateOf { Texts.current.common.undo }
+        assertEquals("Undo", undo.value)
+        nextFrame()
+        withTexts(AppTexts.Hindi) {
+            assertEquals("पहले जैसा करें", undo.value)
+            nextFrame()
+        }
+        assertEquals("Undo", undo.value)
+    }
+
+    /**
+     * What passes on the phone between a screen reading its texts and someone tapping another language: at least a
+     * frame, and Compose takes a snapshot for each one. (Read and changed again within one global snapshot, without
+     * that, a state may be overwritten in place, which a derivedStateOf doesn't notice.)
+     */
+    private fun nextFrame() = Snapshot.takeSnapshot().dispose()
 
     @Test
     fun hindiWordsFollowTheGlossary() {

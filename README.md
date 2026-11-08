@@ -279,7 +279,7 @@ apps-script/Code.gs        The script you paste into your sheet
 apps-script/test/          Offline tests for the script (with a fake Apps Script runtime) + a local mock of the web app
 android/app/src/androidTest/  UI tests: the real app on an emulator against a fake web app inside the test APK
 tools/e2e/                 Emulator helper scripts (Git Bash): emulator, mock, qa build, UI tests, taps and checks
-docs/                      Planning notes: feature ideas, common Indian grocery list, removing the setup; the app's look (palette, icon)
+docs/                      Planning notes: feature ideas, common Indian grocery list, removing the setup; the app's look (palette, icon); the Hindi glossary
 ```
 
 ## Testing

@@ -1,5 +1,9 @@
 package com.grocerysync.app.text
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
 /**
  * The Language choice in Settings > This phone. [id] is what
  * [PhoneSettingsStore][com.grocerysync.app.data.PhoneSettingsStore] stores and never changes; for [ENGLISH] and
@@ -34,8 +38,9 @@ enum class AppLanguage(val id: String) {
  * - Item names, units (kg, g, L, ml, pcs, dozen, pack, custom units) and amounts are data: never translated. The
  *   names of the languages in the Language choice are always in their own script ([languageName]).
  * - Hindi: everyday spoken Hindi in Devanagari, the polite आप form, short; the common English loanword where that is
- *   what people say (सेटिंग्स, शेयर, लिस्ट, फ़ोन, शीट); nukta forms kept (फ़ोन, ज़रूरत, सब्ज़ी). The words of the 1.6
- *   spec's glossary are used exactly, so the same thing is called the same everywhere.
+ *   what people say (सेटिंग्स, शेयर, लिस्ट, फ़ोन, शीट); nukta forms kept (फ़ोन, ज़रूरत, सब्ज़ी). The words of the
+ *   glossary in docs/hindi-glossary.md (at the repo's root) are used exactly, so the same thing is called the same
+ *   everywhere; a new word that several texts use goes into the glossary too.
  *
  * @param language [AppLanguage.ENGLISH] or [AppLanguage.HINDI] (never PHONE): the language of these texts.
  * @param languageName the language's own name in its own script ("English", "हिन्दी").
@@ -83,11 +88,16 @@ class AppTexts(
  * `val t = Texts.current` at the top of a composable or function is fine).
  *
  * - Composables read [current] while they compose. A language change saves the choice, sets [current] and recreates
- *   the activity (`Activity.recreate()`), so every screen is composed again in the new language: nothing observes
- *   [current], which is why it is a plain variable and not Compose state.
- * - View models and other state holders keep structured data in long-lived state, never finished sentences: a view
- *   model outlives `recreate()`, and a sentence built before it would stay in the old language. A one-shot event
- *   (a snackbar's message) may carry a finished text, built when the event is sent.
+ *   the activity (`Activity.recreate()`), so every screen is composed again in the new language.
+ * - [current] is snapshot state, so what is worked out from it follows a change by itself: a `derivedStateOf` in a
+ *   view model (which outlives `recreate()`) that reads it, directly or through a function such as
+ *   InputValidation.validateWebAppUrl, gives the new language's text the next time it is read. Being snapshot
+ *   state, it is still safe to read from any thread (the background check for changes reads it without a screen).
+ * - Sentences that are stored don't follow it: view models and other state holders keep structured data in
+ *   long-lived state (a `mutableStateOf` or StateFlow in a view model, `rememberSaveable`, SavedStateHandle), never
+ *   finished sentences, which would stay in the old language. For example a test result keeps its kind and the
+ *   sync layer's English message, and the screen builds the sentence while it composes. A one-shot event (a
+ *   snackbar's message) may carry a finished text, built when the event is sent.
  * - Messages of the sync layer (SyncStatus.message, Protocol.MSG_*, LiveSync's messages, push problems, Test
  *   connection failures, per-change errors) stay English constants there, so its tests and the database stay as
  *   they are; they are translated where they are shown, with [SyncTexts.message].
@@ -98,9 +108,8 @@ class AppTexts(
  * GroceryApp sets it in onCreate (and when the phone's configuration changes) for work done without a screen.
  */
 object Texts {
-    /** The texts every screen reads now; English until the app sets it at startup. */
-    @Volatile
-    var current: AppTexts = AppTexts.English
+    /** The texts every screen reads now; English until the app sets it at startup. Snapshot state (see above). */
+    var current: AppTexts by mutableStateOf(AppTexts.English)
 
     /**
      * The texts for the Language choice [language]: [AppLanguage.PHONE] means Hindi when [systemLanguage] (the
