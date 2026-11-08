@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Dark window theme used before Compose draws (see values/themes.xml). -->
-    <style name="Theme.GrocerySync" parent="android:Theme.Material.NoActionBar" />
+    <style name="Base.Theme.GrocerySync" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
 </resources>

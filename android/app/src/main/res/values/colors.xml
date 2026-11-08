@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand green; the Compose theme seeds its fallback (pre-Android 12) schemes from it. -->
-    <color name="brand_green">#FF1E8E3E</color>
+    <!-- Brand green: the light theme's primary (ui/theme/Theme.kt). -->
+    <color name="brand_green">#FF376A26</color>
     <color name="ic_launcher_background">@color/brand_green</color>
     <color name="ic_launcher_foreground">#FFFFFFFF</color>
+    <!-- The window before Compose draws: the theme's surface (values-night: the dark one). -->
+    <color name="window_background">#FFFFF8EE</color>
 </resources>
