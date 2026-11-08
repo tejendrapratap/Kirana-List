@@ -12,7 +12,7 @@ import com.grocerysync.app.data.PasteParser
 import com.grocerysync.app.data.PastedLine
 import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.displayText
-import java.util.Locale
+import com.grocerysync.app.text.Texts
 
 /** What applying one line of a pasted list does ([planPaste]). */
 sealed interface PasteAction {
@@ -324,41 +324,36 @@ data class PasteListState(
 }
 
 // ---- Texts ------------------------------------------------------------------------------------------
-
-internal const val PASTE_LIST_TITLE = "Paste a list"
-
-internal const val PASTE_HELP = "Copy a list from WhatsApp or a note, then tap Paste. One item per line, like \"Rice 2 kg\" or \"Dahi\"."
-
-internal const val NOTHING_TO_PASTE = "Nothing to paste. Copy a list first."
+// Read when they are used, in the language shown then (Texts.current; the words are in BulkTexts). Item names,
+// amounts and units in them are data, as the list shows them.
 
 /** Under the text field, and as the snackbar for a shared text, when a paste is too long to read. */
-internal val PASTE_TOO_LONG_TEXT =
-    "Too long: paste up to ${PasteParser.MAX_LINES} lines and ${"%,d".format(Locale.ROOT, PasteParser.MAX_CHARS)} characters."
+internal val PASTE_TOO_LONG_TEXT: String
+    get() = Texts.current.bulk.pasteTooLong(PasteParser.MAX_LINES, PasteParser.MAX_CHARS)
 
 /** The snackbar when a list is shared into the app before it is set up. */
-internal const val SHARE_NOT_SET_UP_TEXT = "Set up Kirana List first, then share the list again."
+internal val SHARE_NOT_SET_UP_TEXT: String get() = Texts.current.bulk.shareBeforeSetup
 
 /** The snackbar when something was shared into the app without a text it can read (a file, an image). */
-internal const val SHARE_UNREADABLE_TEXT = "Couldn't read that. Share the list as text."
-
-/** Above the preview's rows while the family's list hasn't come from the sheet ([PasteListState.waitingForList]). */
-internal const val PASTE_WAITING_TEXT = "Waiting for your list to load from the sheet. You can add these once it has."
+internal val SHARE_UNREADABLE_TEXT: String get() = Texts.current.bulk.shareUnreadable
 
 /** Most characters the text field keeps: more than a paste may have, so it says it is too long. */
 internal const val MAX_PASTE_FIELD_CHARS = 2 * PasteParser.MAX_CHARS
 
-private fun itemCount(count: Int): String = if (count == 1) "1 item" else "$count items"
-
+/** " - 2 kg" after the name in a row for a quantity; "" for yes / no. */
 private fun amountSuffix(value: ItemValue): String = (value as? ItemValue.Quantity)?.let { " - ${it.displayText()}" }.orEmpty()
 
 /** The row's text: Add Rice - 2 kg, Mark Dahi needed, Already needed: Oil, Change Rice 2 kg → 3 kg, Skipped: Rice 2. */
-internal fun pasteRowText(row: PasteRow): String = when (val action = row.action) {
-    is PasteAction.Add -> "Add ${quotedItemName(action.name)}${amountSuffix(action.value)}"
-    is PasteAction.MarkNeeded -> "Mark ${quotedItemName(action.name)} needed${amountSuffix(action.value)}"
-    is PasteAction.AlreadyNeeded -> "Already needed: ${quotedItemName(action.name)}"
-    is PasteAction.ChangeAmount ->
-        "Change ${quotedItemName(action.name)} ${action.expected.displayText()} → ${action.value.displayText()}"
-    is PasteAction.Skipped -> "Skipped: ${quotedItemName(row.line)}"
+internal fun pasteRowText(row: PasteRow): String {
+    val texts = Texts.current.bulk
+    return when (val action = row.action) {
+        is PasteAction.Add -> texts.addRow(quotedItemName(action.name), amountSuffix(action.value))
+        is PasteAction.MarkNeeded -> texts.markNeededRow(quotedItemName(action.name), amountSuffix(action.value))
+        is PasteAction.AlreadyNeeded -> texts.alreadyNeededRow(quotedItemName(action.name))
+        is PasteAction.ChangeAmount ->
+            texts.changeAmountRow(quotedItemName(action.name), action.expected.displayText(), action.value.displayText())
+        is PasteAction.Skipped -> texts.skippedRow(quotedItemName(row.line))
+    }
 }
 
 /**
@@ -373,21 +368,23 @@ internal fun pasteRowDetail(row: PasteRow): String? = rowNotes(row, spoken = fal
  * Eggs is in dozen".
  */
 internal fun pasteRowDescription(row: PasteRow): String {
+    val texts = Texts.current.bulk
     val text = when (val action = row.action) {
-        is PasteAction.Add -> "Add ${quotedItemName(action.name)}${spokenAmount(action.value)}"
-        is PasteAction.MarkNeeded -> "Mark ${quotedItemName(action.name)} needed${spokenAmount(action.value)}"
-        is PasteAction.AlreadyNeeded -> "Already needed: ${quotedItemName(action.name)}"
+        is PasteAction.Add -> texts.addRow(quotedItemName(action.name), spokenAmount(action.value))
+        is PasteAction.MarkNeeded -> texts.markNeededRow(quotedItemName(action.name), spokenAmount(action.value))
+        is PasteAction.AlreadyNeeded -> texts.alreadyNeededRow(quotedItemName(action.name))
         is PasteAction.ChangeAmount ->
-            "Change ${quotedItemName(action.name)} from ${action.expected.displayText()} to ${action.value.displayText()}"
-        is PasteAction.Skipped -> "Skipped: ${quotedItemName(row.line)}"
+            texts.changeAmountRowSpoken(quotedItemName(action.name), action.expected.displayText(), action.value.displayText())
+        is PasteAction.Skipped -> texts.skippedRow(quotedItemName(row.line))
     }
     return listOfNotNull(text, rowNotes(row, spoken = true)).joinToString(", ")
 }
 
 /** [pasteRowDetail], or ([spoken]) its words for [pasteRowDescription]. */
 private fun rowNotes(row: PasteRow, spoken: Boolean): String? {
+    val texts = Texts.current.bulk
     val notes = when (val action = row.action) {
-        is PasteAction.Add -> listOf(if (action.looksLikeHeading) LOOKS_LIKE_HEADING_TEXT else null)
+        is PasteAction.Add -> listOf(if (action.looksLikeHeading) texts.looksLikeHeadingNotTicked else null)
         is PasteAction.MarkNeeded -> listOf(
             action.typedName?.let { otherNameText(it, action.name, spoken) },
             if (action.amountLeftOut) amountLeftOutText(action.name, spoken) else null,
@@ -399,67 +396,56 @@ private fun rowNotes(row: PasteRow, spoken: Boolean): String? {
         is PasteAction.ChangeAmount -> listOf(action.typedName?.let { otherNameText(it, action.name, spoken) })
         is PasteAction.Skipped -> listOf(
             when (action.reason) {
-                SkipReason.UNREADABLE -> "Couldn't read"
-                SkipReason.ZERO_AMOUNT -> "The amount is 0"
-                SkipReason.NAME_TOO_LONG -> "The name is too long"
-                SkipReason.HEADING -> "Looks like a heading"
-                SkipReason.UNIT_MISMATCH -> "${quotedItemName(action.itemName)} is in ${action.itemUnit}"
-                SkipReason.REPEATED -> "Listed twice"
+                SkipReason.UNREADABLE -> texts.unreadable
+                SkipReason.ZERO_AMOUNT -> texts.zeroAmount
+                SkipReason.NAME_TOO_LONG -> texts.nameTooLong
+                SkipReason.HEADING -> texts.looksLikeHeading
+                SkipReason.UNIT_MISMATCH -> texts.inOtherUnit(quotedItemName(action.itemName), action.itemUnit)
+                SkipReason.REPEATED -> texts.listedTwice
             },
         )
     }
-    return notes.filterNotNull().joinToString(if (spoken) ", " else ". ").ifEmpty { null }
+    return notes.filterNotNull().joinToString(if (spoken) ", " else texts.noteSeparator).ifEmpty { null }
 }
 
-/** Under a new item that looks like a heading ([PasteAction.Add.looksLikeHeading]). */
-private const val LOOKS_LIKE_HEADING_TEXT = "Looks like a heading, so it isn't ticked"
-
-/** "Curd → Dahi"; ([spoken]) "written as Curd". */
-private fun otherNameText(typedName: String, name: String, spoken: Boolean) =
-    if (spoken) "written as ${quotedItemName(typedName)}" else "${quotedItemName(typedName)} → ${quotedItemName(name)}"
+/** "Curd → Dahi" (the names and an arrow, the same in every language); ([spoken]) "written as Curd". */
+private fun otherNameText(typedName: String, name: String, spoken: Boolean): String =
+    if (spoken) {
+        Texts.current.bulk.writtenAs(quotedItemName(typedName))
+    } else {
+        "${quotedItemName(typedName)} → ${quotedItemName(name)}"
+    }
 
 /** A yes / no item [name] ignored the line's amount: "Dahi is yes / no, so the amount is left out". */
-private fun amountLeftOutText(name: String, spoken: Boolean) =
-    "${quotedItemName(name)} is ${if (spoken) "yes or no" else "yes / no"}, so the amount is left out"
+private fun amountLeftOutText(name: String, spoken: Boolean): String {
+    val texts = Texts.current.bulk
+    return if (spoken) texts.amountLeftOutSpoken(quotedItemName(name)) else texts.amountLeftOut(quotedItemName(name))
+}
 
 /** ", 2 kg" for a quantity (where the row shows " - 2 kg"); "" for yes / no. */
 private fun spokenAmount(value: ItemValue): String = (value as? ItemValue.Quantity)?.let { ", ${it.displayText()}" }.orEmpty()
 
 /** The preview's first line: what the paste holds, e.g. "5 new, 3 to update, 1 already needed, 2 skipped". */
 internal fun pasteSummaryText(rows: List<PasteRow>): String {
-    if (rows.isEmpty()) return "Nothing to add from this text."
-    val parts = listOf(
-        rows.count { it.action is PasteAction.Add } to "new",
-        rows.count { it.action is PasteAction.MarkNeeded || it.action is PasteAction.ChangeAmount } to "to update",
-        rows.count { it.action is PasteAction.AlreadyNeeded } to "already needed",
-        rows.count { it.action is PasteAction.Skipped } to "skipped",
+    val texts = Texts.current.bulk
+    if (rows.isEmpty()) return texts.nothingInPaste
+    return texts.pasteSummary(
+        new = rows.count { it.action is PasteAction.Add },
+        toUpdate = rows.count { it.action is PasteAction.MarkNeeded || it.action is PasteAction.ChangeAmount },
+        alreadyNeeded = rows.count { it.action is PasteAction.AlreadyNeeded },
+        skipped = rows.count { it.action is PasteAction.Skipped },
     )
-    return parts.filter { it.first > 0 }.joinToString(", ") { (count, what) -> "$count $what" }
 }
 
 /** The confirm button: "Add 5 items", "Update 3 items", "Apply 8 changes", or "Nothing to add" (disabled). */
-internal fun pasteConfirmText(chosen: List<PasteAction>): String {
-    val adds = chosen.count { it is PasteAction.Add }
-    val updates = chosen.count { it is PasteAction.MarkNeeded || it is PasteAction.ChangeAmount }
-    return when {
-        adds > 0 && updates > 0 -> "Apply ${adds + updates} changes"
-        adds > 0 -> "Add ${itemCount(adds)}"
-        updates > 0 -> "Update ${itemCount(updates)}"
-        else -> "Nothing to add"
-    }
-}
+internal fun pasteConfirmText(chosen: List<PasteAction>): String = Texts.current.bulk.pasteConfirm(
+    adds = chosen.count { it is PasteAction.Add },
+    updates = chosen.count { it is PasteAction.MarkNeeded || it is PasteAction.ChangeAmount },
+)
 
 /** The snackbar once a paste is applied: "Added 5 items, updated 3", plus the rows left out ([PasteEdit.ChangedMeanwhile]). */
-internal fun pasteResultText(added: Int, updated: Int, leftOut: Int): String {
-    val done = when {
-        added > 0 && updated > 0 -> "Added ${itemCount(added)}, updated $updated"
-        added > 0 -> "Added ${itemCount(added)}"
-        updated > 0 -> "Updated ${itemCount(updated)}"
-        else -> null
-    }
-    val left = if (leftOut > 0) "$leftOut skipped: changed on another phone" else null
-    return listOfNotNull(done, left).joinToString(". ").ifEmpty { "Nothing to change" }
-}
+internal fun pasteResultText(added: Int, updated: Int, leftOut: Int): String =
+    Texts.current.bulk.pasteResult(added, updated, leftOut)
 
 /** The text field after Paste: the clipboard's [pasted] text, after what is there on a new line. */
 internal fun withPastedText(current: String, pasted: String): String =
@@ -468,6 +454,5 @@ internal fun withPastedText(current: String, pasted: String): String =
 /** Under the text field: how many lines with text it has ("1 line", "12 lines"); "" for none. */
 internal fun pasteLineCountText(text: String): String = when (val count = PasteParser.lineCount(text)) {
     0 -> ""
-    1 -> "1 line"
-    else -> "$count lines"
+    else -> Texts.current.bulk.lineCount(count)
 }

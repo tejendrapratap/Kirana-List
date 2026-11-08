@@ -71,6 +71,7 @@ import com.grocerysync.app.data.Amount
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.PasteParser
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.appBarColors
 import kotlinx.coroutines.launch
@@ -137,14 +138,15 @@ private fun PasteScaffold(
     buttons: @Composable RowScope.() -> Unit,
     content: @Composable (Modifier) -> Unit,
 ) {
+    val t = Texts.current
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(PASTE_LIST_TITLE) },
+                title = { Text(t.bulk.pasteListTitle) },
                 colors = appBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = t.common.close)
                     }
                 },
             )
@@ -182,11 +184,12 @@ private fun PasteTextStep(initialText: String, onPreview: (String) -> Unit, onCl
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val tooLong = PasteParser.isTooLong(text)
+    val t = Texts.current
 
     PasteScaffold(
         onClose = onClose,
         buttons = {
-            Button(onClick = { onPreview(text) }, enabled = text.isNotBlank() && !tooLong) { Text("Next") }
+            Button(onClick = { onPreview(text) }, enabled = text.isNotBlank() && !tooLong) { Text(t.bulk.next) }
         },
     ) { modifier ->
         Column(
@@ -196,7 +199,7 @@ private fun PasteTextStep(initialText: String, onPreview: (String) -> Unit, onCl
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(PASTE_HELP, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(t.bulk.pasteHelp, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(
                 onClick = {
                     scope.launch {
@@ -205,16 +208,17 @@ private fun PasteTextStep(initialText: String, onPreview: (String) -> Unit, onCl
                         if (pasted != null) text = withPastedText(text, pasted)
                     }
                 },
-            ) { Text("Paste") }
+            ) { Text(t.bulk.paste) }
             if (clipboardEmpty) {
-                Text(NOTHING_TO_PASTE, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                Text(t.bulk.nothingToPaste, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
-            val supporting = if (tooLong) PASTE_TOO_LONG_TEXT else pasteLineCountText(text)
+            val tooLongText = PASTE_TOO_LONG_TEXT
+            val supporting = if (tooLong) tooLongText else pasteLineCountText(text)
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it.take(MAX_PASTE_FIELD_CHARS) },
-                label = { Text("List") },
-                placeholder = { Text("Rice 2 kg\nDahi\nOnion 1 kg") },
+                label = { Text(t.bulk.listField) },
+                placeholder = { Text(t.bulk.listFieldExample) },
                 minLines = 6,
                 isError = tooLong,
                 supportingText = if (supporting.isNotEmpty()) {
@@ -226,7 +230,7 @@ private fun PasteTextStep(initialText: String, onPreview: (String) -> Unit, onCl
                 modifier = Modifier
                     .fillMaxWidth()
                     // TalkBack says why instead of Material's "Invalid input".
-                    .semantics { if (tooLong) error(PASTE_TOO_LONG_TEXT) },
+                    .semantics { if (tooLong) error(tooLongText) },
             )
         }
     }
@@ -245,10 +249,11 @@ private fun PastePreviewStep(
     onClose: () -> Unit,
 ) {
     val chosen = state.chosen
+    val t = Texts.current
     PasteScaffold(
         onClose = onClose,
         buttons = {
-            TextButton(onClick = onEditText) { Text("Edit list") }
+            TextButton(onClick = onEditText) { Text(t.bulk.editList) }
             Button(onClick = { onApply(chosen) }, enabled = state.canApply) { Text(pasteConfirmText(chosen)) }
         },
     ) { modifier ->
@@ -264,7 +269,7 @@ private fun PastePreviewStep(
             if (state.waitingForList) {
                 item(key = "waiting", contentType = "waiting") {
                     Text(
-                        text = PASTE_WAITING_TEXT,
+                        text = t.bulk.waitingForList,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier

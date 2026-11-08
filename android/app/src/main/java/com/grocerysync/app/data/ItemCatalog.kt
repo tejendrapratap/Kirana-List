@@ -2,7 +2,9 @@ package com.grocerysync.app.data
 
 /**
  * Where an item is usually found, in the order a shopper walks the sabzi stalls and the kirana (To buy can be
- * grouped in this order). [id] is what a phone stores for a section and never changes; [label] is shown.
+ * grouped in this order). [id] is what a phone stores for a section and never changes. [label] is its stable
+ * English name, which Paste a list also recognises in a shared list; screens show
+ * [CommonTexts.sectionName][com.grocerysync.app.text.CommonTexts.sectionName], in the phone's language.
  */
 enum class ShopSection(val id: String, val label: String) {
     SABZI_FRUIT("sabzi_fruit", "Sabzi & fruit"),
@@ -25,22 +27,25 @@ enum class ShopSection(val id: String, val label: String) {
     }
 }
 
-/** The ready-made sets offered by "Add common items". */
-enum class CatalogSet(val label: String) {
+/**
+ * The ready-made sets offered by "Add common items", in the order of their chips. Their names are shown in the
+ * phone's language ([BulkTexts.setName][com.grocerysync.app.text.BulkTexts.setName]); nothing stores or sends them.
+ */
+enum class CatalogSet {
     /** Every core and common entry. */
-    EVERYDAY("Everyday"),
+    EVERYDAY,
 
     /** Dry staples and household goods bought once a month. */
-    MONTHLY_KIRANA("Monthly kirana"),
+    MONTHLY_KIRANA,
 
     /** What Lakshmi puja on Diwali uses up: diya, rui batti, ghee, kapoor, agarbatti, roli, ... */
-    DIWALI_PUJA("Diwali puja"),
+    DIWALI_PUJA,
 
     /** What fasting days (vrat, Navratri) use: sabudana, kuttu atta, sendha namak, makhana, ... */
-    VRAT("Vrat / fasting"),
+    VRAT,
 
     /** Every entry. */
-    ALL("All"),
+    ALL,
 }
 
 /**

@@ -8,6 +8,8 @@ import com.grocerysync.app.data.ItemValue.BoolValue
 import com.grocerysync.app.data.ItemValue.Quantity
 import com.grocerysync.app.data.PasteParser
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.text.AppTexts
+import com.grocerysync.app.text.withTexts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -387,6 +389,100 @@ class PastePlanTest {
         assertEquals("Added 1 item, updated 3", pasteResultText(added = 1, updated = 3, leftOut = 0))
         assertEquals("Updated 1 item. 2 skipped: changed on another phone", pasteResultText(added = 0, updated = 1, leftOut = 2))
         assertEquals("Nothing to change", pasteResultText(added = 0, updated = 0, leftOut = 0))
+    }
+
+    @Test
+    fun rowTextsInHindi() = withTexts(AppTexts.Hindi) {
+        fun row(action: PasteAction, line: String = "") = PasteRow(0, line, action)
+        // What a row does comes first, as a label; names and amounts are data.
+        assertEquals("जोड़ें: Rice - 2 kg", pasteRowText(row(PasteAction.Add("Rice", qty("2", Units.KG)))))
+        assertEquals("जोड़ें: दही", pasteRowText(row(PasteAction.Add("दही", BoolValue(true)))))
+        val curd = row(PasteAction.MarkNeeded("dahi", "Dahi", "Curd", BoolValue(false), BoolValue(true)))
+        assertEquals("चाहिए: Dahi", pasteRowText(curd))
+        assertEquals("Curd → Dahi", pasteRowDetail(curd))
+        assertEquals("चाहिए: Rice - 2 kg", pasteRowText(row(PasteAction.MarkNeeded("rice", "Rice", null, qty("0", Units.KG), qty("2", Units.KG)))))
+        assertEquals("पहले से चाहिए: Oil", pasteRowText(row(PasteAction.AlreadyNeeded("Oil", null))))
+        assertEquals(
+            "बदलें: Rice 2 kg → 3 kg",
+            pasteRowText(row(PasteAction.ChangeAmount("rice", "Rice", null, qty("2", Units.KG), qty("3", Units.KG)))),
+        )
+        val mismatch = row(PasteAction.Skipped(SkipReason.UNIT_MISMATCH, "Rice", Units.KG), line = "Rice 2")
+        assertEquals("छोड़ दिया: Rice 2", pasteRowText(mismatch))
+        assertEquals("Rice की यूनिट kg है", pasteRowDetail(mismatch))
+        assertEquals("समझ नहीं आया", pasteRowDetail(row(PasteAction.Skipped(SkipReason.UNREADABLE))))
+        assertEquals("मात्रा 0 है", pasteRowDetail(row(PasteAction.Skipped(SkipReason.ZERO_AMOUNT))))
+        assertEquals("नाम बहुत लंबा है", pasteRowDetail(row(PasteAction.Skipped(SkipReason.NAME_TOO_LONG))))
+        assertEquals("हेडिंग लगती है", pasteRowDetail(row(PasteAction.Skipped(SkipReason.HEADING))))
+        assertEquals("दो बार लिखा है", pasteRowDetail(row(PasteAction.Skipped(SkipReason.REPEATED))))
+        assertEquals(
+            "हेडिंग लगती है, इसलिए टिक नहीं किया",
+            pasteRowDetail(row(PasteAction.Add("Kirana", BoolValue(true), looksLikeHeading = true))),
+        )
+        // Notes are separate sentences, ended the Hindi way (।).
+        val curd1kg = row(PasteAction.MarkNeeded("dahi", "Dahi", "Curd", BoolValue(false), BoolValue(true), amountLeftOut = true))
+        assertEquals("Curd → Dahi। Dahi हाँ या नहीं वाला है, इसलिए मात्रा छोड़ दी", pasteRowDetail(curd1kg))
+    }
+
+    @Test
+    fun talkBackReadsRowsInHindi() = withTexts(AppTexts.Hindi) {
+        fun row(action: PasteAction, line: String = "") = PasteRow(0, line, action)
+        assertEquals("जोड़ें: Rice, 2 kg", pasteRowDescription(row(PasteAction.Add("Rice", qty("2", Units.KG)))))
+        assertEquals(
+            "चाहिए: Dahi, Curd लिखा था, Dahi हाँ या नहीं वाला है, इसलिए मात्रा छोड़ दी",
+            pasteRowDescription(row(PasteAction.MarkNeeded("dahi", "Dahi", "Curd", BoolValue(false), BoolValue(true), amountLeftOut = true))),
+        )
+        assertEquals(
+            "बदलें: Rice, 2 kg से 3 kg",
+            pasteRowDescription(row(PasteAction.ChangeAmount("rice", "Rice", null, qty("2", Units.KG), qty("3", Units.KG)))),
+        )
+        assertEquals(
+            "छोड़ दिया: Eggs 12, Eggs की यूनिट dozen है",
+            pasteRowDescription(row(PasteAction.Skipped(SkipReason.UNIT_MISMATCH, "Eggs", Units.DOZEN), line = "Eggs 12")),
+        )
+    }
+
+    @Test
+    fun summaryButtonAndResultTextsInHindi() = withTexts(AppTexts.Hindi) {
+        val rows = planPaste(PasteParser.parse("Rice 3 kg\nDahi\nOil\nMilk\n2 kg"), listOf(item("Rice", qty("2", Units.KG)), item("Oil", BoolValue(true))))
+        assertEquals("2 नई, 1 बदलेगी, 1 पहले से चाहिए, 1 छोड़ी", pasteSummaryText(rows))
+        // More than one: the verb's plural.
+        val more = planPaste(PasteParser.parse("Rice 3 kg\nDahi\n2 kg\n0 kg rice"), listOf(item("Rice", qty("2", Units.KG)), item("Dahi", BoolValue(false))))
+        assertEquals("2 बदलेंगी, 2 छोड़ीं", pasteSummaryText(more))
+        assertEquals("इस टेक्स्ट में जोड़ने को कुछ नहीं है।", pasteSummaryText(emptyList()))
+
+        val add = PasteAction.Add("Dahi", BoolValue(true))
+        val mark = PasteAction.MarkNeeded("oil", "Oil", null, BoolValue(false), BoolValue(true))
+        assertEquals("1 चीज़ जोड़ें", pasteConfirmText(listOf(add)))
+        assertEquals("5 चीज़ें जोड़ें", pasteConfirmText(List(5) { add }))
+        assertEquals("1 चीज़ अपडेट करें", pasteConfirmText(listOf(mark)))
+        assertEquals("3 चीज़ें अपडेट करें", pasteConfirmText(List(3) { mark }))
+        assertEquals("8 बदलाव करें", pasteConfirmText(List(5) { add } + List(3) { mark }))
+        assertEquals("जोड़ने को कुछ नहीं", pasteConfirmText(emptyList()))
+
+        assertEquals("1 चीज़ जोड़ दी", pasteResultText(added = 1, updated = 0, leftOut = 0))
+        assertEquals("5 चीज़ें जोड़ दीं", pasteResultText(added = 5, updated = 0, leftOut = 0))
+        assertEquals("1 चीज़ जोड़ दी, 3 अपडेट कीं", pasteResultText(added = 1, updated = 3, leftOut = 0))
+        assertEquals("2 चीज़ें जोड़ दीं, 1 अपडेट की", pasteResultText(added = 2, updated = 1, leftOut = 0))
+        assertEquals(
+            "1 चीज़ अपडेट की। 2 छोड़ दीं: दूसरे फ़ोन पर बदली गई थीं",
+            pasteResultText(added = 0, updated = 1, leftOut = 2),
+        )
+        assertEquals(
+            "3 चीज़ें अपडेट कीं। 1 छोड़ दी: दूसरे फ़ोन पर बदली गई थी",
+            pasteResultText(added = 0, updated = 3, leftOut = 1),
+        )
+        assertEquals("1 छोड़ दी: दूसरे फ़ोन पर बदली गई थी", pasteResultText(added = 0, updated = 0, leftOut = 1))
+        assertEquals("कुछ नहीं बदला", pasteResultText(added = 0, updated = 0, leftOut = 0))
+    }
+
+    @Test
+    fun theTextFieldInHindi() = withTexts(AppTexts.Hindi) {
+        assertEquals("", pasteLineCountText("  \n"))
+        assertEquals("1 लाइन", pasteLineCountText("Rice\n\n"))
+        assertEquals("2 लाइनें", pasteLineCountText("Rice\nदही"))
+        assertEquals("बहुत लंबा है: ज़्यादा से ज़्यादा 200 लाइनें और 10,000 अक्षर पेस्ट करें।", PASTE_TOO_LONG_TEXT)
+        assertEquals("पहले किराना लिस्ट सेट अप करें, फिर लिस्ट दोबारा शेयर करें।", SHARE_NOT_SET_UP_TEXT)
+        assertEquals("यह पढ़ा नहीं जा सका। लिस्ट को टेक्स्ट के रूप में शेयर करें।", SHARE_UNREADABLE_TEXT)
     }
 
     @Test

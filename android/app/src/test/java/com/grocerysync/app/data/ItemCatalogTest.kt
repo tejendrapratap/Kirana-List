@@ -5,6 +5,7 @@ import com.grocerysync.app.data.ItemCatalog.matchesQuery
 import com.grocerysync.app.data.ItemCatalog.nameOnList
 import com.grocerysync.app.data.ItemCatalog.sectionFor
 import com.grocerysync.app.data.ItemCatalog.similarExisting
+import com.grocerysync.app.text.EnglishBulkTexts
 import com.grocerysync.app.ui.ItemSearch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -359,7 +360,7 @@ class ItemCatalogTest {
         )
         assertEquals(
             listOf("Everyday", "Monthly kirana", "Diwali puja", "Vrat / fasting", "All"),
-            CatalogSet.entries.map { it.label },
+            CatalogSet.entries.map(EnglishBulkTexts::setName),
         )
     }
 

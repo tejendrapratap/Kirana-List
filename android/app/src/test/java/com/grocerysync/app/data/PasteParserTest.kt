@@ -1,11 +1,16 @@
 package com.grocerysync.app.data
 
+import com.grocerysync.app.text.CommonTexts
+import com.grocerysync.app.text.EnglishCommonTexts
+import com.grocerysync.app.text.HindiCommonTexts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.text.Normalizer
 
 /** Reading a pasted or shared list ([PasteParser]): one item per line, with or without an amount. */
 class PasteParserTest {
@@ -154,6 +159,125 @@ class PasteParserTest {
         for (section in ShopSection.entries) assertIgnored("*${section.label}*")
     }
 
+    /** [text] with each nukta letter as one character (ज़ is U+095B), as some keyboards type it. */
+    private fun precomposed(text: String): String =
+        NUKTA_LETTERS.entries.fold(decomposed(text)) { out, (pair, letter) -> out.replace(pair, letter) }
+
+    /** [text] with each nukta letter as two characters (ज + ़), as other keyboards type it. */
+    private fun decomposed(text: String): String = Normalizer.normalize(text, Normalizer.Form.NFD)
+
+    /** Both ways of writing [text]'s nukta letters; they differ when it has one. */
+    private fun nuktaForms(text: String): List<String> = listOf(text, precomposed(text), decomposed(text))
+
+    /**
+     * A To buy list grouped by shop section as Share writes it in the language of [texts]: the title, a blank line,
+     * then each section's name in bold over its items, the sections separated by blank lines.
+     */
+    private fun shareText(texts: CommonTexts, sections: List<Pair<ShopSection, List<String>>>): String {
+        val lines = mutableListOf(texts.shareTitle(sections.sumOf { it.second.size }), "")
+        sections.forEachIndexed { index, (section, items) ->
+            if (index > 0) lines += ""
+            lines += "*${texts.sectionName(section)}*"
+            items.mapTo(lines) { "• $it" }
+        }
+        return lines.joinToString("\n")
+    }
+
+    @Test
+    fun theTestsWriteNuktaLettersBothWays() {
+        val title = HindiCommonTexts.shareTitle(3)
+        assertNotEquals(precomposed(title), decomposed(title))
+        assertEquals(SearchText.fold(precomposed(title)), SearchText.fold(decomposed(title)))
+    }
+
+    @Test
+    fun leavesOutSharesTitleInEveryLanguageForAnyCount() {
+        for (texts in listOf(EnglishCommonTexts, HindiCommonTexts)) {
+            for (count in listOf(0, 1, 2, 3, 12, 150)) {
+                for (title in nuktaForms(texts.shareTitle(count))) assertIgnored(title)
+            }
+        }
+        // As before 1.6: capitals, spaces at the brackets, and the singular or plural word with any count.
+        assertIgnored("GROCERY LIST (2 ITEMS)")
+        assertIgnored("Grocery list(12 items )")
+        assertIgnored("Grocery list (3 item)")
+        // The same for the Hindi title, which may also have come with Devanagari digits.
+        assertIgnored("किराने की लिस्ट(12 चीज़ें )")
+        assertIgnored("किराने की लिस्ट (3 चीज़)")
+        assertIgnored("किराने की लिस्ट (३ चीज़ें)")
+        assertIgnored("*किराने की लिस्ट (1 चीज़)*")
+        // Without its count it is no title: an item of that name, as "Grocery list" always was.
+        assertItem("किराने की लिस्ट", "किराने की लिस्ट")
+        assertItem("Grocery list", "Grocery list")
+    }
+
+    @Test
+    fun leavesOutSharesSectionHeadingsInEveryLanguage() {
+        for (section in ShopSection.entries) {
+            for (name in listOf(EnglishCommonTexts.sectionName(section), HindiCommonTexts.sectionName(section))) {
+                for (heading in nuktaForms(name)) assertIgnored("*$heading*")
+            }
+        }
+        // Some of them have nukta letters, so both ways of writing them are checked above.
+        assertTrue(ShopSection.entries.map(HindiCommonTexts::sectionName).any { precomposed(it) != decomposed(it) })
+        // Not in bold, a section's name is an item's, in Hindi as in English.
+        assertItem("मसाले", "मसाले")
+        assertItem("सब्ज़ी और फल", "सब्ज़ी और फल")
+        // Only a whole section name: a part of one in bold may be a heading of the family's own list.
+        assertEquals(true, PasteParser.parseLine("*सब्ज़ी*")?.bold)
+    }
+
+    @Test
+    fun aHindiShareGivesTheSameItemsAsAnEnglishOne() {
+        // Every section, so every heading is read; names and amounts are data, the same in both languages.
+        val items = listOf(
+            "Onion - 1 kg", "Dahi", "Chicken - 500 g", "Atta - 10 kg", "Ghee - 1 L", "Haldi - 1 pack",
+            "Chai patti - 250 g", "Kaju - 200 g", "Maggi - 4 pack", "Vim bar - × 2", "Colgate", "Agarbatti", "Batteries",
+        )
+        val sections = ShopSection.entries.zip(items) { section, item -> section to listOf(item) }
+        val english = PasteParser.parse(shareText(EnglishCommonTexts, sections))
+        assertEquals(
+            listOf(
+                "Onion", "Dahi", "Chicken", "Atta", "Ghee", "Haldi", "Chai patti", "Kaju", "Maggi", "Vim bar", "Colgate",
+                "Agarbatti", "Batteries",
+            ),
+            english.map { it.name },
+        )
+        assertTrue(english.none { it.bold || it.problem != null })
+
+        for (hindi in nuktaForms(shareText(HindiCommonTexts, sections))) assertEquals(english, PasteParser.parse(hindi))
+        // One item: the singular title.
+        val one = listOf(ShopSection.DAIRY_EGGS_BREAD to listOf("Dahi"))
+        for (hindi in nuktaForms(shareText(HindiCommonTexts, one))) {
+            assertEquals(PasteParser.parse(shareText(EnglishCommonTexts, one)), PasteParser.parse(hindi))
+        }
+    }
+
+    @Test
+    fun aPasteMayMixLanguages() {
+        // Two shared messages, one from a Hindi phone (copied with its sender), one from an English phone, then the
+        // family's own lines in Hindi and English.
+        val text = listOf(
+            "[08/11/26, 10:15 am] Mummy: ${HindiCommonTexts.shareTitle(2)}",
+            "",
+            "*${decomposed(HindiCommonTexts.sectionName(ShopSection.SABZI_FRUIT))}*",
+            "• प्याज़ - 1 kg",
+            "• Dhaniya",
+            EnglishCommonTexts.shareTitle(1),
+            "*${EnglishCommonTexts.sectionName(ShopSection.DAIRY_EGGS_BREAD)}*",
+            "• Dahi",
+            "*${precomposed(HindiCommonTexts.sectionName(ShopSection.CLEANING_HOUSEHOLD))}*",
+            "चावल २ किलो",
+            "*Sabzi*",
+        ).joinToString("\n")
+        val lines = PasteParser.parse(text)
+        assertEquals(listOf("प्याज़", "Dhaniya", "Dahi", "चावल", "Sabzi"), lines.map { it.name })
+        assertEquals(listOf(Amount.parse("1"), null, null, Amount.parse("2"), null), lines.map { it.amount })
+        assertEquals(listOf("kg", null, null, "kg", null), lines.map { it.unit })
+        // A bold line that is no section name of Share's may be a heading of the family's own: the preview decides.
+        assertEquals(listOf(false, false, false, false, true), lines.map { it.bold })
+    }
+
     @Test
     fun marksALineWhollyInBold() {
         // It may be a heading of a hand-written list; the preview decides (it knows the list and the dictionary).
@@ -214,5 +338,13 @@ class PasteParserTest {
         assertTrue(PasteParser.isTooLong("a".repeat(PasteParser.MAX_CHARS + 1)))
         // parse() itself never reads more than 200 lines.
         assertEquals(200, PasteParser.parse(lines200 + "\nOne more").size)
+    }
+
+    private companion object {
+        /** The Devanagari letters with a nukta of their own (U+0958 to U+095F), by their letter + nukta. */
+        val NUKTA_LETTERS = mapOf(
+            "क़" to "क़", "ख़" to "ख़", "ग़" to "ग़", "ज़" to "ज़",
+            "ड़" to "ड़", "ढ़" to "ढ़", "फ़" to "फ़", "य़" to "य़",
+        )
     }
 }

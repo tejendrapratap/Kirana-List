@@ -8,6 +8,10 @@ import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.text.AppTexts
+import com.grocerysync.app.text.EnglishBulkTexts
+import com.grocerysync.app.text.Texts
+import com.grocerysync.app.text.withTexts
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -29,7 +33,7 @@ class StarterListTest {
     fun theChipsAreTheSetsInTheirOrder() {
         assertEquals(
             listOf("Everyday", "Monthly kirana", "Diwali puja", "Vrat / fasting", "All"),
-            StarterList.SETS.map { it.label },
+            StarterList.SETS.map(EnglishBulkTexts::setName),
         )
     }
 
@@ -228,6 +232,37 @@ class StarterListTest {
             StarterList.NOT_CONNECTED_TEXT,
         )
         assertEquals("Wait until your list has loaded from the sheet, then try again.", StarterList.LIST_NOT_LOADED_TEXT)
+    }
+
+    @Test
+    fun inHindi() = withTexts(AppTexts.Hindi) {
+        assertEquals("आम सामान जोड़ें", StarterList.TITLE)
+        assertEquals(listOf("रोज़ का", "महीने का किराना", "दिवाली पूजा", "व्रत", "सब"), StarterList.SETS.map(Texts.current.bulk::setName))
+
+        // Item names and units are data; the words around them are Hindi.
+        assertEquals("लिस्ट में Curd नाम से है", StarterList.onListText("Curd"))
+        assertEquals("लिस्ट में " + "A".repeat(37) + "... नाम से है", StarterList.onListText("A".repeat(60)))
+        assertEquals("kg", StarterList.unitText(entry("Atta")))
+        assertEquals("हाँ या नहीं", StarterList.unitText(entry("Dahi")))
+        val groups = StarterList.groups(CatalogSet.ALL, listOf("Tel"))
+        assertEquals("Onion, Pyaaz, प्याज़, kg", StarterList.rowDescription(row(groups, "Onion")))
+        assertEquals("Dahi, Curd, दही, हाँ या नहीं", StarterList.rowDescription(row(groups, "Dahi")))
+        assertEquals("Oil, लिस्ट में Tel नाम से है", StarterList.rowDescription(row(groups, "Oil")))
+
+        // Counted: चीज़ / चीज़ें, and the verb agrees ("जोड़ दी" for one, "जोड़ दीं" for more).
+        assertEquals("चीज़ें जोड़ें", StarterList.addButtonText(0))
+        assertEquals("1 चीज़ जोड़ें", StarterList.addButtonText(1))
+        assertEquals("12 चीज़ें जोड़ें", StarterList.addButtonText(12))
+        assertEquals("सारा सामान में 1 चीज़ जोड़ दी", StarterList.addedText(1))
+        assertEquals("सारा सामान में 12 चीज़ें जोड़ दीं", StarterList.addedText(12))
+        assertEquals("कुछ नहीं जुड़ा: ये चीज़ें पहले से लिस्ट में हैं", StarterList.addedText(0))
+        assertEquals("1 चीज़ नहीं हटी: दूसरे फ़ोन पर बदली गई है", StarterList.keptText(1))
+        assertEquals("3 चीज़ें नहीं हटीं: दूसरे फ़ोन पर बदली गई हैं", StarterList.keptText(3))
+        assertEquals(
+            "पहले सेटिंग्स में अपनी शीट से जुड़ें, ताकि उसमें पहले से रखा सामान बदल न जाए।",
+            StarterList.NOT_CONNECTED_TEXT,
+        )
+        assertEquals("शीट से आपकी लिस्ट आने तक रुकें, फिर दोबारा कोशिश करें।", StarterList.LIST_NOT_LOADED_TEXT)
     }
 
     /** Records what the dialog adds; answers [refuse]d names with AlreadyOnList, as the repository would. */

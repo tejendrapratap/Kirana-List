@@ -64,6 +64,7 @@ import com.grocerysync.app.data.CatalogSet
 import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ShopSection
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.components.SectionAccentBar
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.appBarColors
@@ -142,15 +143,16 @@ private fun StarterListContent(
     val allTicked = StarterList.allTicked(groups, unticked)
     // Each set starts at its top; saved, so a rotation keeps the place.
     val listState = rememberSaveable(set, saver = LazyListState.Saver) { LazyListState() }
+    val t = Texts.current
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(StarterList.TITLE, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = { Text(t.bulk.addCommonItemsTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 colors = appBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = t.common.close)
                     }
                 },
             )
@@ -159,8 +161,8 @@ private fun StarterListContent(
             AddBar(
                 selectText = when {
                     !hasAddable -> null
-                    allTicked -> StarterList.SELECT_NONE
-                    else -> StarterList.SELECT_ALL
+                    allTicked -> t.bulk.selectNone
+                    else -> t.bulk.selectAll
                 },
                 onSelect = { onUntickedChange { StarterList.selectAll(groups, it, select = !allTicked) } },
                 addText = StarterList.addButtonText(toAdd.size),
@@ -184,7 +186,7 @@ private fun StarterListContent(
             ) {
                 item(key = "hint", contentType = "hint") {
                     Text(
-                        text = if (hasAddable) StarterList.HINT else StarterList.ALL_ON_LIST_HINT,
+                        text = if (hasAddable) t.bulk.addCommonItemsHint else t.bulk.allOfSetOnList,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -227,7 +229,7 @@ private fun SetChips(set: CatalogSet, onSetChange: (CatalogSet) -> Unit) {
             FilterChip(
                 selected = selected,
                 onClick = { onSetChange(option) },
-                label = { Text(option.label, maxLines = 1) },
+                label = { Text(Texts.current.bulk.setName(option), maxLines = 1) },
                 // Leaf green when selected, like the list's To buy / All items row.
                 colors = choiceChipColors(),
                 // Not only the colour says which set is shown.
@@ -255,7 +257,7 @@ private fun SectionHeader(section: ShopSection) {
             SectionAccentBar(section)
             Spacer(Modifier.width(12.dp))
             Text(
-                text = section.label,
+                text = Texts.current.common.sectionName(section),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.semantics { heading() },

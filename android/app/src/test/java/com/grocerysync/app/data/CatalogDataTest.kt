@@ -94,7 +94,7 @@ class CatalogDataTest {
 
     @Test
     fun everySetHasItsEntries() {
-        for (set in CatalogSet.entries) assertTrue(set.label, ItemCatalog.entriesIn(set).isNotEmpty())
+        for (set in CatalogSet.entries) assertTrue(set.name, ItemCatalog.entriesIn(set).isNotEmpty())
         for (entry in entries) {
             assertTrue(entry.displayName, CatalogSet.ALL in entry.sets)
             assertEquals(entry.displayName, entry.grade != CatalogGrade.REGIONAL, CatalogSet.EVERYDAY in entry.sets)
