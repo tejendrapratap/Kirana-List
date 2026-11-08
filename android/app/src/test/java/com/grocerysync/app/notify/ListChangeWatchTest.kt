@@ -96,6 +96,27 @@ class ListChangeWatchTest {
     }
 
     @Test
+    fun anotherPhoneWithThisPhonesNameCountsAsThisPhone() {
+        // Two phones of the same model, neither with a name: both write the model's name to the sheet, so neither
+        // can tell the other's changes from its own (why Settings asks for a name while notifications are on).
+        val model = "23021RAAEG"
+        val fromTheOtherPhone = listOf(yes("Dahi", by = model), yes("Oil", by = " 23021raaeg "))
+        assertEquals(emptyList<ToBuyChange>(), ListChangeWatch.newOnToBuy(emptyMap(), fromTheOtherPhone, model))
+    }
+
+    @Test
+    fun aNotificationTellsEachChangeWithItsValue() {
+        val seen = ListChangeWatch.seen(listOf(qty("Rice", "2")))
+        val now = listOf(yes("Dahi"), qty("Rice", "5"), yes("Salt", needed = false))
+        assertEquals(
+            mapOf("dahi" to "boolean true ", "rice" to "quantity 5 kg"),
+            ListChangeWatch.told(ListChangeWatch.newOnToBuy(seen, now, ME)),
+        )
+        // The same items with the same values: the same thing told.
+        assertEquals(ListChangeWatch.seen(now), ListChangeWatch.told(ListChangeWatch.newOnToBuy(emptyMap(), now, ME)))
+    }
+
+    @Test
     fun rowsWithoutANameAreNobodysChange() {
         assertFalse(ListChangeWatch.isByOthers(yes("Dahi", by = ""), ME))
         assertFalse(ListChangeWatch.isByOthers(yes("Dahi", by = "   "), ME))

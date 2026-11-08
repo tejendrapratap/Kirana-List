@@ -200,9 +200,11 @@ private class PageSwitcher(private val pagerState: PagerState, private val scope
     }
 }
 
+/** [showToBuy]: goes up with each tap on the change notification, which shows To buy (see MainActivity). */
 @Composable
 fun ListScreen(
     onOpenSettings: () -> Unit,
+    showToBuy: Int = 0,
     viewModel: ListViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -234,6 +236,16 @@ fun ListScreen(
                 // A drag took over (and settles the pager itself); only a cancelled effect stops here.
                 ensureActive()
             }
+        }
+    }
+    // A tap on the change notification shows To buy (Simple mode shows nothing else). Each tap once: the count seen
+    // last is saved, so coming back from Settings later doesn't switch pages, and after the activity is recreated
+    // (its count starts again at 0) it only takes the new count.
+    var toBuyShownFor by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(showToBuy) {
+        if (showToBuy != toBuyShownFor) {
+            toBuyShownFor = showToBuy
+            if (showToBuy > 0 && !simpleMode) pages.show(ListFilter.TO_BUY.page)
         }
     }
     // Simple mode has no search, so nothing could close one left open (from before it was turned on): it closes.

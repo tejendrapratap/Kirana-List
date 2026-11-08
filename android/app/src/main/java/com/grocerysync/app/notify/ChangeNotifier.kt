@@ -1,6 +1,7 @@
 package com.grocerysync.app.notify
 
 import android.Manifest
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -22,18 +23,24 @@ interface ChangeAlerts {
     /** Android lets the app show the change notification now ([notificationsAllowed]). */
     fun allowed(): Boolean
 
-    /** Shows [notice], replacing the one shown before; false when Android doesn't let the app (nothing shown). */
-    fun show(notice: ChangeNotice): Boolean
+    /**
+     * Shows [notice], replacing the one shown before; false when Android doesn't let the app (nothing shown).
+     * [alert]: it sounds (as the person set the channel); false updates a notification still up quietly.
+     */
+    fun show(notice: ChangeNotice, alert: Boolean): Boolean
 
     /** Takes the notification away: the person is looking at the list. */
     fun cancel()
+
+    /** The notification is still up: neither opened nor swiped away. */
+    fun isShowing(): Boolean
 }
 
 /**
  * The change notification: one channel ("list_changes", importance default), one notification id, so a new check's
- * notification replaces the last one. Tapping it opens the app ([MainActivity], as the launcher does) and takes it
- * away. Never throws for a missing permission: without POST_NOTIFICATIONS (Android 13+) or with the app's
- * notifications turned off, nothing is shown.
+ * notification replaces the last one. Tapping it opens the app on To buy ([openAppIntent]) and takes it away. Never
+ * throws for a missing permission: without POST_NOTIFICATIONS (Android 13+) or with the app's notifications turned
+ * off, nothing is shown.
  */
 class ChangeNotifier(context: Context) : ChangeAlerts {
 
@@ -56,7 +63,7 @@ class ChangeNotifier(context: Context) : ChangeAlerts {
 
     override fun allowed(): Boolean = notificationsAllowed(appContext)
 
-    override fun show(notice: ChangeNotice): Boolean {
+    override fun show(notice: ChangeNotice, alert: Boolean): Boolean {
         // Asked here as well (not only by allowed()): the permission can be taken away at any moment.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(appContext, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -74,6 +81,8 @@ class ChangeNotifier(context: Context) : ChangeAlerts {
             .setStyle(NotificationCompat.BigTextStyle().bigText(notice.text))
             .setContentIntent(openApp())
             .setAutoCancel(true)
+            // Quiet while the one it replaces is still up; one that isn't up always sounds.
+            .setOnlyAlertOnce(!alert)
             .build()
         return try {
             manager.notify(NOTIFICATION_ID, notification)
@@ -88,21 +97,32 @@ class ChangeNotifier(context: Context) : ChangeAlerts {
         manager.cancel(NOTIFICATION_ID)
     }
 
-    /** Opens the app as its launcher icon does: back to where it was, or the list on a fresh start. */
-    private fun openApp(): PendingIntent {
-        val intent = Intent(appContext, MainActivity::class.java)
-            .setAction(Intent.ACTION_MAIN)
-            .addCategory(Intent.CATEGORY_LAUNCHER)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return PendingIntent.getActivity(
+    override fun isShowing(): Boolean =
+        appContext.getSystemService(NotificationManager::class.java)
+            ?.activeNotifications
+            ?.any { it.id == NOTIFICATION_ID } == true
+
+    private fun openApp(): PendingIntent =
+        PendingIntent.getActivity(
             appContext,
             0,
-            intent,
+            openAppIntent(appContext),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-    }
 
     companion object {
+        /**
+         * What tapping the notification starts: the app as its launcher icon opens it (the task it was left in, so
+         * nothing typed there is lost), told to show To buy, which the notification is about
+         * ([MainActivity.EXTRA_SHOW_TO_BUY]; an extra keeps the intent the launcher's, so no second app window opens).
+         */
+        internal fun openAppIntent(context: Context): Intent =
+            Intent(context, MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putExtra(MainActivity.EXTRA_SHOW_TO_BUY, true)
+
         const val CHANNEL_ID = "list_changes"
 
         /** The change notification's id: one at a time. */

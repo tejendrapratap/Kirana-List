@@ -18,7 +18,10 @@ interface NotifyTexts {
      */
     fun people(names: List<String>): String
 
-    /** The title when at least one item is new on To buy: "Mummy added 3 items to To buy" ([people] from [people]). */
+    /**
+     * The title when at least one item is new on To buy: "Mummy added 3 items to To buy" ([people] from [people]: who
+     * added them; [n]: how many were added, not counting amounts changed beside them).
+     */
     fun addedTitle(people: String, n: Int): String
 
     /** The title when only amounts of items already on To buy changed: "Mummy changed To buy". */

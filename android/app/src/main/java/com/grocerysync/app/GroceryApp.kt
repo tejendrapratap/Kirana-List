@@ -15,6 +15,9 @@ import com.grocerysync.app.notify.SeenListStore
 import com.grocerysync.app.sync.SyncScheduler
 import com.grocerysync.app.text.Texts
 import com.grocerysync.app.text.update
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -28,6 +31,9 @@ class GroceryApp : Application() {
         private set
 
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    /** While the app is visible: marks the list seen each time it changes ([markSeenWhileOpen]). */
+    private var seenWhileOpen: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -45,6 +51,11 @@ class GroceryApp : Application() {
                 val (mirror, ops) = container.database.loadSnapshot()
                 ListLogic.overlay(mirror, ops, container.settings.effectiveDeviceName())
             },
+            listSheet = {
+                // The URL that answered last is the list's sheet; until the one saved last answers, the list isn't its.
+                val connection = container.settings.current()
+                container.database.syncInfo().sheetUrl?.takeIf { connection.isConfigured && it == connection.webAppUrl }
+            },
             myName = container.settings::effectiveDeviceName,
         )
 
@@ -55,11 +66,14 @@ class GroceryApp : Application() {
                 changeWatcher.onForeground()
                 container.liveSync.start()
                 registerNetworkCallback()
+                markSeenWhileOpen()
             }
 
             override fun onStop(owner: LifecycleOwner) {
                 unregisterNetworkCallback()
                 container.liveSync.stop()
+                seenWhileOpen?.cancel()
+                seenWhileOpen = null
                 changeWatcher.onBackground()
                 container.applicationScope.launch { changeWatcher.markSeen() }
             }
@@ -82,14 +96,34 @@ class GroceryApp : Application() {
         }
     }
 
+    /**
+     * Marks the list seen a moment after each change while the app is visible, not only when it leaves: Android tells
+     * the app it left about 0.7 s late (ProcessLifecycleOwner), and closing it from Recents within that time ends the
+     * process first, so the next check would tell what the person just saw. The write when it leaves stays (a change
+     * in its last moment). The database's version moves with every change of the list: pulled, sent or made here.
+     */
+    private fun markSeenWhileOpen() {
+        seenWhileOpen?.cancel()
+        seenWhileOpen = container.applicationScope.launch {
+            container.database.version.collectLatest {
+                delay(SEEN_DELAY_MS)
+                changeWatcher.markSeen()
+            }
+        }
+    }
+
     /** The phone's language may have changed (PHONE follows it) while no activity of the app is running. */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         updateTexts(newConfig)
     }
 
+    /**
+     * Also names the notifications' channel again when the language changed: Android keeps the name it was given
+     * last (shown in the app's notification settings), and the process outlives a change of language.
+     */
     private fun updateTexts(configuration: Configuration) {
-        Texts.update(container.phoneSettings.current().language, configuration)
+        if (Texts.update(container.phoneSettings.current().language, configuration)) ChangeNotifier(this).createChannel()
     }
 
     /** Ends an offline backoff as soon as the phone is back online. */
@@ -122,5 +156,8 @@ class GroceryApp : Application() {
 
     private companion object {
         const val TAG = "GroceryApp"
+
+        /** How long the list shown stays unchanged before it counts as seen while the app is visible. */
+        const val SEEN_DELAY_MS = 500L
     }
 }

@@ -136,6 +136,8 @@ Snackbars, TalkBack texts and notifications made of the words above. Names and a
 | Bigger text and buttons (Simple mode) | बड़े अक्षर और बड़े बटन |
 | Checks about every 15 minutes while the app is closed | ऐप बंद होने पर लगभग हर 15 मिनट में लिस्ट जाँचता है |
 | Notifications are blocked for this app. | इस ऐप की सूचनाएँ बंद हैं। |
+| Notifications aren't on yet for this app. / Turn on notifications | इस ऐप की सूचनाएँ अभी चालू नहीं हैं। / सूचनाएँ चालू करें |
+| Type Your name above (like Mummy), so the phones can tell whose change it is. | ऊपर "आपका नाम" भरें (जैसे Mummy), ताकि फ़ोन पहचान सकें कि बदलाव किसका है। |
 | Changes to To buy (the notification channel) | "ख़रीदना है" में बदलाव |
 | Mummy added 1 item / 3 items to To buy | Mummy ने "ख़रीदना है" में 1 चीज़ जोड़ी / 3 चीज़ें जोड़ीं |
 | Mummy changed To buy | Mummy ने "ख़रीदना है" में बदलाव किया |

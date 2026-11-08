@@ -73,6 +73,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -96,6 +97,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.UrlCheck
+import com.grocerysync.app.notify.ChangeNotifier
 import com.grocerysync.app.notify.openNotificationSettings
 import com.grocerysync.app.notify.rememberNotificationAccess
 import com.grocerysync.app.notify.rememberNotificationPermissionRequest
@@ -228,7 +230,11 @@ fun SettingsScreen(
                         viewModel.setLanguage(language)
                         // Every screen reads Texts.current while it composes: recreating the activity shows the new
                         // language everywhere. Settings stays open, and what is typed here stays (the view model).
-                        if (Texts.update(language, configuration)) activity?.recreate()
+                        // The notifications' channel is named again too: Android shows its name in its settings.
+                        if (Texts.update(language, configuration)) {
+                            ChangeNotifier(context).createChannel()
+                            activity?.recreate()
+                        }
                     }
                 },
             )
@@ -238,7 +244,12 @@ fun SettingsScreen(
                 checked = phoneSettings.simpleMode,
                 onCheckedChange = viewModel::setSimpleMode,
             )
-            NotifyChangesSwitch(on = phoneSettings.notifyChanges, onChange = viewModel::setNotifyChanges)
+            NotifyChangesSwitch(
+                on = phoneSettings.notifyChanges,
+                asked = phoneSettings.notifyOfferDone,
+                noName = viewModel.noNameSaved,
+                onChange = viewModel::setNotifyChanges,
+            )
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
             SectionTitle(t.settings.googleSheet)
@@ -428,35 +439,71 @@ private fun SwitchRow(title: String, detail: String, checked: Boolean, onChecked
 
 /**
  * This phone > "Notify me when someone adds to To buy" ([on]: the saved choice). Turning it on on Android 13+ without
- * the permission asks Android for it. Refused (now or before), the switch stays on and a line says the notifications
- * are blocked, with a button to Android's settings for them; that line goes once they are allowed (checked again each
- * time the screen comes back).
+ * the permission asks Android for it. On (it is by default) while Android was never asked ([asked] false: neither
+ * the list's offer nor this switch was answered), a button asks it. Refused (now or before), the switch stays on and
+ * a line says the notifications are blocked, with a button to Android's settings for them (after two refusals
+ * Android no longer shows its dialog); either line goes once they are allowed (checked again each time the screen
+ * comes back). [noName]: no name is saved for this phone, which the line under the switch asks for.
  */
 @Composable
-private fun NotifyChangesSwitch(on: Boolean, onChange: (Boolean) -> Unit) {
+private fun NotifyChangesSwitch(on: Boolean, asked: Boolean, noName: Boolean, onChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val access = rememberNotificationAccess()
     val askPermission = rememberNotificationPermissionRequest { access.refresh() }
+    val notAllowed = on && !access.allowed
+    val canAsk = notAllowed && access.mayAsk && !asked
     NotifyChangesSetting(
         on = on,
-        blocked = on && !access.allowed,
+        blocked = notAllowed && !canAsk,
         onChange = { turnOn ->
             onChange(turnOn)
             if (turnOn && access.mayAsk) askPermission()
         },
         onAllow = { openNotificationSettings(context) },
+        canAsk = canAsk,
+        // Asking answers the list's offer as well (saved as on, which it is): a refusal then shows the blocked line.
+        onAsk = {
+            onChange(true)
+            askPermission()
+        },
+        askForName = on && noName,
     )
 }
 
 /**
- * What [NotifyChangesSwitch] shows: the switch and, while [blocked], the line saying so and the "Allow in Android
- * settings" button ([onAllow]). Without state of its own, so a UI test can show it in either case.
+ * What [NotifyChangesSwitch] shows: the switch; while [askForName], a line asking for this phone's name; while
+ * [canAsk], a line that notifications aren't on yet with a button that asks Android ([onAsk]); while [blocked], the
+ * line saying so and the "Allow in Android settings" button ([onAllow]). Without state of its own, so a UI test can
+ * show it in each case.
  */
 @Composable
-internal fun NotifyChangesSetting(on: Boolean, blocked: Boolean, onChange: (Boolean) -> Unit, onAllow: () -> Unit) {
+internal fun NotifyChangesSetting(
+    on: Boolean,
+    blocked: Boolean,
+    onChange: (Boolean) -> Unit,
+    onAllow: () -> Unit,
+    canAsk: Boolean = false,
+    onAsk: () -> Unit = {},
+    askForName: Boolean = false,
+) {
     val t = Texts.current.settings
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SwitchRow(title = t.notifyChanges, detail = t.notifyChangesHelp, checked = on, onCheckedChange = onChange)
+        if (askForName) {
+            ResultLine(
+                icon = Icons.Default.Info,
+                text = t.nameForNotifications,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (canAsk) {
+            ResultLine(
+                icon = Icons.Default.Info,
+                text = t.notificationsNotOnYet,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(onClick = onAsk, modifier = Modifier.fillMaxWidth()) { Text(t.turnOnNotifications) }
+        }
         if (blocked) {
             ResultLine(
                 icon = Icons.Default.Warning,
@@ -503,7 +550,10 @@ private fun WebAppUrlField(value: String, check: UrlCheck, onValueChange: (Strin
             null
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
-        modifier = Modifier.fillMaxWidth(),
+        // Replaces Material's own error ("Invalid input"), which follows the phone's language, not the app's.
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { if (!isBlank && check is UrlCheck.Invalid) error(check.message) },
     )
 }
 

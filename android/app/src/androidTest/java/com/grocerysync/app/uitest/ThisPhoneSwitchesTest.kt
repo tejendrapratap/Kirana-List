@@ -92,6 +92,28 @@ class ThisPhoneSwitchesTest : GroceryUiTest() {
     }
 
     @Test
+    fun withoutANameSavedTheNotificationsSwitchAsksForOne() {
+        // Nothing saved (AppState.reset): the sheet would get the phone's model as its name.
+        launchApp()
+        openSettings()
+        waitForNode(notifySwitch).performScrollTo()
+        waitForNode(hasText(EnglishSettingsTexts.nameForNotifications))
+
+        // Turned off, it doesn't matter.
+        node(notifySwitch).performClick()
+        waitForNoNode(hasText(EnglishSettingsTexts.nameForNotifications))
+    }
+
+    @Test
+    fun withANameSavedNothingAsksForOne() {
+        allowNotifications()
+        launchConnected()
+        openSettings()
+        waitForNode(notifySwitch).performScrollTo().assertIsOn()
+        assertEquals(0, count(hasText(EnglishSettingsTexts.nameForNotifications)))
+    }
+
+    @Test
     fun theSwitchesSpeakHindi() {
         launchApp()
         openSettings()

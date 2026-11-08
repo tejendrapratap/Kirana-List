@@ -116,6 +116,12 @@ class SettingsTextsTest {
         assertEquals("Checks about every 15 minutes while the app is closed", english.notifyChangesHelp)
         assertEquals("Notifications are blocked for this app.", english.notificationsBlocked)
         assertEquals("Allow in Android settings", english.allowNotifications)
+        assertEquals("Notifications aren't on yet for this app.", english.notificationsNotOnYet)
+        assertEquals("Turn on notifications", english.turnOnNotifications)
+        assertEquals(
+            "Type Your name above (like Mummy), so the phones can tell whose change it is.",
+            english.nameForNotifications,
+        )
 
         assertEquals("आसान मोड", hindi.simpleMode)
         // The page and the button are named as they are shown, quoted.
@@ -127,6 +133,9 @@ class SettingsTextsTest {
         assertTrue(hindi.simpleModeHelp.contains("\"${HindiCommonTexts.undo}\""))
         assertEquals("कोई \"ख़रीदना है\" में कुछ जोड़े, तो मुझे सूचना दें", hindi.notifyChanges)
         assertTrue(hindi.notifyChangesHelp.contains("15"))
+        // The field is named as it is shown, quoted.
+        assertTrue(hindi.nameForNotifications.contains("\"${hindi.yourName}\""))
+        assertEquals("सूचनाएँ चालू करें", hindi.turnOnNotifications)
     }
 
     @Test

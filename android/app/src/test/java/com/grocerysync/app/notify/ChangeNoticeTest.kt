@@ -61,10 +61,27 @@ class ChangeNoticeTest {
     @Test
     fun onlyAmountChangesSayChanged() {
         assertEquals(ChangeNotice("Mummy changed To buy", "Rice 5 kg"), english(changed("Rice", 5, "kg")))
-        // With something new among them, the title says added and counts every item listed.
+        // With something new among them, the title says added and counts only what was added; the text lists both.
         assertEquals(
-            ChangeNotice("Mummy added 2 items to To buy", "Dahi, Rice 5 kg"),
+            ChangeNotice("Mummy added 1 item to To buy", "Dahi, Rice 5 kg"),
             english(added("Dahi"), changed("Rice", 5, "kg")),
+        )
+    }
+
+    @Test
+    fun onlyWhoAddedIsNamedAsAdding() {
+        // Shop only lowered Rice's amount: Mummy added the one new item.
+        assertEquals(
+            ChangeNotice("Mummy added 1 item to To buy", "Dahi, Rice 1 kg"),
+            english(added("Dahi"), changed("Rice", 1, "kg", by = "Shop")),
+        )
+        assertEquals(
+            ChangeNotice("Mummy added 1 item to To buy", "Rice 1 kg, Dahi"),
+            english(changed("Rice", 1, "kg", by = "Shop"), added("Dahi")),
+        )
+        assertEquals(
+            ChangeNotice("Mummy ने \"ख़रीदना है\" में 1 चीज़ जोड़ी", "Dahi, Rice 1 kg"),
+            hindi(added("Dahi"), changed("Rice", 1, "kg", by = "Shop")),
         )
     }
 

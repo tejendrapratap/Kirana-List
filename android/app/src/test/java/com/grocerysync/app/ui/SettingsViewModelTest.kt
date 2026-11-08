@@ -529,6 +529,19 @@ class SettingsViewModelTest {
         assertEquals("", vm.webAppUrl)
     }
 
+    @Test
+    fun theNotificationsSwitchAsksForANameUntilOneIsSaved() {
+        val vm = viewModel()
+        assertTrue(vm.noNameSaved)
+        vm.onWebAppUrlChange(url)
+        vm.onTokenChange("first-token-1234")
+        vm.onDeviceNameChange("Mummy")
+        // Typed but not saved: the sheet would still get the phone's model.
+        assertTrue(vm.noNameSaved)
+        vm.saveAndWait()
+        assertFalse(vm.noNameSaved)
+    }
+
     private fun assertHandleHasNoToken(handle: SavedStateHandle, vararg tokens: String) {
         for (key in handle.keys()) {
             val value = handle.get<Any?>(key).toString()

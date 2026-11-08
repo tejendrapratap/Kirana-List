@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.grocerysync.app.testing.button
 import com.grocerysync.app.text.AppTexts
+import com.grocerysync.app.text.EnglishSettingsTexts
 import com.grocerysync.app.text.HindiNotifyTexts
 import com.grocerysync.app.text.HindiSettingsTexts
 import com.grocerysync.app.text.Texts
@@ -81,6 +82,43 @@ class NotificationCardsTest {
     }
 
     @Test
+    fun notificationsAndroidWasNeverAskedForAreAskedFor() {
+        var asks = 0
+        var allowTaps = 0
+        compose.setContent {
+            GrocerySyncTheme {
+                NotifyChangesSetting(
+                    on = true,
+                    blocked = false,
+                    onChange = {},
+                    onAllow = { allowTaps++ },
+                    canAsk = true,
+                    onAsk = { asks++ },
+                )
+            }
+        }
+        // Nothing was refused: not "blocked", and the button asks Android itself.
+        compose.onNode(hasText("Notifications aren't on yet for this app.")).assertIsDisplayed()
+        compose.onNode(blockedLine).assertDoesNotExist()
+        compose.onNode(allowButton).assertDoesNotExist()
+        compose.onNode(button("Turn on notifications")).performClick()
+        assertEquals(1 to 0, asks to allowTaps)
+    }
+
+    @Test
+    fun withoutANameTheSwitchAsksForOne() {
+        var askForName by mutableStateOf(true)
+        compose.setContent {
+            GrocerySyncTheme {
+                NotifyChangesSetting(on = true, blocked = false, onChange = {}, onAllow = {}, askForName = askForName)
+            }
+        }
+        compose.onNode(hasText(EnglishSettingsTexts.nameForNotifications)).assertIsDisplayed()
+        askForName = false
+        compose.onNode(hasText(EnglishSettingsTexts.nameForNotifications)).assertDoesNotExist()
+    }
+
+    @Test
     fun theOffersButtons() {
         var turnOn = 0
         var notNow = 0
@@ -102,7 +140,8 @@ class NotificationCardsTest {
         compose.setContent {
             GrocerySyncTheme {
                 Column {
-                    NotifyChangesSetting(on = true, blocked = true, onChange = {}, onAllow = {})
+                    NotifyChangesSetting(on = true, blocked = true, onChange = {}, onAllow = {}, askForName = true)
+                    NotifyChangesSetting(on = true, blocked = false, onChange = {}, onAllow = {}, canAsk = true)
                     NotifyOfferCard(onTurnOn = {}, onNotNow = {})
                 }
             }
@@ -110,6 +149,9 @@ class NotificationCardsTest {
         compose.onNode(isToggleable() and hasText(HindiSettingsTexts.notifyChanges)).assertIsOn()
         compose.onNode(hasText(HindiSettingsTexts.notificationsBlocked)).assertIsDisplayed()
         compose.onNode(button(HindiSettingsTexts.allowNotifications)).assertIsDisplayed()
+        compose.onNode(hasText(HindiSettingsTexts.nameForNotifications)).assertIsDisplayed()
+        compose.onNode(hasText(HindiSettingsTexts.notificationsNotOnYet)).assertIsDisplayed()
+        compose.onNode(button(HindiSettingsTexts.turnOnNotifications)).assertIsDisplayed()
         compose.onNode(hasText(HindiNotifyTexts.offerQuestion)).assertIsDisplayed()
         compose.onNode(button(HindiNotifyTexts.turnOn)).assertIsDisplayed()
         compose.onNode(button(HindiNotifyTexts.notNow)).assertIsDisplayed()

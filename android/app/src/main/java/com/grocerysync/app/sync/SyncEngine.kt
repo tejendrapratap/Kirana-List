@@ -187,7 +187,14 @@ class SyncEngine(
                         }
                     }
                 }
-                store.commitPush(deleteIds, failures, result.snapshot, receivedAt, result.serverVersion)
+                store.commitPush(
+                    deleteIds,
+                    failures,
+                    result.snapshot,
+                    receivedAt,
+                    result.serverVersion,
+                    config.webAppUrl,
+                )
                 lastSpreadsheetName = result.snapshot.spreadsheetName ?: lastSpreadsheetName
                 answeredAt = receivedAt
 
@@ -239,7 +246,7 @@ class SyncEngine(
                 since = null
                 continue
             }
-            store.commitPull(listResult.snapshot, receivedAt, listResult.serverVersion)
+            store.commitPull(listResult.snapshot, receivedAt, listResult.serverVersion, config.webAppUrl)
             return ApiResult.Success(receivedAt)
         }
     }
