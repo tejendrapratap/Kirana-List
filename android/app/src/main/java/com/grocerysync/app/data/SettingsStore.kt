@@ -68,12 +68,18 @@ class SettingsStore internal constructor(private val prefs: SharedPreferences) {
         deviceName = prefs.getString(KEY_DEVICE, null).orEmpty(),
     )
 
-    private companion object {
-        const val PREFS_NAME = "grocery_sync_settings"
-        const val KEY_URL = "web_app_url"
-        const val KEY_TOKEN = "token"
-        const val KEY_DEVICE = "device_name"
-        const val MAX_DEVICE_NAME_LENGTH = 40
+    companion object {
+        /**
+         * The name [effectiveDeviceName] gives when none is set and the phone doesn't say its model. In English
+         * whatever language the app shows: it is written to the sheet, which every phone reads. Settings shows it
+         * as the Your name field's placeholder.
+         */
         const val DEFAULT_DEVICE_NAME = "Phone"
+
+        private const val PREFS_NAME = "grocery_sync_settings"
+        private const val KEY_URL = "web_app_url"
+        private const val KEY_TOKEN = "token"
+        private const val KEY_DEVICE = "device_name"
+        private const val MAX_DEVICE_NAME_LENGTH = 40
     }
 }

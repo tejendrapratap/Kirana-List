@@ -2,15 +2,24 @@ package com.grocerysync.app.ui
 
 import androidx.lifecycle.SavedStateHandle
 import com.grocerysync.app.data.FakeSharedPreferences
+import com.grocerysync.app.data.PhoneSettings
 import com.grocerysync.app.data.PhoneSettingsStore
 import com.grocerysync.app.data.ServerClock
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.SetupCodeTest
 import com.grocerysync.app.data.SyncSettings
+import com.grocerysync.app.data.UrlCheck
 import com.grocerysync.app.sync.FakeSyncStore
 import com.grocerysync.app.sync.LiveSync
+import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.sync.SheetsClient
 import com.grocerysync.app.sync.SyncEngine
+import com.grocerysync.app.text.AppTexts
+import com.grocerysync.app.text.EnglishSettingsTexts
+import com.grocerysync.app.text.HindiSettingsTexts
+import com.grocerysync.app.text.HindiSyncTexts
+import com.grocerysync.app.text.withTexts
+import com.grocerysync.app.ui.ConnectionTest.Failure.Reason
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -86,6 +95,9 @@ class SettingsViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /** This phone's own settings of the view model [viewModel] makes. */
+    private val phoneStore = PhoneSettingsStore(FakeSharedPreferences())
+
     private fun viewModel(handle: SavedStateHandle = SavedStateHandle()): SettingsViewModel {
         val syncStore = FakeSyncStore()
         val liveSync = LiveSync(
@@ -94,7 +106,7 @@ class SettingsViewModelTest {
             store = syncStore,
             scope = scope,
         )
-        return SettingsViewModel(store, SheetsClient(), liveSync, PhoneSettingsStore(FakeSharedPreferences()), handle)
+        return SettingsViewModel(store, SheetsClient(), liveSync, phoneStore, handle)
     }
 
     private fun saveConfigured(token: String = SAVED_TOKEN) {
@@ -123,7 +135,7 @@ class SettingsViewModelTest {
         val vm = viewModel()
         assertEquals("", vm.tokenInput)
         assertEquals(TokenSource.SAVED, vm.tokenSource)
-        assertEquals(TokenEntry.HELP_SAVED, vm.tokenHelp)
+        assertEquals(EnglishSettingsTexts.tokenSaved, vm.tokenHelp)
         assertTrue(vm.canSave)
         assertEquals(url, vm.webAppUrl)
     }
@@ -143,7 +155,7 @@ class SettingsViewModelTest {
         val vm = viewModel()
         vm.onTokenChange("  new-token-1234  ")
         assertEquals(TokenSource.TYPED, vm.tokenSource)
-        assertEquals(TokenEntry.HELP_REPLACES_SAVED, vm.tokenHelp)
+        assertEquals(EnglishSettingsTexts.tokenReplacesSaved, vm.tokenHelp)
         vm.saveAndWait()
         assertEquals("new-token-1234", store.current().token)
     }
@@ -175,7 +187,7 @@ class SettingsViewModelTest {
         assertEquals(url, vm.webAppUrl)
         assertEquals("", vm.tokenInput)
         assertEquals(TokenSource.SETUP_CODE, vm.tokenSource)
-        assertEquals(TokenEntry.HELP_SETUP_CODE, vm.tokenHelp)
+        assertEquals(EnglishSettingsTexts.tokenFromSetupCode, vm.tokenHelp)
         assertEquals(
             SettingsEvent.Message("Setup code pasted - tap Save"),
             runBlocking { withTimeout(5_000) { vm.events.first() } },
@@ -196,7 +208,7 @@ class SettingsViewModelTest {
 
         vm.onTokenChange("typed-again-5678")
         assertEquals(TokenSource.TYPED, vm.tokenSource)
-        assertEquals(TokenEntry.HELP_REPLACES_SETUP_CODE, vm.tokenHelp)
+        assertEquals(EnglishSettingsTexts.tokenReplacesSetupCode, vm.tokenHelp)
         vm.onTokenChange("")
         assertEquals(TokenSource.SETUP_CODE, vm.tokenSource)
         vm.saveAndWait()
@@ -265,7 +277,7 @@ class SettingsViewModelTest {
     fun testConnectionWithoutATokenAsksForOne() {
         val vm = viewModel()
         vm.onWebAppUrlChange(url)
-        assertEquals(ConnectionTest.Failure("Enter the secret token first."), vm.testAndWait())
+        assertEquals(ConnectionTest.Failure(Reason.NO_TOKEN), vm.testAndWait())
         assertTrue(pingTokens.isEmpty())
     }
 
@@ -277,7 +289,8 @@ class SettingsViewModelTest {
         val vm = viewModel()
         val result = vm.testAndWait()
         assertTrue(result.toString(), result is ConnectionTest.Failure)
-        val message = (result as ConnectionTest.Failure).message
+        assertEquals(Reason.NO_ANSWER, (result as ConnectionTest.Failure).reason)
+        val message = result.message
         assertFalse(message, message.contains(SAVED_TOKEN))
         assertTrue(message, message.contains("token=" + TokenEntry.HIDDEN))
     }
@@ -356,9 +369,9 @@ class SettingsViewModelTest {
             val vm = viewModel()
             vm.onWebAppUrlChange(other.url("/macros/s/OTHER/exec").toString())
             assertEquals(TokenSource.NONE, vm.tokenSource)
-            assertEquals(TokenEntry.HELP_OTHER_URL, vm.tokenHelp)
+            assertEquals(EnglishSettingsTexts.tokenOtherUrl, vm.tokenHelp)
             assertFalse("Save would keep the hidden token with the new URL", vm.canSave)
-            assertEquals(ConnectionTest.Failure("Enter the secret token first."), vm.testAndWait())
+            assertEquals(ConnectionTest.Failure(Reason.NO_TOKEN), vm.testAndWait())
             vm.save()
             assertTrue(otherTokens.toString(), otherTokens.isEmpty())
             assertEquals(url, store.current().webAppUrl)
@@ -371,7 +384,7 @@ class SettingsViewModelTest {
             // A token typed for the new URL is the one sent there (and saved with it).
             vm.onWebAppUrlChange(other.url("/macros/s/OTHER/exec").toString())
             vm.onTokenChange("typed-token-1234")
-            assertEquals(TokenEntry.HELP_NEW, vm.tokenHelp)
+            assertEquals(EnglishSettingsTexts.tokenNew, vm.tokenHelp)
             // Even then its echo is not shown (the answer is redacted before it is read).
             assertEquals(ConnectionTest.Success(TokenEntry.HIDDEN), vm.testAndWait())
             assertEquals(listOf("typed-token-1234"), otherTokens.toList())
@@ -387,9 +400,9 @@ class SettingsViewModelTest {
         assertEquals(TokenSource.SETUP_CODE, vm.tokenSource)
         vm.onWebAppUrlChange("https://script.google.com/macros/s/ELSEWHERE/exec")
         assertEquals(TokenSource.NONE, vm.tokenSource)
-        assertEquals(TokenEntry.HELP_OTHER_URL, vm.tokenHelp)
+        assertEquals(EnglishSettingsTexts.tokenOtherUrl, vm.tokenHelp)
         assertFalse(vm.canSave)
-        assertEquals(ConnectionTest.Failure("Enter the secret token first."), vm.testAndWait())
+        assertEquals(ConnectionTest.Failure(Reason.NO_TOKEN), vm.testAndWait())
         vm.onWebAppUrlChange(url)
         assertEquals(TokenSource.SETUP_CODE, vm.tokenSource)
         assertEquals(ConnectionTest.Success("Groceries"), vm.testAndWait())
@@ -425,6 +438,95 @@ class SettingsViewModelTest {
         assertEquals("", vm.tokenInput)
         assertEquals(TokenSource.SAVED, vm.tokenSource)
         assertNotEquals(TokenSource.NONE, vm.tokenSource)
+    }
+
+    @Test
+    fun aTestResultIsSaidInTheLanguageShownWhenItIsShown() {
+        // The view model outlives a change of language (the activity is recreated), so it keeps what happened and
+        // the screen says it in the language shown then.
+        val vm = viewModel()
+        vm.onWebAppUrlChange(url)
+        val noToken = vm.testAndWait() as ConnectionTest.Failure
+        assertEquals("Enter the secret token first.", connectionFailureText(noToken, vm.urlCheck, AppTexts.English))
+        assertEquals(HindiSettingsTexts.enterTokenFirst, connectionFailureText(noToken, vm.urlCheck, AppTexts.Hindi))
+
+        // The web app's answer stays the sync layer's English message; the screen translates it.
+        pingBody = """{"ok":false,"error":"unauthorized"}"""
+        vm.onTokenChange("wrong-token-1234")
+        val refused = vm.testAndWait() as ConnectionTest.Failure
+        assertEquals(ConnectionTest.Failure(Reason.NO_ANSWER, Protocol.MSG_UNAUTHORIZED), refused)
+        assertEquals(Protocol.MSG_UNAUTHORIZED, connectionFailureText(refused, vm.urlCheck, AppTexts.English))
+        assertEquals(
+            HindiSyncTexts.message(Protocol.MSG_UNAUTHORIZED),
+            connectionFailureText(refused, vm.urlCheck, AppTexts.Hindi),
+        )
+        assertNotEquals(Protocol.MSG_UNAUTHORIZED, HindiSyncTexts.message(Protocol.MSG_UNAUTHORIZED))
+    }
+
+    @Test
+    fun anInvalidUrlIsDescribedByTheFieldsOwnCheck() {
+        val vm = viewModel()
+        vm.onWebAppUrlChange("ftp://example.com/exec")
+        vm.onTokenChange("typed-token-1234")
+        val result = vm.testAndWait()
+        assertEquals(ConnectionTest.Failure(Reason.INVALID_URL), result)
+        val check = vm.urlCheck
+        assertTrue(check.toString(), check is UrlCheck.Invalid)
+        val text = connectionFailureText(result as ConnectionTest.Failure, check, AppTexts.English)
+        assertEquals((check as UrlCheck.Invalid).message, text)
+        assertTrue(pingTokens.isEmpty())
+    }
+
+    @Test
+    fun theTokenHelpFollowsALanguageChange() {
+        saveConfigured()
+        val vm = viewModel()
+        assertEquals(EnglishSettingsTexts.tokenSaved, vm.tokenHelp)
+        // Nothing else changed: the help is worked out again because the texts did.
+        assertEquals(HindiSettingsTexts.tokenSaved, withTexts(AppTexts.Hindi) { vm.tokenHelp })
+        assertEquals(EnglishSettingsTexts.tokenSaved, vm.tokenHelp)
+    }
+
+    @Test
+    fun snackbarsAreInTheLanguageShownWhenSent() {
+        val vm = viewModel()
+        withTexts(AppTexts.Hindi) {
+            vm.pasteSetupCode(null)
+            vm.pasteSetupCode(setupMessage(CODE_TOKEN))
+        }
+        val events = runBlocking { withTimeout(5_000) { vm.events.take(3).toList() } }
+        assertEquals(
+            listOf(
+                SettingsEvent.Message(HindiSettingsTexts.noSetupCode),
+                SettingsEvent.Message(HindiSettingsTexts.setupCodePasted),
+                SettingsEvent.ClearClipboard,
+            ),
+            events,
+        )
+    }
+
+    @Test
+    fun simpleModeIsSavedAtOnce() {
+        val vm = viewModel()
+        assertFalse(vm.phoneSettings.value.simpleMode)
+        vm.setSimpleMode(true)
+        assertTrue(phoneStore.current().simpleMode)
+        assertTrue(vm.phoneSettings.value.simpleMode)
+        vm.setSimpleMode(false)
+        assertFalse(phoneStore.current().simpleMode)
+    }
+
+    @Test
+    fun theNotificationsSwitchIsSavedAtOnceAndAnswersTheListsOffer() {
+        val vm = viewModel()
+        assertTrue(vm.phoneSettings.value.notifyChanges)
+        assertFalse(vm.phoneSettings.value.notifyOfferDone)
+        vm.setNotifyChanges(false)
+        assertEquals(PhoneSettings(notifyChanges = false, notifyOfferDone = true), phoneStore.current())
+        vm.setNotifyChanges(true)
+        assertEquals(PhoneSettings(notifyChanges = true, notifyOfferDone = true), phoneStore.current())
+        // Not part of Save: nothing typed is touched.
+        assertEquals("", vm.webAppUrl)
     }
 
     private fun assertHandleHasNoToken(handle: SavedStateHandle, vararg tokens: String) {
