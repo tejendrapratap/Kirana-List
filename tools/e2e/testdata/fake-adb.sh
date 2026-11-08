@@ -82,7 +82,10 @@ case $sub in
       # Like the device's date: the format has a space, so it must arrive as one quoted word.
       "date '+%m-%d %H:%M:%S.000'") echo "11-08 10:00:00.000";;
       date*) echo 'date: Max 1 argument (see "date --help")' >&2;;
-      "am instrument "*) cat "$D/instrument-output" 2>/dev/null;;
+      "am instrument "*)
+        # Like Android 16: --no-window-animation leaves an unset animator_duration_scale at 0.0.
+        case $cmdline in *--no-window-animation*) echo 0.0 >"$D/settings/global.animator_duration_scale";; esac
+        cat "$D/instrument-output" 2>/dev/null;;
       "settings get "*) set -- $cmdline; cat "$D/settings/$3.$4" 2>/dev/null || echo null;;
       "settings put "*) set -- $cmdline; echo "$5" >"$D/settings/$3.$4";;
       "settings delete "*) set -- $cmdline; rm -f "$D/settings/$3.$4";;

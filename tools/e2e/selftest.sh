@@ -380,8 +380,13 @@ OK (3 tests)
 INSTRUMENTATION_CODE: -1
 '
 } >"$FAKE_DIR/instrument-output"
+echo 1.0 >"$FAKE_DIR/settings/global.window_animation_scale"
+rm -f "$FAKE_DIR/settings/global.animator_duration_scale"
 out=$(GS_REPO="$R" EMU_SERIAL=emulator-5556 "$HERE/uitest.sh" --no-build 2>&1); rc=$?
 [ $rc -eq 0 ] && contains "$out" "3 tests, 3 passed, 0 failed, 0 skipped -> PASSED"; res $? "all passed: exit 0" "$out"
+[ ! -f "$FAKE_DIR/settings/global.animator_duration_scale" ] && [ "$(cat "$FAKE_DIR/settings/global.window_animation_scale")" = 1.0 ]
+res $? "the animation scales are as before the run (unset stays unset)" "$out"
+rm -f "$FAKE_DIR/settings/global.window_animation_scale"
 {
   instrument SearchTest a 0
   printf 'INSTRUMENTATION_STATUS: class=com.grocerysync.app.uitest.SearchTest

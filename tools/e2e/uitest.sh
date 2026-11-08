@@ -153,6 +153,26 @@ done
 args+=("$TEST_PACKAGE/$RUNNER")
 
 mark=$(gs_device_time)
+# "am instrument --no-window-animation" turns the animation scales off for the run, and on Android 16 it leaves an
+# animator_duration_scale that was unset at 0.0 afterwards: note them now, put back what changed at the end.
+anim_keys=(window_animation_scale transition_animation_scale animator_duration_scale)
+declare -A anim_before=()
+for k in "${anim_keys[@]}"; do anim_before[$k]=$(gs_sh settings get global "$k"); done
+restore_animations() {
+  local k now was
+  for k in "${anim_keys[@]}"; do
+    was=${anim_before[$k]}
+    now=$(gs_sh settings get global "$k")
+    [ "$now" = "$was" ] && continue
+    if [ -z "$was" ] || [ "$was" = null ]; then
+      gs_adb shell settings delete global "$k" >/dev/null
+    else
+      gs_adb shell settings put global "$k" "$was"
+    fi
+    gs_log "put back $k=${was:-null} (the run left $now)"
+  done
+}
+trap restore_animations EXIT
 gs_log "running: am instrument ${args[*]} (on $GS_SERIAL; raw output: $raw)"
 t=$SECONDS
 
