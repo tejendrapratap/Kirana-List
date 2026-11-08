@@ -3,7 +3,8 @@ package com.grocerysync.app.ui
 import com.grocerysync.app.data.GroceryItem
 import java.util.Locale
 
-// Pure rules of the list screen's pages: the pager, and what each page shows (unit-tested in ListPagesTest).
+// Pure rules of the list screen's pages: the pager, when a list goes to the top for the search, and what each
+// page shows (unit-tested in ListPagesTest).
 
 /** The pager shows one page per [ListFilter], in its order: 0 = To buy, 1 = All items. */
 internal val ListFilter.page: Int get() = ordinal
@@ -21,6 +22,40 @@ internal fun filterOfPage(page: Int): ListFilter = ListFilter.entries[page]
  */
 internal fun pageToSettleOnRestore(currentPage: Int, offsetFraction: Float): Int? =
     if (offsetFraction != 0f) currentPage else null
+
+/**
+ * When a page's list goes back to the top for the search. New results start at the top, but only on a page that
+ * shows them: the page typed on as the query changes, the other page once it is shown (tapped, swiped into view,
+ * or "Show n in All items") while that query is still searched. Each page goes to the top once per query, so it
+ * keeps its place within the results while the user switches back and forth, and a search closed before the
+ * other page was shown leaves that page where it was. Closing or emptying the search moves no list.
+ *
+ * Not Compose state: it only decides whether to scroll. Saved with the lists' scroll positions ([query] and
+ * [pagesAtTop] restore it), so a rotation or process death doesn't send a page to the top again.
+ */
+internal class SearchScroll(query: String = "", pagesAtTop: Collection<ListFilter> = emptySet()) {
+    /** The query the pages in [pagesAtTop] went to the top for. */
+    var query: String = query
+        private set
+
+    private val atTop = pagesAtTop.toMutableSet()
+
+    /** The pages whose list went to the top for [query]. */
+    val pagesAtTop: Set<ListFilter> get() = atTop.toSet()
+
+    /**
+     * Whether [page]'s list has to go to the top before it shows the results of [query] (the open search's text,
+     * "" while it is closed). True once per page for each query while the search is active ([ItemSearch.isActive]);
+     * the page then counts as at the top until the query changes. Any other query, an inactive one too, starts over.
+     */
+    fun takeScrollToTop(page: ListFilter, query: String): Boolean {
+        if (query != this.query) {
+            this.query = query
+            atTop.clear()
+        }
+        return ItemSearch.isActive(query) && atTop.add(page)
+    }
+}
 
 /** What a page of the list shows under its banners ([pageContent]). */
 internal sealed interface PageContent {

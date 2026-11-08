@@ -47,6 +47,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -143,6 +144,12 @@ private class SearchState(open: Boolean = false, query: String = "") {
         )
     }
 }
+
+/** Saves [SearchScroll] with the lists' scroll positions: its query, then the names of the pages at the top. */
+private val SearchScrollSaver = listSaver<SearchScroll, String>(
+    save = { listOf(it.query) + it.pagesAtTop.map { page -> page.name } },
+    restore = { SearchScroll(query = it[0], pagesAtTop = it.drop(1).map(ListFilter::valueOf)) },
+)
 
 /**
  * Switches the pager's page from the segmented row (or To buy's "Show n in All items") with the pager's
@@ -359,6 +366,9 @@ private fun ListContent(
     // Hoisted (not inside the pages), so a page keeps its scroll position while the other one is shown.
     val toBuyListState = rememberLazyListState()
     val allListState = rememberLazyListState()
+    fun listStateOf(filter: ListFilter) = if (filter == ListFilter.TO_BUY) toBuyListState else allListState
+    // Which lists already went to the top for the search's query; saved like their scroll positions.
+    val searchScroll = rememberSaveable(saver = SearchScrollSaver) { SearchScroll() }
     // Dragging either list or swiping between the pages hides the keyboard.
     LaunchedEffect(toBuyListState, allListState, pagerState, focusManager) {
         merge(
@@ -437,11 +447,11 @@ private fun ListContent(
                     query = search.query,
                     onQueryChange = { text ->
                         val clean = ItemSearch.cleanInput(text)
-                        // New results start at the top, on both pages (the query searches the other page too,
-                        // once shown); closing or emptying the search keeps the place.
-                        if (clean != search.query && ItemSearch.isActive(clean)) {
-                            toBuyListState.requestScrollToItem(0)
-                            allListState.requestScrollToItem(0)
+                        // New results start at the top: here (with them) on the page typed on; on the other page
+                        // only once it is shown (see the pager), so it keeps its place if the search ends first.
+                        // Closing or emptying the search keeps the place.
+                        if (searchScroll.takeScrollToTop(shownFilter, clean)) {
+                            listStateOf(shownFilter).requestScrollToItem(0)
                         }
                         search.query = clean
                     },
@@ -461,6 +471,14 @@ private fun ListContent(
                     .fillMaxWidth(),
             ) { page ->
                 val filter = filterOfPage(page)
+                val listState = listStateOf(filter)
+                // Shown (tapped, swiped into view, "Show n in All items") with a query it hasn't shown yet: its
+                // results start at the top too. Only visible pages are composed, and a side effect runs before the
+                // list is measured, so the results never show at the old place. The page shown also passes ""
+                // here once the search is closed, so a search typed again later starts over.
+                SideEffect {
+                    if (searchScroll.takeScrollToTop(filter, query)) listState.requestScrollToItem(0)
+                }
                 val content = remember(filter, state.loaded, state.toBuy, state.allItems, query) {
                     pageContent(filter, state.loaded, state.toBuy, state.allItems, query)
                 }
@@ -471,7 +489,7 @@ private fun ListContent(
                 ) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        state = if (filter == ListFilter.TO_BUY) toBuyListState else allListState,
+                        state = listState,
                         // The list scrolls behind the navigation bar; its last rows stay above the FAB.
                         contentPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding() + FabClearance),
                     ) {

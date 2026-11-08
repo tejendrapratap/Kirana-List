@@ -6,6 +6,7 @@ import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.Units
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -14,7 +15,8 @@ import java.util.Locale
 
 /**
  * The list screen's pages: the pager after a rotation or process death in the middle of a page change
- * ([pageToSettleOnRestore]), and what each page shows with and without a search ([pageContent]).
+ * ([pageToSettleOnRestore]), when a page's list goes to the top for the search ([SearchScroll]), and what each
+ * page shows with and without a search ([pageContent]).
  */
 class ListPagesTest {
 
@@ -84,6 +86,78 @@ class ListPagesTest {
         assertEquals(all, pageToSettleOnRestore(all, -0.3f))
         assertEquals(toBuy, pageToSettleOnRestore(toBuy, 0.3f))
         assertEquals(toBuy, pageToSettleOnRestore(toBuy, 0.5f))
+    }
+
+    @Test
+    fun typingMovesThePageTypedOnToTheTopWithEachNewQuery() {
+        val scroll = SearchScroll()
+        assertTrue(scroll.takeScrollToTop(ListFilter.ALL, "e"))
+        assertTrue(scroll.takeScrollToTop(ListFilter.ALL, "eg"))
+        // The same query again (the page composed again, live updates, a letter past the limit): it stays put.
+        assertFalse(scroll.takeScrollToTop(ListFilter.ALL, "eg"))
+        assertEquals("eg", scroll.query)
+        assertEquals(setOf(ListFilter.ALL), scroll.pagesAtTop)
+    }
+
+    @Test
+    fun theOtherPageGoesToTheTopOnlyOnceShownDuringTheSearch() {
+        // The review's case: To buy scrolled halfway down; "eggs" typed on All items, then X, then To buy shown.
+        val scroll = SearchScroll()
+        assertTrue(scroll.takeScrollToTop(ListFilter.ALL, "eggs"))
+        assertFalse(scroll.takeScrollToTop(ListFilter.ALL, "")) // X: All items, now without a search
+        assertFalse(scroll.takeScrollToTop(ListFilter.TO_BUY, "")) // To buy keeps its place
+        // The other way round: a search typed and closed on To buy leaves All items alone.
+        assertTrue(scroll.takeScrollToTop(ListFilter.TO_BUY, "rice"))
+        assertFalse(scroll.takeScrollToTop(ListFilter.TO_BUY, ""))
+        assertFalse(scroll.takeScrollToTop(ListFilter.ALL, ""))
+        assertTrue(scroll.pagesAtTop.isEmpty())
+    }
+
+    @Test
+    fun eachPageGoesToTheTopOncePerQuery() {
+        val scroll = SearchScroll()
+        scroll.takeScrollToTop(ListFilter.ALL, "eggs")
+        // To buy shown while "eggs" is searched (tap, swipe, or back from "Show n in All items"): its results
+        // start at the top, once; switching back and forth keeps each page's place within its results.
+        assertTrue(scroll.takeScrollToTop(ListFilter.TO_BUY, "eggs"))
+        assertFalse(scroll.takeScrollToTop(ListFilter.ALL, "eggs"))
+        assertFalse(scroll.takeScrollToTop(ListFilter.TO_BUY, "eggs"))
+        // A new query: To buy (typed on) at once, All items again once it is shown.
+        assertTrue(scroll.takeScrollToTop(ListFilter.TO_BUY, "eggs w"))
+        assertEquals(setOf(ListFilter.TO_BUY), scroll.pagesAtTop)
+        assertTrue(scroll.takeScrollToTop(ListFilter.ALL, "eggs w"))
+        assertEquals(ListFilter.entries.toSet(), scroll.pagesAtTop)
+    }
+
+    @Test
+    fun closingOrEmptyingTheSearchMovesNoListAndStartsOver() {
+        val scroll = SearchScroll()
+        for (query in listOf("", "  ", " ' ")) {
+            for (page in ListFilter.entries) assertFalse(query, scroll.takeScrollToTop(page, query))
+        }
+        assertTrue(scroll.pagesAtTop.isEmpty())
+        // Both pages went to the top for "eggs"; the field emptied (or the search closed), then "eggs" typed
+        // again: a new search, so each page's results start at the top again.
+        scroll.takeScrollToTop(ListFilter.ALL, "eggs")
+        scroll.takeScrollToTop(ListFilter.TO_BUY, "eggs")
+        assertFalse(scroll.takeScrollToTop(ListFilter.TO_BUY, ""))
+        assertTrue(scroll.pagesAtTop.isEmpty())
+        assertTrue(scroll.takeScrollToTop(ListFilter.TO_BUY, "eggs"))
+        assertTrue(scroll.takeScrollToTop(ListFilter.ALL, "eggs"))
+    }
+
+    @Test
+    fun aRestoredSearchScrollMovesNoPageAgain() {
+        // Rotated (or the process died) after "eggs" was typed on All items, before To buy was shown.
+        val before = SearchScroll()
+        before.takeScrollToTop(ListFilter.ALL, "eggs")
+        val restored = SearchScroll(before.query, before.pagesAtTop)
+        assertFalse(restored.takeScrollToTop(ListFilter.ALL, "eggs"))
+        assertTrue(restored.takeScrollToTop(ListFilter.TO_BUY, "eggs"))
+        // What is saved is a copy: later changes don't reach it.
+        val saved = restored.pagesAtTop
+        restored.takeScrollToTop(ListFilter.ALL, "")
+        assertEquals(ListFilter.entries.toSet(), saved)
     }
 
     @Test
