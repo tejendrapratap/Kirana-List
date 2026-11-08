@@ -53,15 +53,23 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Share > Grocery Sync (ACTION_SEND, text/plain): opens the "Paste a list" preview of the text
-     * ([ListViewModel.openSharedText]). The text comes from another app, so it is only parsed, and nothing changes
-     * until the user confirms.
+     * ([ListViewModel.openSharedText]), or says it couldn't be read (a file, an empty text). The text comes from
+     * another app, so it is only parsed, and nothing changes until the user confirms. Started again from Recents
+     * with the intent that once shared it, the share is not read again.
      */
     private fun receiveSharedList(intent: Intent) {
-        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
-        val text = sharedText(intent.action, intent.type) { intent.getCharSequenceExtra(Intent.EXTRA_TEXT) } ?: return
-        // Out of the intent before the view model exists: its SavedStateHandle starts from (and saves) the intent's
-        // extras, and a shared text may be far larger than a paste may be. The view model keeps it only if it fits.
+        if (intent.action != Intent.ACTION_SEND) return
+        val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
+        val text = if (fromHistory) {
+            null
+        } else {
+            sharedText(intent.action, intent.type) { intent.getCharSequenceExtra(Intent.EXTRA_TEXT) }
+        }
+        // Every extra of the other app's intent goes, read or not, before the view model exists: its SavedStateHandle
+        // starts from (and saves) the intent's extras. A shared text may be far larger than a paste may be (the view
+        // model keeps it only if it fits), and an extra of a class this app doesn't know would fail to load there.
         intent.replaceExtras(Bundle())
+        if (fromHistory) return
         listViewModel.openSharedText(text)
         sharedLists++
     }

@@ -204,13 +204,17 @@ class PastePlanTest {
         assertEquals(PasteEdit.ChangedMeanwhile, pasteEdit(add, item("rice", BoolValue(true))))
 
         val mark = PasteAction.MarkNeeded("dahi", "Dahi", "Curd", BoolValue(false), BoolValue(true))
-        assertEquals(PasteEdit.Update("Dahi", BoolValue(true)), pasteEdit(mark, dahi))
+        // The value it was planned on goes along: the repository checks it again as the change is queued.
+        assertEquals(PasteEdit.Update("dahi", BoolValue(false), BoolValue(true)), pasteEdit(mark, dahi))
         assertEquals(PasteEdit.Unchanged, pasteEdit(mark, item("Dahi", BoolValue(true))))
         assertEquals(PasteEdit.ChangedMeanwhile, pasteEdit(mark, item("Dahi", qty("0", Units.KG))))
         assertEquals(PasteEdit.ChangedMeanwhile, pasteEdit(mark, null))
 
         val change = PasteAction.ChangeAmount("rice", "Rice", null, qty("2", Units.KG), qty("3", Units.KG))
-        assertEquals(PasteEdit.Update("Rice", qty("3", Units.KG)), pasteEdit(change, item("Rice", qty("2", Units.KG))))
+        assertEquals(
+            PasteEdit.Update("rice", qty("2", Units.KG), qty("3", Units.KG)),
+            pasteEdit(change, item("Rice", qty("2", Units.KG))),
+        )
         assertEquals(PasteEdit.ChangedMeanwhile, pasteEdit(change, item("Rice", qty("2.5", Units.KG))))
         assertEquals(PasteEdit.ChangedMeanwhile, pasteEdit(change, null))
 
@@ -245,6 +249,22 @@ class PastePlanTest {
         )
         // The text step plans nothing.
         assertEquals(PasteListState(text, previewing = false), PasteListState.of(PasteDraft(text, previewing = false), items))
+    }
+
+    @Test
+    fun aPreviewCantBeAppliedBeforeTheFamilysListHasLoaded() {
+        // A list shared into the app right after setup: shown, but the button waits for the first sync.
+        val draft = PasteDraft("Rice 2 kg\nDahi", previewing = true)
+        val waiting = PasteListState.of(draft, emptyList(), waitingForList = true)
+        assertTrue(waiting.waitingForList)
+        assertEquals(2, waiting.chosen.size)
+        assertFalse(waiting.canApply)
+        // Once it has come, the same rows are planned on it and can be applied.
+        val loaded = PasteListState.of(draft, listOf(item("Dahi", BoolValue(false))))
+        assertTrue(loaded.canApply)
+        assertEquals("Mark Dahi needed", pasteRowText(loaded.rows[1]))
+        // Nothing ticked: nothing to apply either.
+        assertFalse(PasteListState.of(draft.copy(choices = mapOf(0 to false, 1 to false)), emptyList()).canApply)
     }
 
     @Test

@@ -67,6 +67,12 @@ internal object StarterList {
     /** The snackbar when it (or ⋮ > Paste a list) is opened before the phone is connected to the sheet. */
     const val NOT_CONNECTED_TEXT = "Connect to your sheet in Settings first, so items already on it aren't replaced."
 
+    /**
+     * The snackbar when it (or ⋮ > Paste a list) is opened while connected, but before the family's list has come
+     * from the sheet (right after setup, or offline since): items already on the sheet would look new here.
+     */
+    const val LIST_NOT_LOADED_TEXT = "Wait until your list has loaded from the sheet, then try again."
+
     const val SELECT_ALL = "Select all"
     const val SELECT_NONE = "Select none"
 

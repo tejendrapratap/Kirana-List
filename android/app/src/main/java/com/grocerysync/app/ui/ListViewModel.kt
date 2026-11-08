@@ -99,6 +99,14 @@ data class ListUiState(
 
     fun item(key: String): GroceryItem? = allItems.firstOrNull { it.key == key }
 
+    /**
+     * The family's list has come from the sheet on this phone (once is enough: it is kept in the database). Until
+     * then the list is empty or out of date, so changes of many items at once ("Add common items", a paste) wait:
+     * every item would look new, and its change could replace the family's item of that name on the sheet.
+     */
+    val hasSheetList: Boolean
+        get() = isConfigured && status.lastSuccessAt != null
+
     /** To buy is grouped by shop section (this phone's choice; on unless turned off). */
     val groupBySection: Boolean
         get() = shopSections.groupBySection
@@ -234,12 +242,12 @@ class ListViewModel(
     val starterListOpen: StateFlow<Boolean> = savedStateHandle.getStateFlow(KEY_STARTER_LIST, false)
 
     /**
-     * Opens "Add common items". Not before the phone is connected to the sheet: until it has the family's list, the
-     * items would go out as new and could set the family's items of the same name to "not needed".
+     * Opens "Add common items". Not before the family's list has come from the sheet ([bulkChangeProblem]): until
+     * then the items would go out as new and could set the family's items of the same name to "not needed".
      */
     fun openStarterList() {
-        if (!settingsStore.current().isConfigured) {
-            viewModelScope.launch { _events.send(ListEvent.Message(StarterList.NOT_CONNECTED_TEXT)) }
+        bulkChangeProblem()?.let { problem ->
+            viewModelScope.launch { _events.send(ListEvent.Message(problem)) }
             return
         }
         savedStateHandle[KEY_STARTER_LIST] = true
@@ -259,6 +267,11 @@ class ListViewModel(
         if (!starterListOpen.value) return
         closeStarterList()
         edit {
+            // Checked again: the dialog may have come back with the app after it was closed (process death).
+            bulkChangeProblem()?.let { problem ->
+                _events.send(ListEvent.Message(problem))
+                return@edit
+            }
             val names = repository.items.first().map { it.name }
             val added = StarterList.addEntries(entries, names, repository::add)
             _events.send(ListEvent.Message(StarterList.addedText(added)))
@@ -345,7 +358,7 @@ class ListViewModel(
     private fun editRefused(result: EditResult, name: String, goneName: String = name): ListEvent.Message? = when (result) {
         EditResult.Saved -> null
         is EditResult.AlreadyOnList -> ListEvent.Message(alreadyOnListText(result.existingName))
-        EditResult.NotOnList -> ListEvent.Message(changedElsewhereText(goneName))
+        EditResult.NotOnList, EditResult.ValueChanged -> ListEvent.Message(changedElsewhereText(goneName))
         EditResult.InvalidName -> couldNotSave(name)
     }
 
@@ -472,47 +485,50 @@ class ListViewModel(
 
     /**
      * The "Paste a list" dialog; null while it is closed. In the preview, each line is planned against the list as
-     * it is now ([planPaste]), so the rows follow changes from the other phone. Kept in [SavedStateHandle] like the
+     * it is now ([planPaste]), so the rows follow changes from the other phone, and it can't be applied before the
+     * family's list has come from the sheet ([PasteListState.waitingForList]). Kept in [SavedStateHandle] like the
      * item dialog. The list comes from [uiState] (once loaded), so this reads nothing more from the database.
      */
     val pasteList: StateFlow<PasteListState?> = combine(
         savedStateHandle.getStateFlow<String?>(KEY_PASTE, null),
-        uiState.filter { it.loaded }.map { it.allItems }.distinctUntilChanged(),
-    ) { saved, items ->
-        PasteDraft.decode(saved)?.let { PasteListState.of(it, items) }
+        uiState.filter { it.loaded }.map { it.allItems to it.hasSheetList }.distinctUntilChanged(),
+    ) { saved, (items, hasSheetList) ->
+        PasteDraft.decode(saved)?.let { PasteListState.of(it, items, waitingForList = !hasSheetList) }
     }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
-     * "Paste a list": the dialog with an empty text field. Not before the phone is connected to the sheet, like "Add
-     * common items" and a shared list: without the family's list every line would be a new item, and could replace
+     * "Paste a list": the dialog with an empty text field. Not before the family's list has come from the sheet
+     * ([bulkChangeProblem]), like "Add common items": without it every line would be a new item, and could replace
      * the family's item of the same name (its type and amount) once it is sent.
      */
     fun openPasteList() {
-        if (!settingsStore.current().isConfigured) {
-            viewModelScope.launch { _events.send(ListEvent.Message(StarterList.NOT_CONNECTED_TEXT)) }
+        bulkChangeProblem()?.let { problem ->
+            viewModelScope.launch { _events.send(ListEvent.Message(problem)) }
             return
         }
         setPasteDraft(PasteDraft(text = "", previewing = false))
     }
 
     /**
-     * A text shared into the app (Share > Grocery Sync): its preview at once. It comes from another app, so it is
-     * only parsed; nothing changes until the user confirms. Before the app is set up, or when the text is too long,
-     * a snackbar says so instead.
+     * A share into the app (Share > Grocery Sync): the preview of its [text] at once. It comes from another app, so
+     * it is only parsed; nothing changes until the user confirms, and that waits for the family's list
+     * ([PasteListState.waitingForList]: a share may start the app right after setup, before its first sync). Before
+     * the app is set up, for a share without a text it can read ([text] null) or a text that is too long, a
+     * snackbar says so instead.
      */
-    fun openSharedText(text: String) {
+    fun openSharedText(text: String?) {
         val problem = when {
             !settingsStore.current().isConfigured -> SHARE_NOT_SET_UP_TEXT
+            text == null -> SHARE_UNREADABLE_TEXT
             PasteParser.isTooLong(text) -> PASTE_TOO_LONG_TEXT
-            else -> null
+            else -> {
+                setPasteDraft(PasteDraft(text = text, previewing = true))
+                return
+            }
         }
-        if (problem == null) {
-            setPasteDraft(PasteDraft(text = text, previewing = true))
-        } else {
-            viewModelScope.launch { _events.send(ListEvent.Message(problem)) }
-        }
+        viewModelScope.launch { _events.send(ListEvent.Message(problem)) }
     }
 
     /** The dialog's Next: the preview of [text]. A text that is too long stays (the dialog says so). */
@@ -535,9 +551,15 @@ class ListViewModel(
     /**
      * The preview's confirm button: applies [actions] (the ticked rows) as normal edits, one by one, so duplicate
      * names, the outbox and sync work as for a single item. An update goes ahead only while the item still has the
-     * value the preview showed ([pasteEdit]). A snackbar says what was done.
+     * value the preview showed ([pasteEdit]), checked again as each change is queued
+     * ([GroceryRepository.updateIf]): the first change starts a sync, whose list may land halfway through a long
+     * paste. A snackbar says what was done.
      */
     fun applyPaste(actions: List<PasteAction>) {
+        // A second tap before the dialog has gone would apply the same rows again, and say they were all skipped.
+        if (savedStateHandle.get<String>(KEY_PASTE) == null) return
+        // The button waits for the family's list (PasteListState.canApply); the dialog stays open until then.
+        if (bulkChangeProblem() != null) return
         closePasteList()
         edit {
             val byKey = repository.items.first().associateBy { it.key }
@@ -547,13 +569,25 @@ class ListViewModel(
             for (action in actions) {
                 when (val step = pasteEdit(action, action.itemKey?.let(byKey::get))) {
                     is PasteEdit.Add -> if (repository.add(step.name, step.value) == EditResult.Saved) added++ else leftOut++
-                    is PasteEdit.Update -> if (repository.upsert(step.name, step.value)) updated++ else leftOut++
+                    is PasteEdit.Update ->
+                        if (repository.updateIf(step.key, step.expected, step.value) == EditResult.Saved) updated++ else leftOut++
                     PasteEdit.Unchanged -> Unit
                     PasteEdit.ChangedMeanwhile -> leftOut++
                 }
             }
             _events.send(ListEvent.Message(pasteResultText(added, updated, leftOut)))
         }
+    }
+
+    /**
+     * Why a change of many items at once ("Add common items", a paste) can't go ahead now: the phone isn't set up,
+     * or the family's list hasn't come from the sheet yet ([ListUiState.hasSheetList]); null when it can. Read from
+     * [LiveSync] itself, which knows the last sync time (kept in the database) before [uiState] has caught up.
+     */
+    private fun bulkChangeProblem(): String? = when {
+        !settingsStore.current().isConfigured -> StarterList.NOT_CONNECTED_TEXT
+        liveSync.status.value.lastSuccessAt == null -> StarterList.LIST_NOT_LOADED_TEXT
+        else -> null
     }
 
     private fun pasteDraft(): PasteDraft? = PasteDraft.decode(savedStateHandle.get<String>(KEY_PASTE))

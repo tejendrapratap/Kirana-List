@@ -6,10 +6,12 @@ import com.grocerysync.app.sync.ConnectionState
 import com.grocerysync.app.sync.PushProblem
 import com.grocerysync.app.sync.SyncStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** When the list screen shows "Changes aren't saving". */
+/** When the list screen shows "Changes aren't saving", and whether the family's list has come from the sheet. */
 class ListUiStateTest {
 
     private val scriptProblem = PushProblem("The sheet's script reported an error: Choose Boolean or Integer.", 1, mayBeMomentary = false)
@@ -51,6 +53,20 @@ class ListUiStateTest {
         for (connection in listOf(ConnectionState.OFFLINE, ConnectionState.ERROR, ConnectionState.NOT_CONFIGURED)) {
             assertNull(connection.name, state(connection = connection).pushWarning)
         }
+    }
+
+    @Test
+    fun theSheetsListIsThereOnceASyncHasEverSucceeded() {
+        // "Add common items" and pasting wait for it: before, every item would look new.
+        assertTrue(state().hasSheetList)
+        // Offline since: the list from then is still the family's list.
+        assertTrue(state(connection = ConnectionState.OFFLINE).hasSheetList)
+        // Right after setup (the first sync is running, or failing): not yet.
+        val firstSync = ListUiState(loaded = true, status = SyncStatus(ConnectionState.CONNECTING, null, null, null), isConfigured = true)
+        assertFalse(firstSync.hasSheetList)
+        assertFalse(firstSync.copy(status = SyncStatus(ConnectionState.ERROR, null, "Check the secret token", null)).hasSheetList)
+        // Not set up: never.
+        assertFalse(state(configured = false).hasSheetList)
     }
 
     @Test

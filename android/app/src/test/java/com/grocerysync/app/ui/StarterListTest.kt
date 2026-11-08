@@ -196,6 +196,7 @@ class StarterListTest {
             "Connect to your sheet in Settings first, so items already on it aren't replaced.",
             StarterList.NOT_CONNECTED_TEXT,
         )
+        assertEquals("Wait until your list has loaded from the sheet, then try again.", StarterList.LIST_NOT_LOADED_TEXT)
     }
 
     /** Records what the dialog adds; answers [refuse]d names with AlreadyOnList, as the repository would. */

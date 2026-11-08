@@ -684,19 +684,22 @@ private fun LazyListScope.pageItems(
 }
 
 /**
- * A page's empty state. While the whole list is empty, with a button to "Add common items" once the phone is
- * connected to the sheet (before that, the setup banner shows the way).
+ * A page's empty state. While the whole list is empty, with a button to "Add common items" once the family's list
+ * has come from the sheet ([ListUiState.hasSheetList]). Before setup the setup banner shows the way; after it, until
+ * the first sync, the page says the list hasn't loaded yet (the status line or a banner says why it takes long).
  */
 private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, actions: ListActions) {
-    val starterList = if (state.allItems.isEmpty() && state.isConfigured) StarterList.TITLE else null
+    val listEmpty = state.allItems.isEmpty()
+    val notLoaded = listEmpty && state.isConfigured && !state.hasSheetList
+    val starterList = if (listEmpty && state.hasSheetList) StarterList.TITLE else null
     when (filter) {
         ListFilter.TO_BUY -> item(key = "empty:to-buy", contentType = "empty") {
             EmptyListState(
-                title = "Nothing to buy right now",
-                hint = if (state.allItems.isEmpty()) {
-                    "Tap + to add the things you usually buy. Mark them as needed when you run out."
-                } else {
-                    "Everything is ticked off. Open All items to mark what you need."
+                title = if (notLoaded) LIST_NOT_LOADED_TITLE else "Nothing to buy right now",
+                hint = when {
+                    notLoaded -> LIST_NOT_LOADED_HINT
+                    listEmpty -> "Tap + to add the things you usually buy. Mark them as needed when you run out."
+                    else -> "Everything is ticked off. Open All items to mark what you need."
                 },
                 modifier = Modifier.animateItem(),
                 actionText = starterList,
@@ -705,8 +708,8 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, acti
         }
         ListFilter.ALL -> item(key = "empty:all", contentType = "empty") {
             EmptyListState(
-                title = "Your list is empty",
-                hint = "Tap + to add your first item.",
+                title = if (notLoaded) LIST_NOT_LOADED_TITLE else "Your list is empty",
+                hint = if (notLoaded) LIST_NOT_LOADED_HINT else "Tap + to add your first item.",
                 modifier = Modifier.animateItem(),
                 actionText = starterList,
                 onAction = actions.openStarterList,
@@ -714,6 +717,10 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, acti
         }
     }
 }
+
+/** The empty pages while the family's list hasn't come from the sheet yet (right after setup). */
+private const val LIST_NOT_LOADED_TITLE = "Your list hasn't loaded yet"
+private const val LIST_NOT_LOADED_HINT = "It shows here once it has come from the sheet."
 
 /** To buy's rows: every needed item, or (search active) the needed items that match, A to Z; or a section's. */
 private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState, now: () -> Long, actions: ListActions) {

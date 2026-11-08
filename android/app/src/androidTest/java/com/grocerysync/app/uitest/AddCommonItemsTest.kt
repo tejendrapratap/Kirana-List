@@ -36,7 +36,7 @@ class AddCommonItemsTest : GroceryUiTest() {
     fun addsTheTickedItemsOfASetNotNeeded() {
         launchConnected()
 
-        node(button("Add common items")).performClick()
+        waitForNode(button("Add common items")).performClick()
         // Everyday first, everything ticked.
         waitForNode(starterRow("Onion")).assertIsOn()
         node(choice("Vrat / fasting")).performClick()
@@ -79,7 +79,7 @@ class AddCommonItemsTest : GroceryUiTest() {
     fun anItemOnTheListUnderAnotherNameCantBeTicked() {
         launchConnected()
 
-        node(button("Add common items")).performClick()
+        waitForNode(button("Add common items")).performClick()
         waitForNode(choice("Diwali puja")).performClick()
         waitForNode(starterRow("Nariyal")).assertIsOn()
 

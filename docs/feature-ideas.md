@@ -53,7 +53,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: yes
 - Much easier after the backend move: no
-- Status: Done in 1.4 (Add common items, in the ⋮ menu and on the empty list: sets Everyday, Monthly kirana, Diwali puja, Vrat / fasting and All, added to All items as not needed; offered once the phone is connected to the sheet)
+- Status: Done in 1.4 (Add common items, in the ⋮ menu and on the empty list: sets Everyday, Monthly kirana, Diwali puja, Vrat / fasting and All, added to All items as not needed; offered once the family's list has loaded from the sheet)
 
 ## 3. Hindi / Hinglish / English name matching in search, plus a 'similar item' warning
 
@@ -83,7 +83,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: no
 - Much easier after the backend move: no
-- Status: Done in 1.4 (⋮ > Paste a list, and Share > Grocery Sync from another app, open a preview of what each line does; offered once the phone is connected to the sheet)
+- Status: Done in 1.4 (⋮ > Paste a list, and Share > Grocery Sync from another app, open a preview of what each line does; offered once the family's list has loaded from the sheet)
 
 ## 5. Group To buy by shop section (automatic categories)
 

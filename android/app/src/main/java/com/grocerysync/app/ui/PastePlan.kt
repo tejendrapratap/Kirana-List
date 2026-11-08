@@ -202,7 +202,13 @@ internal fun neededAmount(unit: String): Amount = maxOf(Units.step(unit), Amount
 /** What applying a [PasteAction] does to the list as it is by then ([pasteEdit]). */
 sealed interface PasteEdit {
     data class Add(val name: String, val value: ItemValue) : PasteEdit
-    data class Update(val name: String, val value: ItemValue) : PasteEdit
+
+    /**
+     * The item [key] gets [value]. [expected] is its value now: the repository checks it again as the change is
+     * queued ([com.grocerysync.app.data.GroceryRepository.updateIf]), so a change from the other phone that lands
+     * while a long paste is applied isn't overwritten either.
+     */
+    data class Update(val key: String, val expected: ItemValue, val value: ItemValue) : PasteEdit
 
     /** Nothing to change (the item is needed already, or the row changes nothing). */
     data object Unchanged : PasteEdit
@@ -220,13 +226,13 @@ fun pasteEdit(action: PasteAction, current: GroceryItem?): PasteEdit = when (act
     is PasteAction.Add -> if (current == null) PasteEdit.Add(action.name, action.value) else PasteEdit.ChangedMeanwhile
     is PasteAction.MarkNeeded -> when {
         current == null -> PasteEdit.ChangedMeanwhile
-        current.value == action.expected -> PasteEdit.Update(current.name, action.value)
+        current.value == action.expected -> PasteEdit.Update(current.key, current.value, action.value)
         current.value.isNeeded -> PasteEdit.Unchanged
         else -> PasteEdit.ChangedMeanwhile
     }
     is PasteAction.ChangeAmount ->
         if (current != null && current.value == action.expected) {
-            PasteEdit.Update(current.name, action.value)
+            PasteEdit.Update(current.key, current.value, action.value)
         } else {
             PasteEdit.ChangedMeanwhile
         }
@@ -267,7 +273,9 @@ data class PasteDraft(val text: String, val previewing: Boolean, val choices: Ma
 
 /**
  * What the "Paste a list" dialog shows: the [text], and while [previewing] a row per line ([planPaste]) with the
- * rows ticked ([selected], by line index).
+ * rows ticked ([selected], by line index). [waitingForList]: the family's list hasn't come from the sheet yet
+ * ([ListUiState.hasSheetList], e.g. a list shared into the app right after setup), so every line would look new
+ * and could replace the family's item of that name: the preview shows, but can't be applied until it has.
  */
 @Immutable
 data class PasteListState(
@@ -275,19 +283,24 @@ data class PasteListState(
     val previewing: Boolean,
     val rows: List<PasteRow> = emptyList(),
     val selected: Set<Int> = emptySet(),
+    val waitingForList: Boolean = false,
 ) {
     /** What the confirm button applies: the ticked rows' actions, in line order. */
     val chosen: List<PasteAction>
         get() = rows.filter { it.selectable && it.index in selected }.map { it.action }
 
+    /** The confirm button is enabled: something is ticked and the family's list is there. */
+    val canApply: Boolean
+        get() = !waitingForList && chosen.isNotEmpty()
+
     companion object {
         /** The dialog for [draft] on the list [items] (planned only while the preview is shown). */
-        fun of(draft: PasteDraft, items: List<GroceryItem>): PasteListState {
-            if (!draft.previewing) return PasteListState(draft.text, previewing = false)
+        fun of(draft: PasteDraft, items: List<GroceryItem>, waitingForList: Boolean = false): PasteListState {
+            if (!draft.previewing) return PasteListState(draft.text, previewing = false, waitingForList = waitingForList)
             val rows = planPaste(PasteParser.parse(draft.text), items)
             val selected = rows.filter { it.selectable && (draft.choices[it.index] ?: it.selectedByDefault) }
                 .mapTo(HashSet()) { it.index }
-            return PasteListState(draft.text, previewing = true, rows = rows, selected = selected)
+            return PasteListState(draft.text, previewing = true, rows = rows, selected = selected, waitingForList = waitingForList)
         }
     }
 }
@@ -306,6 +319,12 @@ internal val PASTE_TOO_LONG_TEXT =
 
 /** The snackbar when a list is shared into the app before it is set up. */
 internal const val SHARE_NOT_SET_UP_TEXT = "Set up Grocery Sync first, then share the list again."
+
+/** The snackbar when something was shared into the app without a text it can read (a file, an image). */
+internal const val SHARE_UNREADABLE_TEXT = "Couldn't read that. Share the list as text."
+
+/** Above the preview's rows while the family's list hasn't come from the sheet ([PasteListState.waitingForList]). */
+internal const val PASTE_WAITING_TEXT = "Waiting for your list to load from the sheet. You can add these once it has."
 
 /** Most characters the text field keeps: more than a paste may have, so it says it is too long. */
 internal const val MAX_PASTE_FIELD_CHARS = 2 * PasteParser.MAX_CHARS

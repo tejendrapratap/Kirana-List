@@ -56,8 +56,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
@@ -221,7 +223,10 @@ private fun PasteTextStep(initialText: String, onPreview: (String) -> Unit, onCl
     }
 }
 
-/** The preview: what the paste holds, then one row per line. */
+/**
+ * The preview: what the paste holds, then one row per line. While the family's list is still loading
+ * ([PasteListState.waitingForList]) a line says so and the confirm button is off.
+ */
 @Composable
 private fun PastePreviewStep(
     state: PasteListState,
@@ -235,7 +240,7 @@ private fun PastePreviewStep(
         onClose = onClose,
         buttons = {
             TextButton(onClick = onEditText) { Text("Edit list") }
-            Button(onClick = { onApply(chosen) }, enabled = chosen.isNotEmpty()) { Text(pasteConfirmText(chosen)) }
+            Button(onClick = { onApply(chosen) }, enabled = state.canApply) { Text(pasteConfirmText(chosen)) }
         },
     ) { modifier ->
         LazyColumn(modifier.fillMaxSize()) {
@@ -246,6 +251,19 @@ private fun PastePreviewStep(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+            }
+            if (state.waitingForList) {
+                item(key = "waiting", contentType = "waiting") {
+                    Text(
+                        text = PASTE_WAITING_TEXT,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            // Says why the button is off, also to TalkBack when the preview opens with it.
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
             }
             items(state.rows, key = { it.index }, contentType = { "row" }) { row ->
                 PasteRowItem(

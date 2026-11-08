@@ -67,6 +67,9 @@ sealed interface EditResult {
     /** The item isn't on the list any more (renamed or removed on the other phone meanwhile). */
     data object NotOnList : EditResult
 
+    /** The item has another value than the one the change was planned on (changed on the other phone meanwhile). */
+    data object ValueChanged : EditResult
+
     /** The name can't be sent ([InputValidation.validateName]). */
     data object InvalidName : EditResult
 }
@@ -160,6 +163,18 @@ object ListLogic {
     fun editConflict(intent: EditIntent, existing: GroceryItem?): EditResult? = when {
         intent == EditIntent.CREATE && existing != null -> EditResult.AlreadyOnList(existing.name)
         intent == EditIntent.UPDATE && existing == null -> EditResult.NotOnList
+        else -> null
+    }
+
+    /**
+     * Like [editConflict], for a change that was planned on the value the user saw ([expected]): the paste
+     * preview's updates ([GroceryRepository.updateIf]). Null when the item [existing] (as shown right before the
+     * change is queued) still has that value; [EditResult.ValueChanged] when the other phone changed it meanwhile,
+     * so it isn't overwritten; [EditResult.NotOnList] when it was renamed or removed, so it isn't re-created.
+     */
+    fun updateConflict(expected: ItemValue, existing: GroceryItem?): EditResult? = when {
+        existing == null -> EditResult.NotOnList
+        existing.value != expected -> EditResult.ValueChanged
         else -> null
     }
 
