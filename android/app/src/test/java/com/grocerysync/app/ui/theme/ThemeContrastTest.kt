@@ -41,7 +41,7 @@ class ThemeContrastTest {
         Triple("onPrimaryFixed on primaryFixedDim", onPrimaryFixed, primaryFixedDim),
         Triple("onPrimaryFixedVariant on primaryFixed", onPrimaryFixedVariant, primaryFixed),
         Triple("onSecondaryFixed on secondaryFixed", onSecondaryFixed, secondaryFixed),
-        Triple("onSecondaryFixed on secondaryFixedDim", onSecondaryFixed, secondaryFixedDim),
+        Triple("onSecondaryFixed on secondaryFixedDim (quantity chip)", onSecondaryFixed, secondaryFixedDim),
         Triple("onSecondaryFixedVariant on secondaryFixed", onSecondaryFixedVariant, secondaryFixed),
         Triple("onTertiaryFixed on tertiaryFixed", onTertiaryFixed, tertiaryFixed),
         Triple("onTertiaryFixed on tertiaryFixedDim", onTertiaryFixed, tertiaryFixedDim),

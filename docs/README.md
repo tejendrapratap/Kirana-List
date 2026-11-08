@@ -29,7 +29,7 @@ The "fresh market" palette is in `android/app/src/main/java/com/grocerysync/app/
 | Colour | Seed | Light theme | Dark theme | Where it shows |
 |---|---|---|---|---|
 | Curry-leaf green (primary) | `#3E7D2A` | `#376A26`, container `#B7F39D` | `#9BD684`, container `#1E510F` | App bars, ticks, switches, the selected To buy / All items segment, links, "Live" |
-| Turmeric (secondary) | `#F4B400` | `#7B5800`, container `#FFCD61` | `#FEBB04`, container `#5D4200` | Quantity chips, the dialog's − / + buttons, the cart in the app bar, the setup banner |
+| Turmeric (secondary) | `#F4B400` | `#7B5800`, container `#FFCD61`, chips `#FEBB04` | `#FEBB04`, container `#5D4200`, chips `#FEBB04` | Quantity chips (the same bright turmeric in both themes), the cart in the app bar; the container: the setup banner, the dialog's − / + buttons |
 | Marigold (tertiary) | `#F28C00` | `#8E4F00`, container `#FFA442` | `#FFB772`, container `#FFA442` | The + button, notices (the script is out of date, a web app URL warning) |
 | Surfaces | | Warm cream `#FFF8EE`; dialogs `#F3E7D5` | Green charcoal `#13190F`; dialogs `#293025` | Screens, menus, dialogs |
 | Error | | `#BA1A1A` | `#FFB4A9` | Errors stay red |
