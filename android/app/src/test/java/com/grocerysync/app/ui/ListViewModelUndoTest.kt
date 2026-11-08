@@ -19,6 +19,7 @@ import com.grocerysync.app.data.SyncSettings
 import com.grocerysync.app.data.TickedEntry
 import com.grocerysync.app.data.TickedTodayStore
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.data.shownTickedToday
 import com.grocerysync.app.sync.FakeSyncStore
 import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.SheetsClient
@@ -250,6 +251,72 @@ class ListViewModelUndoTest {
         assertTrue(ticked.today().isEmpty())
     }
 
+    @Test
+    fun plusThenMinusHasNothingToUndo() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.stepQuantity("rice", up = true)
+        settle()
+        viewModel.stepQuantity("rice", up = false)
+        settle()
+        // Back where it started: said without Undo (a "2 kg → 2 kg" Undo would do nothing).
+        assertEquals(ListEvent.Stepped("rice", "Rice", kg("2"), kg("2.5")), events[0])
+        assertEquals("Rice: 2 kg, as before", lastMessage())
+        assertEquals(2, events.size)
+        // The next step is a change of its own.
+        viewModel.stepQuantity("rice", up = true)
+        settle()
+        assertEquals(ListEvent.Stepped("rice", "Rice", kg("2"), kg("2.5")), events.last())
+    }
+
+    @Test
+    fun theUndoOfAPlusOnATickedItemPutsItBackUnderTickedToday() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val entry = ticked.today().single()
+        viewModel.snackbarClosed(events.last())
+        // A stray + on All items made Rice needed again, and took it off Ticked today.
+        viewModel.stepQuantity("rice", up = true)
+        settle()
+        assertTrue(ticked.today().isEmpty())
+        viewModel.undoChange(events.last() as ListEvent.Stepped)
+        settle()
+        assertEquals(kg("0"), shown("Rice")!!.value)
+        // Put back can give it its 2 kg again.
+        assertEquals(listOf(entry), ticked.today())
+    }
+
+    @Test
+    fun plusThenMinusOnATickedItemLeavesItUnderTickedToday() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val entry = ticked.today().single()
+        viewModel.snackbarClosed(events.last())
+        viewModel.stepQuantity("rice", up = true)
+        settle()
+        viewModel.stepQuantity("rice", up = false)
+        settle()
+        assertEquals("Rice: 0 kg, as before", lastMessage())
+        assertEquals(listOf(entry), ticked.today())
+    }
+
+    @Test
+    fun theUndoOfTheNeedSwitchOnATickedItemPutsItBackUnderTickedToday() = test {
+        store.synced(listOf(item("Dahi", BoolValue(true))))
+        viewModel.markGotIt("dahi")
+        settle()
+        val entry = ticked.today().single()
+        viewModel.snackbarClosed(events.last())
+        viewModel.setNeeded("dahi", needed = true)
+        settle()
+        assertEquals(ListEvent.NeedChanged("dahi", "Dahi", needed = true, tickedEntry = entry), events.last())
+        assertTrue(ticked.today().isEmpty())
+        viewModel.undoChange(events.last() as ListEvent.NeedChanged)
+        settle()
+        assertEquals(listOf(entry), ticked.today())
+    }
+
     // ---- Need switch -----------------------------------------------------------------------------------------
 
     @Test
@@ -343,6 +410,95 @@ class ListViewModelUndoTest {
         assertNull(shown("Curd"))
     }
 
+    @Test
+    fun anEditThatFixesANameTheSheetCantTakeHasNoUndo() = test {
+        // Typed into the sheet with a line break: the Edit dialog can't save it, so the user fixes it.
+        store.synced(listOf(item("Basmati\nrice", kg("1"))))
+        viewModel.saveItem(originalKey = "basmati rice", openedValue = kg("1"), name = "Basmati rice", value = kg("1"))
+        settle()
+        // Its Undo couldn't bring the old name back: the snackbar says what changed, without Undo.
+        assertEquals("Renamed Basmati\nrice to Basmati rice", lastMessage())
+        assertEquals("Basmati rice", shown("Basmati rice")!!.name)
+    }
+
+    @Test
+    fun anEditThatShortensANameTooLongToSendHasNoUndo() = test {
+        val long = "Rice " + "x".repeat(150)
+        store.synced(listOf(item(long, kg("1"))))
+        viewModel.saveItem(originalKey = ItemKeys.normalize(long), openedValue = kg("1"), name = "Rice", value = kg("1"))
+        settle()
+        assertEquals("Renamed $long to Rice", lastMessage())
+        assertEquals(kg("1"), shown("Rice")!!.value)
+    }
+
+    @Test
+    fun theUndoOfAnEditOfATickedItemPutsItBackUnderTickedToday() = test {
+        store.synced(listOf(item("Curd", kg("1"))))
+        viewModel.markGotIt("curd")
+        settle()
+        val entry = ticked.today().single()
+        viewModel.saveItem(originalKey = "curd", openedValue = kg("0"), name = "Dahi", value = kg("0"))
+        settle()
+        assertTrue(ticked.today().isEmpty())
+        viewModel.undoEdit(events.last() as ListEvent.Edited)
+        settle()
+        assertEquals(kg("0"), shown("Curd")!!.value)
+        assertEquals(listOf(entry), ticked.today())
+    }
+
+    // ---- Delete ----------------------------------------------------------------------------------------------
+
+    @Test
+    fun theUndoOfADeleteBringsBackTheAddedAtAndTheTick() = test {
+        store.synced(listOf(item("Ghee", kg("1"), updatedAt = 2_000L)))
+        viewModel.markGotIt("ghee")
+        settle()
+        val entry = ticked.today().single()
+        viewModel.deleteItem("ghee")
+        settle()
+        val deleted = events.last() as ListEvent.Deleted
+        assertEquals(ListEvent.Deleted("Ghee", kg("0"), addedAt = 2_000L, tickedEntry = entry), deleted)
+        assertTrue(ticked.today().isEmpty())
+        // The delete reached the sheet.
+        store.synced(emptyList())
+        viewModel.undoDelete(deleted)
+        settle()
+        assertEquals(kg("0"), shown("Ghee")!!.value)
+        assertEquals(2_000L, store.outbox.single().addedAt)
+        assertEquals(listOf(entry), ticked.today())
+    }
+
+    @Test
+    fun aDeleteOfANameThatCantBeSentHasNoUndo() = test {
+        val long = "x".repeat(50_001)
+        store.synced(listOf(item(long, kg("1"))))
+        viewModel.deleteItem(ItemKeys.normalize(long))
+        settle()
+        assertEquals("Couldn't change \"${"x".repeat(40)}\". Open it and shorten its name.", lastMessage())
+        assertTrue(store.outbox.isEmpty())
+    }
+
+    // ---- Simple mode's lasting Undo --------------------------------------------------------------------------
+
+    @Test
+    fun aLastingUndoIsKeptUntilItsSnackbarHasGone() = test {
+        store.synced(listOf(item("Rice", kg("2")), item("Dal", kg("1"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val rice = events.last()
+        viewModel.lastingUndoShown(rice)
+        assertEquals(rice, viewModel.lastingUndo)
+        // The next Undo replaces it; the screen then says the first one's snackbar has gone.
+        viewModel.markGotIt("dal")
+        settle()
+        val dal = events.last()
+        viewModel.lastingUndoShown(dal)
+        viewModel.snackbarClosed(rice)
+        assertEquals(dal, viewModel.lastingUndo)
+        viewModel.snackbarClosed(dal)
+        assertNull(viewModel.lastingUndo)
+    }
+
     // ---- Ticked today ----------------------------------------------------------------------------------------
 
     @Test
@@ -354,12 +510,134 @@ class ListViewModelUndoTest {
         settle()
         assertEquals(listOf("dahi", "rice"), ticked.today().map { it.key })
 
-        viewModel.putBack(ticked.today().single { it.key == "rice" })
+        val rice = ticked.today().single { it.key == "rice" }
+        viewModel.putBack(rice)
         settle()
         assertEquals(kg("2"), shown("Rice")!!.value)
         assertEquals(listOf("dahi"), ticked.today().map { it.key })
-        // No snackbar beyond the two Got it ones.
+        // Its own Undo snackbar, which replaces the Got it one.
+        assertEquals(ListEvent.PutBack(rice), events.last())
+        assertEquals(3, events.size)
+    }
+
+    @Test
+    fun theUndoOfPutBackTicksTheItemOffAgain() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val entry = ticked.today().single()
+        viewModel.putBack(entry)
+        settle()
+        viewModel.undoChange(events.last() as ListEvent.PutBack)
+        settle()
+        assertEquals(kg("0"), shown("Rice")!!.value)
+        // Back under Ticked today as it was, with the amount from before the tick.
+        assertEquals(listOf(entry), ticked.today())
+        assertEquals(listOf(entry), shownTickedToday(ticked.today(), repository.items.first(), me))
         assertEquals(2, events.size)
+    }
+
+    @Test
+    fun theTicksUndoAfterPutBackHasNothingToDo() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val gotIt = events.single() as ListEvent.GotIt
+        viewModel.putBack(ticked.today().single())
+        settle()
+        // In Simple mode the Got it snackbar may still be up: its Undo finds Rice as this phone put it back.
+        viewModel.undoChange(gotIt)
+        settle()
+        assertEquals(kg("2"), shown("Rice")!!.value)
+        assertTrue("no snackbar says it was changed elsewhere", events.none { it is ListEvent.Message })
+        assertEquals(listOf(kg("0"), kg("2")), store.outbox.map { it.value })
+        assertTrue(ticked.today().isEmpty())
+    }
+
+    @Test
+    fun theUndoOfStepsDownToZeroAfterPutBackHasNothingToDo() = test {
+        store.synced(listOf(item("Rice", kg("1"))))
+        repeat(2) {
+            viewModel.stepQuantity("rice", up = false)
+            settle()
+        }
+        val stepped = events.last() as ListEvent.Stepped
+        viewModel.putBack(ticked.today().single())
+        settle()
+        viewModel.undoChange(stepped)
+        settle()
+        assertEquals(kg("1"), shown("Rice")!!.value)
+        assertTrue(events.none { it is ListEvent.Message })
+    }
+
+    @Test
+    fun putBackTappedTwiceWritesOnce() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val entry = ticked.today().single()
+        // The second tap comes before the row has gone.
+        viewModel.putBack(entry)
+        viewModel.putBack(entry)
+        settle()
+        assertEquals(kg("2"), shown("Rice")!!.value)
+        assertEquals(listOf(kg("0"), kg("2")), store.outbox.map { it.value })
+        assertEquals(listOf(ListEvent.GotIt("rice", "Rice", kg("2"), kg("0")), ListEvent.PutBack(entry)), events)
+    }
+
+    @Test
+    fun putBackOfAnOlderTickOfTheItemDoesNothing() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val first = ticked.today().single()
+        viewModel.undoChange(events.last() as ListEvent.GotIt)
+        settle()
+        // Undone: a Put back of that tick's row, tapped as it went, finds nothing to do.
+        viewModel.putBack(first)
+        settle()
+        assertEquals(kg("2"), shown("Rice")!!.value)
+        assertEquals(1, events.size)
+    }
+
+    // ---- Ticked today and the other phone ------------------------------------------------------------------
+
+    @Test
+    fun anItemTheOtherPhoneNeededAndTickedOffAgainLeavesTickedToday() = test {
+        store.synced(listOf(item("Rice", kg("2"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val entry = ticked.today().single()
+        // The tick reached the sheet and came back as this phone's change: still this phone's tick.
+        store.synced(listOf(item("Rice", kg("0"), by = me, updatedAt = 50_000L)))
+        assertEquals(listOf(entry), shownTickedToday(ticked.today(), repository.items.first(), me))
+        // Home needed Rice again (5 kg) and later ticked it off itself; this phone saw only the end of it.
+        store.synced(listOf(item("Rice", kg("0"), updatedAt = 70_000L)))
+        assertTrue(shownTickedToday(ticked.today(), repository.items.first(), me).isEmpty())
+        // Put back from a screen that hadn't caught up yet: Rice isn't this phone's tick any more.
+        viewModel.putBack(entry)
+        settle()
+        assertEquals("\"Rice\" was changed on another phone", lastMessage())
+        assertEquals(kg("0"), shown("Rice")!!.value)
+        assertTrue(ticked.today().isEmpty())
+    }
+
+    @Test
+    fun aHiddenEntryIsPrunedByTheNextChangeAndAnUndoDoesNotBringItBack() = test {
+        store.synced(listOf(item("Dahi", BoolValue(true))))
+        viewModel.setNeeded("dahi", needed = false)
+        settle()
+        // Home needed Dahi again and ticked it off itself.
+        store.synced(listOf(item("Dahi", BoolValue(false), updatedAt = 70_000L)))
+        viewModel.snackbarClosed(events.last())
+        // Needed again here, and undone: Dahi is as Home left it, which isn't this phone's tick.
+        viewModel.setNeeded("dahi", needed = true)
+        settle()
+        assertTrue(ticked.today().isEmpty())
+        viewModel.undoChange(events.last() as ListEvent.NeedChanged)
+        settle()
+        assertEquals(BoolValue(false), shown("Dahi")!!.value)
+        assertTrue(ticked.today().isEmpty())
     }
 
     @Test

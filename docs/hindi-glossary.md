@@ -125,6 +125,8 @@ Snackbars, TalkBack texts and notifications made of the words above. Names and a
 | Changed Curd, now called Dahi | Curd बदल दिया, अब इसका नाम Dahi है |
 | Ticked today (3) / TalkBack: Ticked today, 3 items | आज लिया (3) / आज लिया, 3 चीज़ें |
 | Put back Rice (TalkBack) | Rice वापस लाएँ |
+| Rice is back on To buy (after Put back) | Rice वापस "ख़रीदना है" में |
+| Rice: 2 kg, as before (- / + back where they started) | Rice: 2 kg, पहले जैसा |
 | Tap Add item to add what you need. | जो चाहिए, उसे "सामान जोड़ें" दबाकर जोड़ें। |
 | Everything is ticked off. Tap Add item when you need something. | सब ले लिया गया है। कुछ और चाहिए तो "सामान जोड़ें" दबाएँ। |
 | Added Dahi - it isn't needed now, so it isn't on To buy | Dahi जोड़ा - यह अभी नहीं चाहिए, इसलिए "ख़रीदना है" में नहीं है |

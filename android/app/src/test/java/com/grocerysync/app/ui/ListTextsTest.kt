@@ -79,6 +79,8 @@ class ListTextsTest {
         assertEquals("Ticked today, 3 items", t.tickedTodayDescription(3))
         assertEquals("Put back", t.putBack)
         assertEquals("Put back Rice", t.putBackDescription("Rice"))
+        assertEquals("Rice is back on To buy", t.putBackSnackbar("Rice"))
+        assertEquals("Rice: 2 kg, as before", t.stepsBackSnackbar("Rice", "2 kg"))
     }
 
     @Test

@@ -5,6 +5,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
@@ -33,15 +35,17 @@ import com.grocerysync.app.testing.pager
 import com.grocerysync.app.testing.searchField
 import com.grocerysync.app.testing.tab
 import com.grocerysync.app.testing.toBuyRowWithAmount
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
  * Simple mode (Settings > This phone): the list screen shows only To buy, with a big labelled "Got it" button on each
- * row, one big Add item button, Share and a ⋮ menu with Settings only; Undo stays until it is tapped or closed, and
- * Ticked today is open. Turning it off (or on) shows on the list at once. Simple mode is turned on here through the
- * app's PhoneSettingsStore, as Settings' switch does, so these tests don't depend on that screen's words.
+ * row, one big Add item button, Share and a ⋮ menu with Settings only; Undo stays until it is tapped or closed (also
+ * when the screen turns off or is made again), and Ticked today is open. Turning it off (or on) shows on the list at
+ * once. Simple mode is turned on here through the app's PhoneSettingsStore, as Settings' switch does, so these tests
+ * don't depend on that screen's words.
  * SimpleModeLargeTextTest checks the screen at 200% text.
  */
 @RunWith(AndroidJUnit4::class)
@@ -147,6 +151,42 @@ class SimpleModeTest : GroceryUiTest() {
         assertNoNode(gotItButton("Stapler"))
         node(gotItButton("Glue")).assertIsDisplayed()
         waitFor("Stapler not needed on the sheet") { fake.item("Stapler")?.need == Need.YesNo(false) }
+    }
+
+    @Test
+    fun anUndoStaysWhenTheScreenTurnsOffOrIsMadeAgain() {
+        fake.seed("Stapler", yesNo(true))
+        fake.seed("Glue", quantity("1", Units.PCS))
+        val addedAt = fake.item("Stapler")!!.addedAt
+        launchInSimpleMode()
+
+        // Deleted by mistake from its Edit dialog: its Undo is the only way back.
+        waitForNode(itemRow("Stapler")).performClick()
+        waitForNode(hasText("Edit item"))
+        node(button("Delete")).performClick()
+        val question = hasText("Delete \"Stapler\"?")
+        waitForNode(question)
+        node(button("Delete") and hasAnyAncestor(hasAnyDescendant(question))).performClick()
+        waitForNode(hasText("Deleted Stapler"))
+        waitFor("Stapler deleted on the sheet") { fake.item("Stapler") == null }
+
+        // The screen turns off and on again, then the phone is turned sideways: the Undo is still there.
+        stopAndStartApp()
+        waitForNode(hasText("Deleted Stapler"))
+        recreateApp()
+        waitForNode(hasText("Deleted Stapler"))
+        node(closeSnackbar).assertIsDisplayed()
+
+        node(button("Undo")).performClick()
+        waitForNode(gotItButton("Stapler"))
+        waitForNoNode(hasText("Deleted Stapler"))
+        waitFor("Stapler back on the sheet") { fake.item("Stapler") != null }
+        // With the Added At it had, however long the Undo waited.
+        assertEquals(addedAt, fake.item("Stapler")!!.addedAt)
+        // Tapped, it has gone for good.
+        stopAndStartApp()
+        waitForNode(gotItButton("Stapler"))
+        assertNoNode(hasText("Deleted Stapler"))
     }
 
     @Test

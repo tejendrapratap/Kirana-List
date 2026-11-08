@@ -38,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -257,6 +258,8 @@ fun ListScreen(
         onUndoChange = viewModel::undoChange,
         onUndoEdit = viewModel::undoEdit,
         onSnackbarClosed = viewModel::snackbarClosed,
+        lastingUndo = { viewModel.lastingUndo },
+        onLastingUndoShown = viewModel::lastingUndoShown,
         onUndoDelete = viewModel::undoDelete,
         onUndoCommonItems = viewModel::undoAddCommonItems,
         addedText = { name, value ->
@@ -1104,8 +1107,10 @@ private fun LazyListScope.noSearchMatches(content: PageContent.NoMatch, actions:
 /**
  * Shows view-model events as snackbars while the screen is visible; a new one replaces the current one.
  * [addedText] says where an item just added shows up when the page shown hides it (null: no snackbar).
- * [onSnackbarClosed] hears when the snackbar of a change has gone, whatever the reason (- / + of the same item join
- * its change only while it is shown). In [simpleMode] they stay longer, Undo until it is tapped ([SnackbarLook]).
+ * [onSnackbarClosed] hears when the snackbar of an Undo has gone, whatever the reason (- / + of the same item join
+ * its change only while it is shown). In [simpleMode] they stay longer, Undo until it is tapped ([SnackbarLook]); such
+ * an Undo goes with the screen when it stops (turned off, rotated, Settings opened), so the view model keeps it
+ * ([onLastingUndoShown]) and the screen shows [lastingUndo] again when it starts, before anything newer replaces it.
  */
 @Composable
 private fun ListEventsEffect(
@@ -1115,7 +1120,9 @@ private fun ListEventsEffect(
     onUndoChange: (ListEvent.ValueChange) -> Unit,
     onUndoEdit: (ListEvent.Edited) -> Unit,
     onSnackbarClosed: (ListEvent) -> Unit,
-    onUndoDelete: (name: String, value: ItemValue) -> Unit,
+    lastingUndo: () -> ListEvent?,
+    onLastingUndoShown: (ListEvent) -> Unit,
+    onUndoDelete: (ListEvent.Deleted) -> Unit,
     onUndoCommonItems: (List<AddedItem>) -> Unit,
     addedText: (name: String, value: ItemValue) -> String?,
 ) {
@@ -1124,73 +1131,82 @@ private fun ListEventsEffect(
     val currentOnUndoChange by rememberUpdatedState(onUndoChange)
     val currentOnUndoEdit by rememberUpdatedState(onUndoEdit)
     val currentOnSnackbarClosed by rememberUpdatedState(onSnackbarClosed)
+    val currentLastingUndo by rememberUpdatedState(lastingUndo)
+    val currentOnLastingUndoShown by rememberUpdatedState(onLastingUndoShown)
     val currentOnUndoDelete by rememberUpdatedState(onUndoDelete)
     val currentOnUndoCommonItems by rememberUpdatedState(onUndoCommonItems)
     val currentAddedText by rememberUpdatedState(addedText)
     LaunchedEffect(events, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            events.collect { event ->
+            fun show(event: ListEvent) {
                 // The texts as they are when the event is shown, and so is Simple mode.
                 val t = Texts.current
                 val simple = currentSimpleMode
+
+                fun showUndo(message: String, undo: () -> Unit) = showReplacingSnackbar(
+                    snackbarHostState,
+                    message,
+                    t.common.undo,
+                    simple,
+                    onShownToStay = { currentOnLastingUndoShown(event) },
+                    onClosed = { currentOnSnackbarClosed(event) },
+                    onAction = undo,
+                )
                 when (event) {
-                    is ListEvent.ValueChange -> showReplacingSnackbar(
-                        snackbarHostState,
-                        event.snackbarText(),
-                        t.common.undo,
-                        simple,
-                        onClosed = { currentOnSnackbarClosed(event) },
-                    ) {
-                        currentOnUndoChange(event)
-                    }
-                    is ListEvent.Edited -> showReplacingSnackbar(snackbarHostState, event.snackbarText(), t.common.undo, simple) {
-                        currentOnUndoEdit(event)
-                    }
-                    is ListEvent.Deleted ->
-                        showReplacingSnackbar(snackbarHostState, t.list.deletedSnackbar(event.name), t.common.undo, simple) {
-                            currentOnUndoDelete(event.name, event.previous)
-                        }
-                    is ListEvent.Message -> showReplacingSnackbar(snackbarHostState, event.text, simpleMode = simple)
+                    is ListEvent.ValueChange -> showUndo(event.snackbarText()) { currentOnUndoChange(event) }
+                    is ListEvent.Edited -> showUndo(event.snackbarText()) { currentOnUndoEdit(event) }
+                    is ListEvent.Deleted -> showUndo(t.list.deletedSnackbar(event.name)) { currentOnUndoDelete(event) }
                     is ListEvent.CommonItemsAdded ->
-                        showReplacingSnackbar(snackbarHostState, StarterList.addedText(event.items.size), t.common.undo, simple) {
-                            currentOnUndoCommonItems(event.items)
-                        }
+                        showUndo(StarterList.addedText(event.items.size)) { currentOnUndoCommonItems(event.items) }
+                    is ListEvent.Message -> showReplacingSnackbar(snackbarHostState, event.text, simpleMode = simple)
                     is ListEvent.Added -> currentAddedText(event.name, event.value)?.let {
                         showReplacingSnackbar(snackbarHostState, it, simpleMode = simple)
                     }
                 }
             }
+            // An Undo that was to stay comes back with the screen; in the usual look (Simple mode was turned off
+            // meanwhile) it has gone for good.
+            currentLastingUndo()?.let { if (currentSimpleMode) show(it) else currentOnSnackbarClosed(it) }
+            events.collect { show(it) }
         }
     }
 }
 
 /**
  * Dismisses the visible snackbar (so quick ticks don't queue up) and shows [message] without blocking the caller.
- * [onAction] runs when its action (Undo) is tapped; [onClosed] once it has gone for any reason (also when the screen
- * stops). How long it stays, and whether it has an X, depends on [simpleMode] ([SnackbarLook]).
+ * How long it stays, and whether it has an X, depends on [simpleMode] ([SnackbarLook]). [onShownToStay] runs when it
+ * is one that stays until it is tapped, closed or replaced (Simple mode's Undo); [onClosed] once it has gone that
+ * way or timed out, just before [onAction] when its action (Undo) was tapped. When the screen stops first, the
+ * snackbar goes with it: one that was to stay is shown again when the screen comes back ([ListEventsEffect]), so
+ * [onClosed] waits for that one; any other has gone, and [onClosed] runs then.
  */
 private fun CoroutineScope.showReplacingSnackbar(
     hostState: SnackbarHostState,
     message: String,
     actionLabel: String? = null,
     simpleMode: Boolean = false,
+    onShownToStay: () -> Unit = {},
     onClosed: () -> Unit = {},
     onAction: () -> Unit = {},
 ) {
     hostState.currentSnackbarData?.dismiss()
     val look = SnackbarLook.of(simpleMode, hasUndo = actionLabel != null)
+    val staying = look.duration == SnackbarDuration.Indefinite
     launch {
-        try {
-            val result = hostState.showSnackbar(
+        if (staying) onShownToStay()
+        val result = try {
+            hostState.showSnackbar(
                 message = message,
                 actionLabel = actionLabel,
                 withDismissAction = look.withDismissAction,
                 duration = look.duration,
             )
-            if (result == SnackbarResult.ActionPerformed) onAction()
-        } finally {
-            onClosed()
+        } catch (e: CancellationException) {
+            if (!staying) onClosed()
+            throw e
         }
+        onClosed()
+        if (result == SnackbarResult.ActionPerformed) onAction()
     }
 }
 

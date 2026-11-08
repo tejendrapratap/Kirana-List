@@ -242,6 +242,8 @@ class ListTextsHindiTest {
         assertEquals("आज लिया, 3 चीज़ें", t.tickedTodayDescription(3))
         assertEquals("वापस लाएँ", t.putBack)
         assertEquals("Rice वापस लाएँ", t.putBackDescription("Rice"))
+        assertEquals("Rice वापस \"ख़रीदना है\" में", t.putBackSnackbar("Rice"))
+        assertEquals("Rice: 2 kg, पहले जैसा", t.stepsBackSnackbar("Rice", "2 kg"))
     }
 
     @Test

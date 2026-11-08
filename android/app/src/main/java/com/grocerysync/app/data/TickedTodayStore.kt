@@ -25,28 +25,35 @@ data class TickedEntry(
     val before: ItemValue,
     /** The value this phone set (not needed): Put back goes ahead only while the item still has it. */
     val set: ItemValue,
-    /** When it was ticked, on this phone's clock (ms). */
+    /** When it was ticked, on this phone's clock (ms). It also tells this tick from a later one of the item. */
     val at: Long,
 ) {
     /**
      * The item is still as this phone left it: [item] (the item under [key] now; null when it isn't on the list)
-     * still has [set]. Not when it is needed again, was renamed (its key is gone) or removed, or the other phone
-     * changed it otherwise: Put back would be refused then, so the entry isn't shown (and is pruned).
+     * still has [set], and its last change is this phone's ([GroceryItem.isChangedLastByOthers], [me] being this
+     * phone's name). Not when it is needed again, was renamed (its key is gone) or removed, or the other phone
+     * changed it otherwise. Nor when the other phone needed it again and then ticked it off itself: the item has
+     * [set] again, but that tick isn't this phone's, and Put back would bring back this phone's old amount for
+     * something just bought. The entry isn't shown then (and is pruned).
+     *
+     * Two phones with the same name (both left at the phone's model name, say) can't be told apart: then only the
+     * value counts.
      */
-    fun isStillTicked(item: GroceryItem?): Boolean = item != null && item.value.sanitized() == set
+    fun isStillTicked(item: GroceryItem?, me: String): Boolean =
+        item != null && item.value.sanitized() == set && !item.isChangedLastByOthers(me)
 }
 
 /**
- * The entries of [entries] (today's, see [TickedTodayStore.today]) whose item is still ticked ([TickedEntry.isStillTicked])
- * on the list [items], with the item's name as it is now (the other phone may have changed its capitals). In the
- * order of [entries].
+ * The entries of [entries] (today's, see [TickedTodayStore.today]) whose item is still ticked by this phone ([me],
+ * see [TickedEntry.isStillTicked]) on the list [items], with the item's name as it is now (the other phone may have
+ * changed its capitals). In the order of [entries].
  */
-fun shownTickedToday(entries: List<TickedEntry>, items: List<GroceryItem>): List<TickedEntry> {
+fun shownTickedToday(entries: List<TickedEntry>, items: List<GroceryItem>, me: String): List<TickedEntry> {
     if (entries.isEmpty()) return emptyList()
     val byKey = items.associateBy { it.key }
     return entries.mapNotNull { entry ->
         val item = byKey[entry.key]
-        if (entry.isStillTicked(item)) entry.copy(name = item!!.name) else null
+        if (entry.isStillTicked(item, me)) entry.copy(name = item!!.name) else null
     }
 }
 
@@ -60,8 +67,10 @@ fun shownTickedToday(entries: List<TickedEntry>, items: List<GroceryItem>): List
  * - Entries from before local midnight (of this phone's time zone) are dropped when read ([today]); so is one
  *   dated in a later day (the phone's clock was set back).
  * - The Undo of a tick removes its entry ([remove]); so does Put back.
- * - Entries whose item is needed again, renamed or gone are not shown ([shownTickedToday]) and are pruned
- *   ([retain]) by the list screen's next change of the list.
+ * - Entries whose item is needed again, renamed or gone, or changed last on the other phone, are not shown
+ *   ([shownTickedToday]) and are pruned ([retain]) by the list screen's next change of the list.
+ * - The Undo of a change that took an entry away (+ or the Need switch on a ticked item, an edit, a delete, Put
+ *   back) puts it back as it was ([restore]).
  *
  * Each entry is stored as JSON under [ENTRY_PREFIX] + its item key; one that can't be read is dropped.
  *
@@ -83,7 +92,10 @@ class TickedTodayStore internal constructor(
 
     private val version = MutableStateFlow(0L)
 
-    /** Changes after every [record], [remove] and [retain] that changed something: read [today] again then. */
+    /**
+     * Changes after every [record], [restore], [remove] and [retain] that changed something: read [today] again
+     * then.
+     */
     val changes: StateFlow<Long> = version.asStateFlow()
 
     init {
@@ -96,6 +108,23 @@ class TickedTodayStore internal constructor(
         dropOtherDays()
         // The map has the newest tick last; reversed first, so ticks of the same millisecond are newest first too.
         return entries.values.reversed().sortedByDescending { it.at }
+    }
+
+    /** Today's entry of the item [key]; null when it has none. */
+    @Synchronized
+    fun entryOf(key: String): TickedEntry? {
+        dropOtherDays()
+        return entries[key]
+    }
+
+    /**
+     * [entry] is still its item's entry: not put back, undone or pruned since, and the item wasn't ticked again
+     * (compared by key and time, as the list shows the entry with the item's name as it is now).
+     */
+    @Synchronized
+    fun holds(entry: TickedEntry): Boolean {
+        dropOtherDays()
+        return entries[entry.key]?.at == entry.at
     }
 
     /**
@@ -121,6 +150,21 @@ class TickedTodayStore internal constructor(
         version.value++
     }
 
+    /**
+     * Puts [entry] back, as it was (its time too, so it keeps its place): a change took it away and that change was
+     * undone. Not when it is from another day by now, or when the item has an entry again (a newer tick).
+     */
+    @Synchronized
+    fun restore(entry: TickedEntry) {
+        dropOtherDays()
+        if (entry.key in entries || entry.at !in todayRange()) return
+        val sorted = (entries.values + entry).sortedBy { it.at }
+        entries.clear()
+        sorted.forEach { entries[it.key] = it }
+        prefs?.edit { putString(ENTRY_PREFIX + entry.key, encode(entry)) }
+        version.value++
+    }
+
     /** Keeps only the entries [keep] says yes to (e.g. [TickedEntry.isStillTicked] on the list as it is now). */
     @Synchronized
     fun retain(keep: (TickedEntry) -> Boolean) {
@@ -137,11 +181,17 @@ class TickedTodayStore internal constructor(
 
     private fun dropOtherDays() {
         if (entries.isEmpty()) return
+        val today = todayRange()
+        val old = entries.values.filter { it.at !in today }.map { it.key }
+        if (old.isNotEmpty()) drop(old)
+    }
+
+    /** Today on this phone, from local midnight to the next (ms). */
+    private fun todayRange(): LongRange {
         val today = Instant.ofEpochMilli(clock()).atZone(zone()).toLocalDate()
         val start = today.atStartOfDay(zone()).toInstant().toEpochMilli()
         val end = today.plusDays(1).atStartOfDay(zone()).toInstant().toEpochMilli()
-        val old = entries.values.filter { it.at !in start until end }.map { it.key }
-        if (old.isNotEmpty()) drop(old)
+        return start until end
     }
 
     private fun drop(keys: List<String>) {

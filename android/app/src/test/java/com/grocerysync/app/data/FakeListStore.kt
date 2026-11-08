@@ -36,6 +36,15 @@ internal class FakeListStore(mirror: List<GroceryItem> = emptyList()) : LocalLis
         versionState.update { it + 1 }
     }
 
+    /**
+     * A pull while pushes fail (a Google glitch with backoff, a script that takes no changes yet): the sheet's list
+     * [items] came back, and this phone's waiting changes are still waiting, like GroceryDatabase.commitPull.
+     */
+    fun pulled(items: List<GroceryItem>) {
+        synchronized(this) { mirror = items }
+        versionState.update { it + 1 }
+    }
+
     @Synchronized
     override fun loadSnapshot(): Pair<List<GroceryItem>, List<OutboxOp>> = mirror to outbox.toList()
 

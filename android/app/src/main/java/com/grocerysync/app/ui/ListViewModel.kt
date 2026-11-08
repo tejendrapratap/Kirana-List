@@ -9,6 +9,7 @@ import com.grocerysync.app.data.CatalogEntry
 import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.EditResult
 import com.grocerysync.app.data.GroceryRepository
+import com.grocerysync.app.data.InputValidation
 import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
@@ -30,6 +31,7 @@ import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.PushProblem
 import com.grocerysync.app.sync.SyncStatus
 import com.grocerysync.app.text.Texts
+import com.grocerysync.app.ui.components.spokenText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -164,6 +166,13 @@ sealed interface ListEvent {
         val name: String
         val before: ItemValue
         val after: ItemValue
+
+        /**
+         * The item's entry under Ticked today that this change took away (see [TickedEntry]): this phone had ticked
+         * it earlier today, and the change made it needed again or changed it otherwise (Put back: its own entry).
+         * The Undo puts it back as it was ([TickedTodayStore.restore]). Null when the item had none.
+         */
+        val tickedEntry: TickedEntry? get() = null
     }
 
     /** "Got it" took [name] off To buy. */
@@ -183,12 +192,31 @@ sealed interface ListEvent {
         override val name: String,
         override val before: ItemValue.Quantity,
         override val after: ItemValue.Quantity,
+        override val tickedEntry: TickedEntry? = null,
     ) : ValueChange
 
     /** The Need switch of a yes / no item set it to [needed]. */
-    data class NeedChanged(override val key: String, override val name: String, val needed: Boolean) : ValueChange {
+    data class NeedChanged(
+        override val key: String,
+        override val name: String,
+        val needed: Boolean,
+        override val tickedEntry: TickedEntry? = null,
+    ) : ValueChange {
         override val before: ItemValue get() = ItemValue.BoolValue(!needed)
         override val after: ItemValue get() = ItemValue.BoolValue(needed)
+    }
+
+    /**
+     * Ticked today's Put back gave the item of [entry] the value it had before this phone ticked it: [after] is that
+     * value, [before] the one the tick set. Its Undo ticks the item off again and puts [entry] back under Ticked
+     * today, so a Put back tapped by mistake costs nothing.
+     */
+    data class PutBack(val entry: TickedEntry) : ValueChange {
+        override val key: String get() = entry.key
+        override val name: String get() = entry.name
+        override val before: ItemValue get() = entry.set
+        override val after: ItemValue get() = entry.before
+        override val tickedEntry: TickedEntry get() = entry
     }
 
     /**
@@ -202,12 +230,30 @@ sealed interface ListEvent {
         val newName: String,
         val before: ItemValue,
         val after: ItemValue,
+        /** As [ValueChange.tickedEntry]: the Ticked today entry of the item (under its old name) the edit took away. */
+        val tickedEntry: TickedEntry? = null,
     ) : ListEvent {
         /** A new name, also only new capitals or spaces. */
         val renamed: Boolean get() = newName != oldName
+
+        /**
+         * Its Undo can give the old name back. Not when the edit fixed a name typed into the sheet that can't be sent
+         * as a new one ([InputValidation.validateName]: a line break, too long): [GroceryRepository.renameIf] refuses
+         * it, so an Undo button would do nothing but say the new name couldn't be saved. Its snackbar has no Undo then.
+         */
+        val undoable: Boolean get() = !renamed || InputValidation.validateName(oldName) == null
     }
 
-    data class Deleted(val name: String, val previous: ItemValue) : ListEvent
+    /**
+     * [name] ([previous]) was deleted. Its Undo ([ListViewModel.undoDelete]) adds it back with the Added At it had
+     * ([addedAt], 0 = unknown, from [GroceryRepository.delete]), and with [tickedEntry] (as [ValueChange.tickedEntry]).
+     */
+    data class Deleted(
+        val name: String,
+        val previous: ItemValue,
+        val addedAt: Long,
+        val tickedEntry: TickedEntry? = null,
+    ) : ListEvent
     data class Message(val text: String) : ListEvent
 
     /** The add dialog's item was saved; the screen says where it is if the page shown hides it. */
@@ -240,6 +286,16 @@ class ListViewModel(
      * same item joins it ([stepEvent]). Main thread only (the edits run there between their database calls).
      */
     private var shownStep: ListEvent.Stepped? = null
+
+    /**
+     * The Undo snackbar shown to stay in Simple mode ([SnackbarLook]: until it is tapped, closed or replaced by the
+     * next message), until the screen says it has gone ([snackbarClosed]). The screen's snackbar goes when the screen
+     * stops (turned off, rotated, Settings opened), so it shows this one again when it comes back
+     * ([lastingUndoShown]). Kept as data, so its words are made again in the language shown then. Main thread only,
+     * like [shownStep]; lost with the process, as the rest of the screen's state that isn't saved.
+     */
+    var lastingUndo: ListEvent? = null
+        private set
 
     private val _events = Channel<ListEvent>(Channel.BUFFERED)
     val events: Flow<ListEvent> = _events.receiveAsFlow()
@@ -297,6 +353,7 @@ class ListViewModel(
     ): ListUiState {
         // The repository already sorts by name, and partition keeps that order inside each group.
         val (needed, rest) = items.partition { it.value.isNeeded }
+        val me = settingsStore.effectiveDeviceName()
         return ListUiState(
             loaded = true,
             toBuy = needed,
@@ -305,12 +362,12 @@ class ListViewModel(
             outbox = outbox,
             status = status,
             isConfigured = settings.isConfigured,
-            myDeviceName = settingsStore.effectiveDeviceName(),
+            myDeviceName = me,
             isRefreshing = refreshing,
             shopSections = shopSections,
             toBuySections = if (shopSections.groupBySection) groupBySection(needed, shopSections::sectionOf) else null,
             // Read here, so entries from before midnight go as soon as the list is shown again.
-            tickedToday = shownTickedToday(tickedTodayStore.today(), items),
+            tickedToday = shownTickedToday(tickedTodayStore.today(), items, me),
         )
     }
 
@@ -406,12 +463,16 @@ class ListViewModel(
         }
     }
 
-    /** The Need switch of a yes / no item, with Undo ([undoChange]); turned off, the item goes under Ticked today. */
+    /**
+     * The Need switch of a yes / no item, with Undo ([undoChange]); turned off, the item goes under Ticked today, and
+     * turned on, it leaves it until that is undone.
+     */
     fun setNeeded(key: String, needed: Boolean) = edit {
         val item = currentItem(key) ?: return@edit
         if (item.value !is ItemValue.BoolValue || item.value.value == needed) return@edit
+        val ticked = tickedEntryOf(item)
         if (repository.upsert(item.name, ItemValue.BoolValue(needed))) {
-            sendChange(ListEvent.NeedChanged(key, item.name, needed))
+            sendChange(ListEvent.NeedChanged(key, item.name, needed, ticked))
         } else {
             _events.send(cantChange(item))
         }
@@ -421,16 +482,27 @@ class ListViewModel(
      * - / + on a quantity: one step of its unit ([com.grocerysync.app.data.Units.step]), never below 0, with Undo
      * ([undoChange]). Steps of the same item while its snackbar is shown are one change ([stepEvent]); one that ends
      * at 0 puts the item under Ticked today with the amount from before the steps.
+     *
+     * Steps that came back to where they started (+ then - by mistake) have nothing to undo: the snackbar says the
+     * amount is as before, without Undo, and the next step is a change of its own. A ticked item that a + had taken
+     * off Ticked today is back under it then, as the item is just as the tick left it.
      */
     fun stepQuantity(key: String, up: Boolean) = edit {
         val item = currentItem(key) ?: return@edit
         val current = item.value as? ItemValue.Quantity ?: return@edit
         val next = current.stepped(up)
         if (next == current) return@edit
+        val ticked = tickedEntryOf(item)
         if (repository.upsert(item.name, next)) {
-            val event = stepEvent(shownStep, key, item.name, current, next)
-            shownStep = event
-            sendChange(event)
+            val event = stepEvent(shownStep, key, item.name, current, next, ticked)
+            if (event.before == event.after) {
+                shownStep = null
+                event.tickedEntry?.let(tickedTodayStore::restore)
+                _events.send(ListEvent.Message(Texts.current.list.stepsBackSnackbar(item.name, next.spokenText())))
+            } else {
+                shownStep = event
+                sendChange(event)
+            }
         } else {
             _events.send(cantChange(item))
         }
@@ -446,11 +518,21 @@ class ListViewModel(
     }
 
     /**
-     * The snackbar of [event] has gone: timed out, swiped away, its action tapped, or replaced by the next one. A
-     * - / + after that is a change of its own, not part of [event]'s.
+     * The snackbar of [event] has gone: timed out, swiped away, closed, its action tapped, or replaced by the next
+     * one. A - / + after that is a change of its own, not part of [event]'s, and its Undo isn't shown again
+     * ([lastingUndo]).
      */
     fun snackbarClosed(event: ListEvent) {
         if (event === shownStep) shownStep = null
+        if (event === lastingUndo) lastingUndo = null
+    }
+
+    /**
+     * The screen shows the Undo snackbar of [event] to stay (Simple mode): it is the one to show again
+     * ([lastingUndo]).
+     */
+    fun lastingUndoShown(event: ListEvent) {
+        lastingUndo = event
     }
 
     /**
@@ -467,6 +549,7 @@ class ListViewModel(
         edit {
             val items = repository.items.first()
             val current = originalKey?.let { key -> items.firstOrNull { it.key == key } }
+            val ticked = current?.let(::tickedEntryOf)
             when (val plan = planItemSave(current, openedValue, name, value, onList = items)) {
                 ItemSavePlan.Nothing -> Unit
                 // A new item (also one removed elsewhere while its dialog was open): checked again as it is
@@ -481,7 +564,7 @@ class ListViewModel(
                     }
                 } else if (repository.upsert(plan.name, plan.value)) {
                     // A new value and / or new capitals or spaces: the same item.
-                    _events.send(ListEvent.Edited(current.key, current.name, plan.name, current.value, plan.value))
+                    sendEdited(ListEvent.Edited(current.key, current.name, plan.name, current.value, plan.value, ticked))
                 } else {
                     _events.send(couldNotSave(plan.name))
                 }
@@ -492,7 +575,7 @@ class ListViewModel(
                         if (current != null) {
                             val newName = ItemKeys.clean(plan.newName)
                             val after = plan.value ?: current.value
-                            _events.send(ListEvent.Edited(ItemKeys.normalize(newName), current.name, newName, current.value, after))
+                            sendEdited(ListEvent.Edited(ItemKeys.normalize(newName), current.name, newName, current.value, after, ticked))
                         }
                     }
                     // "Not on the list" is about the item being renamed (its old name).
@@ -501,6 +584,14 @@ class ListViewModel(
                 is ItemSavePlan.AlreadyOnList -> _events.send(ListEvent.Message(alreadyOnListText(plan.existingName)))
             }
         }
+    }
+
+    /**
+     * The snackbar of an Edit dialog save: with Undo, unless the Undo couldn't give the old name back
+     * ([ListEvent.Edited.undoable]); then the same words without it.
+     */
+    private suspend fun sendEdited(edited: ListEvent.Edited) {
+        _events.send(if (edited.undoable) edited else ListEvent.Message(edited.snackbarText()))
     }
 
     /**
@@ -528,26 +619,41 @@ class ListViewModel(
     private fun cantChange(item: GroceryItem) =
         ListEvent.Message(Texts.current.list.cantChange(ItemKeys.singleLine(item.name).take(40)))
 
+    /**
+     * Deletes the item, with Undo ([undoDelete]). When nothing was deleted there is nothing to undo: the item went
+     * meanwhile (removed or renamed on the other phone; an Undo would add back an item they removed), and the
+     * snackbar says it was changed there, or its name can't be sent.
+     */
     fun deleteItem(key: String) {
         closeDialog()
         edit {
             val item = currentItem(key) ?: return@edit
-            repository.delete(key)
-            _events.send(ListEvent.Deleted(item.name, item.value))
+            val ticked = tickedEntryOf(item)
+            val deletion = repository.delete(key)
+            _events.send(
+                when (deletion.result) {
+                    EditResult.Saved -> ListEvent.Deleted(item.name, item.value, deletion.addedAt, ticked)
+                    EditResult.InvalidName -> cantChange(item)
+                    else -> ListEvent.Message(changedElsewhereText(item.name))
+                },
+            )
         }
     }
 
     /**
-     * Undo of a change of one item's value ("Got it", - / +, the Need switch): writes the value from before back,
-     * but only while the item still has the value the change set ([GroceryRepository.updateIf], checked as it is
+     * Undo of a change of one item's value ("Got it", - / +, the Need switch, Put back): writes the value from before
+     * back, but only while the item still has the value the change set ([GroceryRepository.updateIf], checked as it is
      * queued). When the other phone changed, renamed or removed it meanwhile, nothing is written (a renamed one would
-     * come back as a second item under its old name) and a snackbar says so. The Undo of a tick also takes the item
-     * off Ticked today.
+     * come back as a second item under its old name) and a snackbar says so. One that has the value from before
+     * already (this phone gave it back meanwhile) needs nothing. The Undo of a tick also takes the item off Ticked
+     * today; the Undo of a change that took it off Ticked today puts it back ([ListEvent.ValueChange.tickedEntry]).
      */
     fun undoChange(change: ListEvent.ValueChange) = edit {
-        // Steps that came back to where they started have nothing to undo.
-        val result = if (change.after == change.before) EditResult.Saved else repository.updateIf(change.key, change.after, change.before)
-        if (change.ticksOff) tickedTodayStore.remove(change.key)
+        val result = repository.updateIf(change.key, change.after, change.before)
+        when {
+            change.ticksOff -> tickedTodayStore.remove(change.key)
+            result == EditResult.Saved -> change.tickedEntry?.let(tickedTodayStore::restore)
+        }
         editRefused(result, change.name)?.let { _events.send(it) }
     }
 
@@ -555,7 +661,7 @@ class ListViewModel(
      * Undo of an Edit dialog save: the old name and the old value come back, but only while the item still has the
      * value the edit set: [GroceryRepository.updateIf], or for a new name [GroceryRepository.renameIf], which also
      * never overwrites an item that has taken the old name meanwhile ("already on the list"). This phone's shop
-     * section for it goes back to the old name too.
+     * section for it goes back to the old name too, and so does its entry under Ticked today, if the edit took one.
      */
     fun undoEdit(change: ListEvent.Edited) = edit {
         val result = if (change.renamed) {
@@ -563,28 +669,41 @@ class ListViewModel(
         } else {
             repository.updateIf(change.key, expected = change.after, value = change.before)
         }
-        if (result == EditResult.Saved) keepShopSection(change.key, change.oldName)
+        if (result == EditResult.Saved) {
+            keepShopSection(change.key, change.oldName)
+            change.tickedEntry?.let(tickedTodayStore::restore)
+        }
         editRefused(result, change.newName)?.let { _events.send(it) }
     }
 
     /**
-     * Ticked today's Put back: the item gets back the value it had before this phone ticked it, but only while it
-     * still has the value the tick set ([GroceryRepository.updateIf]); otherwise nothing is written and a snackbar
-     * says it was changed on another phone. Either way it leaves Ticked today.
+     * Ticked today's Put back: the item gets back the value it had before this phone ticked it, with Undo
+     * ([ListEvent.PutBack], whose snackbar also replaces the tick's own Undo). Only while it is still as the tick left
+     * it ([TickedEntry.isStillTicked], checked again here: the list on screen may not have caught up with a change
+     * from the other phone yet) and still has the value the tick set ([GroceryRepository.updateIf]); otherwise nothing
+     * is written and a snackbar says it was changed on another phone. Either way it leaves Ticked today. A second tap
+     * before the row has gone (or a tap on an entry undone or pruned meanwhile) does nothing.
      */
     fun putBack(entry: TickedEntry) = edit {
-        val result = repository.updateIf(entry.key, expected = entry.set, value = entry.before)
+        if (!tickedTodayStore.holds(entry)) return@edit
+        val result = if (entry.isStillTicked(currentItem(entry.key), settingsStore.effectiveDeviceName())) {
+            repository.updateIf(entry.key, expected = entry.set, value = entry.before)
+        } else {
+            EditResult.ValueChanged
+        }
         tickedTodayStore.remove(entry.key)
-        editRefused(result, entry.name)?.let { _events.send(it) }
+        _events.send(editRefused(result, entry.name) ?: ListEvent.PutBack(entry))
     }
 
     /**
-     * Undo of a delete: adds the item back with its previous value, unless an item with its name is on the list
-     * again meanwhile (added or renamed to it on the other phone): that one is never overwritten, and a snackbar
-     * says the name is already on the list.
+     * Undo of a delete: adds the item back with its previous value and its Added At, unless an item with its name is
+     * on the list again meanwhile (added or renamed to it on the other phone): that one is never overwritten, and a
+     * snackbar says the name is already on the list. A ticked item goes back under Ticked today.
      */
-    fun undoDelete(name: String, value: ItemValue) = edit {
-        editRefused(repository.add(name, value), name)?.let { _events.send(it) }
+    fun undoDelete(change: ListEvent.Deleted) = edit {
+        val result = repository.addBack(change.name, change.previous, change.addedAt)
+        if (result == EditResult.Saved) change.tickedEntry?.let(tickedTodayStore::restore)
+        editRefused(result, change.name)?.let { _events.send(it) }
     }
 
     fun retryFailed() = edit { repository.retryFailed() }
@@ -615,14 +734,25 @@ class ListViewModel(
     }
 
     /**
-     * Takes the entries whose item is needed again, renamed or gone off Ticked today ([TickedEntry.isStillTicked]),
-     * after each change this phone makes. The list is read again here, not taken from [uiState]: that may not have
-     * caught up with the change just made yet, and a tick recorded a moment ago would look needed again.
+     * The entry of [item] under Ticked today while it is shown there ([TickedEntry.isStillTicked]). Read before a
+     * change that may take it away ([pruneTickedToday]: + or the Need switch making it needed again, an edit, a
+     * delete), so that change's Undo can put it back ([ListEvent.ValueChange.tickedEntry]). One that is only hidden
+     * (the other phone ticked the item off again itself) isn't this phone's tick, and an Undo mustn't make it one.
+     */
+    private fun tickedEntryOf(item: GroceryItem): TickedEntry? =
+        tickedTodayStore.entryOf(item.key)?.takeIf { it.isStillTicked(item, settingsStore.effectiveDeviceName()) }
+
+    /**
+     * Takes the entries whose item is needed again, renamed, gone or changed last on the other phone off Ticked today
+     * ([TickedEntry.isStillTicked]), after each change this phone makes. The list is read again here, not taken from
+     * [uiState]: that may not have caught up with the change just made yet, and a tick recorded a moment ago would
+     * look needed again.
      */
     private suspend fun pruneTickedToday() {
         if (tickedTodayStore.isEmpty) return
         val byKey = repository.items.first().associateBy { it.key }
-        tickedTodayStore.retain { it.isStillTicked(byKey[it.key]) }
+        val me = settingsStore.effectiveDeviceName()
+        tickedTodayStore.retain { it.isStillTicked(byKey[it.key], me) }
     }
 
     // endregion

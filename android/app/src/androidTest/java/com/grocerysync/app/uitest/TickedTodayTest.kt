@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isOff
 import androidx.compose.ui.test.isSelected
@@ -29,8 +30,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * "Ticked today" under To buy: the items this phone took off To buy today, closed until tapped, each with Put back;
- * the Undo of a tick takes it off again, and it is hidden while a search is open.
+ * "Ticked today" under To buy: the items this phone took off To buy today, closed until tapped, each with Put back
+ * (which has an Undo of its own); the Undo of a tick takes it off again, and it is hidden while a search is open.
  */
 @RunWith(AndroidJUnit4::class)
 class TickedTodayTest : GroceryUiTest() {
@@ -71,6 +72,27 @@ class TickedTodayTest : GroceryUiTest() {
         waitForNode(toBuyRowWithAmount("Glue", "2 pcs"))
         waitForNoNode(anyTickedToday)
         waitFor("2 on the sheet again") { (fake.item("Glue")?.need as? Need.Quantity)?.amountIs("2") == true }
+    }
+
+    @Test
+    fun putBackHasAnUndoThatTicksTheItemOffAgain() {
+        fake.seed("Glue", quantity("2", Units.PCS))
+        launchConnected()
+
+        node(gotIt("Glue")).performClick()
+        waitForNode(tickedToday(1)).performClick()
+        waitForNode(putBack("Glue")).performClick()
+        // Its snackbar replaces the tick's, whose Undo would have nothing left to do.
+        waitForNode(hasText("Glue is back on To buy"))
+        assertNoNode(hasText("Got Glue"))
+        withUiClockStopped {
+            waitFor("2 on the sheet again") { (fake.item("Glue")?.need as? Need.Quantity)?.amountIs("2") == true }
+        }
+
+        node(button("Undo")).performClick()
+        waitForNode(tickedToday(1))
+        waitForNoNode(toBuyRowWithAmount("Glue", "2 pcs"))
+        waitFor("0 on the sheet again") { (fake.item("Glue")?.need as? Need.Quantity)?.amountIs("0") == true }
     }
 
     @Test

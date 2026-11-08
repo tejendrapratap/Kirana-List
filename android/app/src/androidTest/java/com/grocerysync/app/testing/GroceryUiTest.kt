@@ -11,6 +11,7 @@ import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.grocerysync.app.MainActivity
@@ -104,6 +105,19 @@ abstract class GroceryUiTest {
     protected fun shareIntoOpenApp(text: String) {
         val open = checkNotNull(scenario) { "Open the app first (launchConnected or launchApp)" }
         open.onActivity { activity -> activity.startActivity(sharedTextIntent(text)) }
+    }
+
+    /** The open app is stopped and started again, as when the screen turns off and on. */
+    protected fun stopAndStartApp() {
+        val open = checkNotNull(scenario) { "Open the app first (launchConnected or launchApp)" }
+        open.moveToState(Lifecycle.State.CREATED)
+        open.moveToState(Lifecycle.State.RESUMED)
+    }
+
+    /** The open app's screen is made again, as when the phone is turned sideways. */
+    protected fun recreateApp() {
+        val open = checkNotNull(scenario) { "Open the app first (launchConnected or launchApp)" }
+        open.recreate()
     }
 
     // ---- Waiting ----------------------------------------------------------------------------------------

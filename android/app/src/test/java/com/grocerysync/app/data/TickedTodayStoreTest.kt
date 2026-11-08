@@ -4,6 +4,7 @@ import com.grocerysync.app.data.ItemValue.BoolValue
 import com.grocerysync.app.data.ItemValue.Quantity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.ZoneId
@@ -11,8 +12,8 @@ import java.time.ZonedDateTime
 
 /**
  * "Ticked today" on this phone ([TickedTodayStore]): one entry per item from its newest tick, gone after local
- * midnight, removed by the tick's Undo, kept across restarts, and shown only while the item is still as this phone
- * left it ([shownTickedToday], [TickedEntry.isStillTicked]).
+ * midnight, removed by the tick's Undo, put back by the Undo of a change that took it away, kept across restarts,
+ * and shown only while the item is still as this phone left it ([shownTickedToday], [TickedEntry.isStillTicked]).
  */
 class TickedTodayStoreTest {
 
@@ -30,8 +31,11 @@ class TickedTodayStoreTest {
     private val rice2 = Quantity.of(2, Units.KG)
     private val rice0 = Quantity.of(0, Units.KG)
 
-    private fun item(name: String, value: ItemValue) =
-        GroceryItem(ItemKeys.normalize(name), name, value, 1_000L, "Shop", pendingSync = false)
+    /** This phone's name. */
+    private val me = "Shop"
+
+    private fun item(name: String, value: ItemValue, by: String = me, pending: Boolean = false) =
+        GroceryItem(ItemKeys.normalize(name), name, value, 1_000L, by, pendingSync = pending)
 
     @Test
     fun recordsWhatTheItemHadAndWhatWasSet() {
@@ -130,14 +134,27 @@ class TickedTodayStoreTest {
     @Test
     fun anEntryIsShownOnlyWhileItsItemIsAsThisPhoneLeftIt() {
         val rice = TickedEntry("rice", "Rice", rice2, rice0, now)
-        assertTrue(rice.isStillTicked(item("Rice", rice0)))
+        assertTrue(rice.isStillTicked(item("Rice", rice0), me))
         // Needed again, changed otherwise, renamed (its key is gone) or removed.
-        assertFalse(rice.isStillTicked(item("Rice", Quantity.of(1, Units.KG))))
-        assertFalse(rice.isStillTicked(item("Rice", Quantity.of(0, Units.G))))
-        assertFalse(rice.isStillTicked(null))
+        assertFalse(rice.isStillTicked(item("Rice", Quantity.of(1, Units.KG)), me))
+        assertFalse(rice.isStillTicked(item("Rice", Quantity.of(0, Units.G)), me))
+        assertFalse(rice.isStillTicked(null, me))
         val dahi = TickedEntry("dahi", "Dahi", BoolValue(true), BoolValue(false), now)
-        assertTrue(dahi.isStillTicked(item("Dahi", BoolValue(false))))
-        assertFalse(dahi.isStillTicked(item("Dahi", BoolValue(true))))
+        assertTrue(dahi.isStillTicked(item("Dahi", BoolValue(false)), me))
+        assertFalse(dahi.isStillTicked(item("Dahi", BoolValue(true)), me))
+    }
+
+    @Test
+    fun anItemTickedOffAgainOnTheOtherPhoneIsNotThisPhonesTick() {
+        val rice = TickedEntry("rice", "Rice", rice2, rice0, now)
+        // Home needed Rice again and ticked it off itself: the same value, but not this phone's tick.
+        assertFalse(rice.isStillTicked(item("Rice", rice0, by = "Home"), me))
+        // This phone's own change, waiting or come back from the sheet (spaces and capitals don't count).
+        assertTrue(rice.isStillTicked(item("Rice", rice0, by = "Home", pending = true), me))
+        assertTrue(rice.isStillTicked(item("Rice", rice0, by = " shop "), me))
+        // A row without a name is nobody's change: only the value counts.
+        assertTrue(rice.isStillTicked(item("Rice", rice0, by = ""), me))
+        assertTrue(shownTickedToday(listOf(rice), listOf(item("Rice", rice0, by = "Home")), me).isEmpty())
     }
 
     @Test
@@ -150,7 +167,7 @@ class TickedTodayStoreTest {
         )
         // Rice was re-spelled on the other phone; Dahi is needed again; Jam was renamed; Milk is as it was left.
         val items = listOf(item("rice", rice0), item("Dahi", BoolValue(true)), item("Strawberry jam", BoolValue(false)), item("Milk", BoolValue(false)))
-        val shown = shownTickedToday(entries, items)
+        val shown = shownTickedToday(entries, items, me)
         assertEquals(listOf("rice", "milk"), shown.map { it.key })
         assertEquals("rice", shown.first().name)
     }
@@ -161,12 +178,66 @@ class TickedTodayStoreTest {
         store.record("rice", "Rice", before = rice2, set = rice0)
         store.record("dahi", "Dahi", before = BoolValue(true), set = BoolValue(false))
         val items = listOf(item("Rice", Quantity.of(1, Units.KG)), item("Dahi", BoolValue(false))).associateBy { it.key }
-        store.retain { it.isStillTicked(items[it.key]) }
+        store.retain { it.isStillTicked(items[it.key], me) }
         assertEquals(listOf("dahi"), store.today().map { it.key })
         assertEquals(listOf("dahi"), store().today().map { it.key })
         // Nothing to prune: no change.
         val changes = store.changes.value
         store.retain { true }
         assertEquals(changes, store.changes.value)
+    }
+
+    @Test
+    fun anEntryTakenAwayComesBackAsItWas() {
+        val store = store()
+        store.record("rice", "Rice", before = rice2, set = rice0)
+        now += 60_000L
+        store.record("dahi", "Dahi", before = BoolValue(true), set = BoolValue(false))
+        val rice = store.entryOf("rice")!!
+        // + on Rice took it away; the + was undone a minute later.
+        store.retain { it.key != "rice" }
+        now += 60_000L
+        val changes = store.changes.value
+        store.restore(rice)
+        assertTrue("a change for the list to read", store.changes.value > changes)
+        // Its own time, so it keeps its place: older than Dahi's tick.
+        assertEquals(listOf("dahi", "rice"), store.today().map { it.key })
+        assertEquals(rice, store.entryOf("rice"))
+        assertEquals(store.today(), store().today())
+    }
+
+    @Test
+    fun aNewerTickOrAnotherDayIsNotReplaced() {
+        val store = store()
+        store.record("rice", "Rice", before = rice2, set = rice0)
+        val old = store.entryOf("rice")!!
+        now += 60_000L
+        store.record("rice", "Rice", before = Quantity.of(3, Units.KG), set = rice0)
+        store.restore(old)
+        assertEquals(Quantity.of(3, Units.KG), store.entryOf("rice")!!.before)
+        // Taken away before midnight, undone after it: yesterday's tick stays gone.
+        store.remove("rice")
+        now = at(9, 0, 5)
+        store.restore(old)
+        assertTrue(store.today().isEmpty())
+    }
+
+    @Test
+    fun holdsOnlyTheSameTickOfTheItem() {
+        val store = store()
+        store.record("rice", "Rice", before = rice2, set = rice0)
+        val first = store.entryOf("rice")!!
+        // The list shows the item's name as it is now: still the same entry.
+        assertTrue(store.holds(first.copy(name = "rice")))
+        // Ticked again later: a tap on the first entry's row no longer counts.
+        now += 60_000L
+        store.record("rice", "Rice", before = rice2, set = rice0)
+        val second = store.entryOf("rice")!!
+        assertFalse(store.holds(first))
+        assertTrue(store.holds(second))
+        // Put back or undone: gone.
+        store.remove("rice")
+        assertFalse(store.holds(second))
+        assertNull(store.entryOf("rice"))
     }
 }

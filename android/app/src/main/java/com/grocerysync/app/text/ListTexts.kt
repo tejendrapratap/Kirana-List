@@ -175,6 +175,12 @@ interface ListTexts {
      */
     fun stepSnackbar(name: String, before: String, after: String): String
 
+    /**
+     * After - / + of [name] that came back to the amount it had before them: "Rice: 2 kg, as before". [amount] is
+     * data. Without Undo: there is nothing to undo.
+     */
+    fun stepsBackSnackbar(name: String, amount: String): String
+
     /** After the Need switch of [name] (with Undo): "Dahi: needed" / "Dahi: not needed". */
     fun needSnackbar(name: String, needed: Boolean): String
 
@@ -227,6 +233,9 @@ interface ListTexts {
 
     /** That button for TalkBack: "Put back Rice". */
     fun putBackDescription(name: String): String
+
+    /** After Put back made [name] needed again (with Undo): "Rice is back on To buy". */
+    fun putBackSnackbar(name: String): String
 
     // ---- Simple mode ------------------------------------------------------------------------------------
     // Only To buy, with big buttons: there is no All items page, no search and no small + button to point at.
@@ -361,6 +370,7 @@ object EnglishListTexts : ListTexts {
     override fun gotItSnackbar(name: String) = "Got $name"
     override fun deletedSnackbar(name: String) = "Deleted $name"
     override fun stepSnackbar(name: String, before: String, after: String) = "$name: $before → $after"
+    override fun stepsBackSnackbar(name: String, amount: String) = "$name: $amount, as before"
     override fun needSnackbar(name: String, needed: Boolean) =
         "$name: ${if (needed) EnglishCommonTexts.needed else EnglishCommonTexts.notNeeded}"
     override fun renamedSnackbar(oldName: String, newName: String) = "Renamed $oldName to $newName"
@@ -380,6 +390,7 @@ object EnglishListTexts : ListTexts {
     override val hideTickedItems = "Hide items"
     override val putBack = "Put back"
     override fun putBackDescription(name: String) = "Put back $name"
+    override fun putBackSnackbar(name: String) = "$name is back on ${EnglishCommonTexts.toBuy}"
 
     override val gotIt = "Got it"
     override val emptyToBuyHintNewListSimple = "Tap ${EnglishCommonTexts.addItem} to add what you need."
@@ -487,6 +498,9 @@ object HindiListTexts : ListTexts {
 
     // The amounts are data, so it reads the same as in English.
     override fun stepSnackbar(name: String, before: String, after: String) = "$name: $before → $after"
+
+    // "Rice: 2 kg, पहले जैसा": as it was before, the words of Undo (पहले जैसा करें), which there is no need for.
+    override fun stepsBackSnackbar(name: String, amount: String) = "$name: $amount, पहले जैसा"
     override fun needSnackbar(name: String, needed: Boolean) =
         "$name: ${if (needed) HindiCommonTexts.needed else HindiCommonTexts.notNeeded}"
 
@@ -510,6 +524,9 @@ object HindiListTexts : ListTexts {
     override val hideTickedItems = "सामान छिपाएँ"
     override val putBack = "वापस लाएँ"
     override fun putBackDescription(name: String) = "$name वापस लाएँ"
+
+    // "Rice वापस "ख़रीदना है" में": Rice back in To buy.
+    override fun putBackSnackbar(name: String) = "$name वापस \"${HindiCommonTexts.toBuy}\" में"
 
     override val gotIt = "ले लिया"
 

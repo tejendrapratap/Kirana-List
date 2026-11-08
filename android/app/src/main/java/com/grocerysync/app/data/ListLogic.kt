@@ -171,12 +171,33 @@ object ListLogic {
      * Undo of "Add common items" ([GroceryRepository.deleteIf]). Null when the item [existing] (as shown right
      * before the change is queued) still has that value; [EditResult.ValueChanged] when the other phone changed it
      * meanwhile, so it isn't overwritten; [EditResult.NotOnList] when it was renamed or removed, so it isn't
-     * re-created under its old name.
+     * re-created under its old name. The repository also checks [newerOnSheet]: the item as shown may still be this
+     * phone's waiting change over a newer one from the sheet.
      */
     fun updateConflict(expected: ItemValue, existing: GroceryItem?): EditResult? = when {
         existing == null -> EditResult.NotOnList
         existing.value != expected -> EditResult.ValueChanged
         else -> null
+    }
+
+    /**
+     * The sheet's row of the item [key] in [mirror] when it is newer than every change of that item waiting in
+     * [ops] (PENDING or FAILED: [overlay] shows both); null otherwise, also when none is waiting or the sheet has no
+     * such row. The sheet answers those waiting changes "stale" (it keeps a row changed after a change's time), so
+     * the item will be that row, though [overlay] shows this phone's change on top of it until then. That happens
+     * while pushes fail but the list still comes in (a Google glitch with backoff, a script that takes no changes
+     * yet): the row is then one the user never saw.
+     *
+     * A change planned on the item as shown must not go ahead then (the guarded Undos, [updateConflict]; a new
+     * item, [editConflict]): it would be stamped later than that row and overwrite it. Strictly newer, because this
+     * phone's own change, applied but not yet confirmed, comes back with its own time or an earlier one (the sheet
+     * caps a time at its clock).
+     */
+    fun newerOnSheet(key: String, mirror: List<GroceryItem>, ops: List<OutboxOp>): GroceryItem? {
+        // The first row of a key, as the overlay uses it.
+        val sheetItem = mirror.firstOrNull { it.key == key } ?: return null
+        val newestWaiting = ops.filter { it.key == key }.maxOfOrNull { it.time } ?: return null
+        return sheetItem.takeIf { it.updatedAt > newestWaiting }
     }
 
     /** A quantity without a unit (keep the sheet's) gets the unit [existing] has; "" when there is none. */

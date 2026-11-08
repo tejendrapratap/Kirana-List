@@ -1,18 +1,18 @@
 package com.grocerysync.app.data
 
 /**
- * Remembers the item deleted last on this phone, so that its Undo can re-send the item's Added At
- * ([OutboxOp.addedAt]) and the item reads "Updated by" again rather than "Added by".
+ * Remembers the item deleted last on this phone, so that adding it again right after re-sends the item's Added At
+ * ([OutboxOp.addedAt]) and the item reads "Updated by" again rather than "Added by": it is the item that was just
+ * there.
  *
- * The Undo of a delete reaches [GroceryRepository.upsert] like any other upsert: the name and the exact value
- * the item had. So an upsert of an item that isn't on the list any more counts as that Undo when it has the
- * deleted item's key and value and comes within [windowMs] of the delete. Only the newest delete is kept (a
- * new snackbar replaces the old one, so only its Undo can still be tapped), and it is used once.
+ * An add of an item that isn't on the list ([GroceryRepository.add], [GroceryRepository.upsert]) counts as that
+ * item again when it has the deleted item's key and value and comes within [windowMs] of the delete. Only the
+ * newest delete is kept, and it is used once.
  *
- * The window is longer than the Undo snackbar stays up (a few seconds, up to 2 minutes with Android's "Time to
- * take action" accessibility setting). Adding the same item with the same value again within that time
- * therefore also reads "Updated by": it is the item that was just there. Kept in memory only (the snackbar
- * doesn't survive the process either). Thread-safe.
+ * The Undo of a delete doesn't depend on this window: its snackbar carries the Added At itself
+ * ([GroceryRepository.delete], [GroceryRepository.addBack]), as an Undo can wait much longer (Simple mode's stays
+ * until it is tapped). The window still outlasts the usual Undo snackbar (a few seconds, up to 2 minutes with
+ * Android's "Time to take action" accessibility setting). Kept in memory only. Thread-safe.
  *
  * @param elapsedMs monotonic milliseconds.
  */
@@ -32,7 +32,7 @@ class DeletedItemMemory(
 
     /**
      * The Added At to send with an upsert of the item [key] with [value] that isn't on the list: the deleted
-     * item's when this looks like its Undo (forgotten afterwards), else 0.
+     * item's when this looks like that item again (forgotten afterwards), else 0.
      */
     @Synchronized
     fun addedAtForReAdd(key: String, value: ItemValue): Long {
@@ -47,7 +47,7 @@ class DeletedItemMemory(
     }
 
     companion object {
-        /** How long after a delete an Undo is recognised. */
+        /** How long after a delete adding the item again counts as bringing it back. */
         const val UNDO_WINDOW_MS = 3 * 60 * 1_000L
     }
 }
