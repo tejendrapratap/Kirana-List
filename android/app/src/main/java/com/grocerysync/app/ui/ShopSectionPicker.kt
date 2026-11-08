@@ -38,6 +38,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.grocerysync.app.data.ShopSection
+import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.components.SectionAccentDot
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 
@@ -46,14 +47,17 @@ import com.grocerysync.app.ui.theme.GrocerySyncTheme
  * choose from in walking order. It looks like an outlined field (as the unit picker does) and says "This phone
  * only" under it, as the choice is never synced. Each section shows its accent dot, the colour of its header on
  * To buy ([SectionAccentDot]), and the chosen one a leaf-green tick in the menu. [labelGap]: the space under its
- * label, as the dialog's other labels have.
+ * label, as the dialog's other labels have. The sections' names are the ones shown everywhere
+ * (CommonTexts.sectionName), in the language shown.
  */
 @Composable
 internal fun ShopSectionPicker(section: ShopSection, onSectionChange: (ShopSection) -> Unit, labelGap: Dp) {
     var expanded by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
+    val t = Texts.current
+    val sectionName = t.common.sectionName(section)
     Text(
-        text = SHOP_SECTION_LABEL,
+        text = t.item.shopSection,
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
         modifier = Modifier.padding(bottom = labelGap),
@@ -67,10 +71,10 @@ internal fun ShopSectionPicker(section: ShopSection, onSectionChange: (ShopSecti
                 .fillMaxWidth()
                 .heightIn(min = OutlinedTextFieldDefaults.MinHeight)
                 .clip(OutlinedTextFieldDefaults.shape)
-                .clickable(onClickLabel = "Choose shop section") { expanded = true }
+                .clickable(onClickLabel = t.item.chooseShopSection) { expanded = true }
                 .semantics {
                     role = Role.DropdownList
-                    contentDescription = "$SHOP_SECTION_LABEL: ${section.label}"
+                    contentDescription = t.item.shopSectionChosen(sectionName)
                 },
         ) {
             Row(
@@ -81,7 +85,7 @@ internal fun ShopSectionPicker(section: ShopSection, onSectionChange: (ShopSecti
                 Spacer(Modifier.width(12.dp))
                 // Wraps at large text sizes rather than being cut.
                 Text(
-                    section.label,
+                    sectionName,
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.onSurface,
                     modifier = Modifier.weight(1f),
@@ -96,14 +100,14 @@ internal fun ShopSectionPicker(section: ShopSection, onSectionChange: (ShopSecti
         ) {
             ShopSection.entries.forEach { choice ->
                 DropdownMenuItem(
-                    text = { Text(choice.label) },
+                    text = { Text(t.common.sectionName(choice)) },
                     onClick = {
                         expanded = false
                         onSectionChange(choice)
                     },
                     leadingIcon = { SectionAccentDot(choice) },
                     trailingIcon = if (choice == section) {
-                        { Icon(Icons.Default.Check, contentDescription = "Selected", tint = colors.primary) }
+                        { Icon(Icons.Default.Check, contentDescription = t.item.selected, tint = colors.primary) }
                     } else {
                         null
                     },
@@ -112,15 +116,12 @@ internal fun ShopSectionPicker(section: ShopSection, onSectionChange: (ShopSecti
         }
     }
     Text(
-        text = "This phone only",
+        text = t.item.thisPhoneOnly,
         style = MaterialTheme.typography.bodySmall,
         color = colors.onSurfaceVariant,
         modifier = Modifier.padding(start = 16.dp, top = 4.dp),
     )
 }
-
-/** The picker's label, also the start of what TalkBack reads for it ("Shop section: Masala"). */
-internal const val SHOP_SECTION_LABEL = "Shop section"
 
 /** The narrowest case: a 360dp phone with large text, in the dark theme. */
 @Preview(showBackground = true, widthDp = 360, fontScale = 1.3f, uiMode = Configuration.UI_MODE_NIGHT_YES)
