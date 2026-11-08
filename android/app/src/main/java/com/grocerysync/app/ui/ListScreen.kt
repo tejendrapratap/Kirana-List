@@ -98,6 +98,7 @@ import com.grocerysync.app.ui.components.ToBuyRow
 import com.grocerysync.app.ui.components.rememberTickingTime
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.appBarColors
+import com.grocerysync.app.ui.theme.selectorColors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ensureActive
@@ -400,8 +401,12 @@ private fun ListContent(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            // Always a blank Add dialog, also during a search.
-            FloatingActionButton(onClick = { actions.add("") }) {
+            // Always a blank Add dialog, also during a search. Marigold, the app's accent for adding.
+            FloatingActionButton(
+                onClick = { actions.add("") },
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add item")
             }
         },
@@ -577,11 +582,13 @@ private fun FilterRow(
             selected = filter == ListFilter.TO_BUY,
             onClick = { onFilterChange(ListFilter.TO_BUY) },
             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+            colors = selectorColors(),
         ) { Text("To buy ($toBuyCount)", maxLines = 1) }
         SegmentedButton(
             selected = filter == ListFilter.ALL,
             onClick = { onFilterChange(ListFilter.ALL) },
             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+            colors = selectorColors(),
         ) { Text("All items ($allCount)", maxLines = 1) }
     }
 }
