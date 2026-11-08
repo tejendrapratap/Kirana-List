@@ -34,7 +34,7 @@ import androidx.compose.ui.platform.LocalContext
  * chips use secondaryFixedDim (S80) for the same reason: the dark turmeric container (S30) would look brown.
  * The launcher icon and the splash screen use the light primary (res/values/colors.xml, brand_green).
  * ThemeContrastTest checks the text and icon pairs against WCAG (4.5:1; 3:1 for outlines and icons), and
- * docs/images/palette.svg shows the main roles.
+ * docs/images/palette.svg shows the main roles. The shop sections' accents are in BrandColors.kt (SectionAccents).
  */
 
 internal val LightColorScheme = lightColorScheme(
@@ -155,6 +155,7 @@ internal val DarkColorScheme = darkColorScheme(
  * - [appBar] / [onAppBar]: the app bars, deep green with light text and icons in both themes (light: primary,
  *   dark: primaryContainer), so the status bar icons over them are always light (see MainActivity).
  * - [appBarIcon]: the turmeric cart in front of the app's name.
+ * - [sectionAccents]: one accent per shop section, for To buy's section headers (BrandColors.kt).
  */
 @Immutable
 data class ExtendedColors(
@@ -162,6 +163,7 @@ data class ExtendedColors(
     val appBar: Color,
     val onAppBar: Color,
     val appBarIcon: Color,
+    val sectionAccents: SectionAccents,
 )
 
 internal val LightExtendedColors = ExtendedColors(
@@ -169,6 +171,7 @@ internal val LightExtendedColors = ExtendedColors(
     appBar = LightColorScheme.primary,
     onAppBar = LightColorScheme.onPrimary,
     appBarIcon = Color(0xFFFEBB04), // S80, turmeric
+    sectionAccents = LightSectionAccents,
 )
 
 internal val DarkExtendedColors = ExtendedColors(
@@ -176,6 +179,7 @@ internal val DarkExtendedColors = ExtendedColors(
     appBar = DarkColorScheme.primaryContainer,
     onAppBar = DarkColorScheme.onPrimaryContainer,
     appBarIcon = Color(0xFFFEBB04), // S80, turmeric
+    sectionAccents = DarkSectionAccents,
 )
 
 private val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }

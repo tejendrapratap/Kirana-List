@@ -38,7 +38,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Share > Grocery Sync: a list as text (WhatsApp, a note). Only parsed, shown as a preview first. -->
+            <!-- Share > Kirana List: a list as text (WhatsApp, a note). Only parsed, shown as a preview first. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />

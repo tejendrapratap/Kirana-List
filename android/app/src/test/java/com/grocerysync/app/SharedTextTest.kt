@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Which intents bring a list into the app (Share > Grocery Sync), see [sharedText]. */
+/** Which intents bring a list into the app (Share > Kirana List), see [sharedText]. */
 class SharedTextTest {
 
     @Test

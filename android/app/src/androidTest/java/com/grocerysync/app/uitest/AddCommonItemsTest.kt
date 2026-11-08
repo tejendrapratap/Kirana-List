@@ -1,5 +1,6 @@
 package com.grocerysync.app.uitest
 
+import android.os.Build
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -13,7 +14,9 @@ import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.testing.DialogWindowState
 import com.grocerysync.app.testing.FakeSheetServer.Companion.HOME
 import com.grocerysync.app.testing.FakeSheetServer.Companion.quantity
 import com.grocerysync.app.testing.FakeSheetServer.Companion.yesNo
@@ -21,8 +24,10 @@ import com.grocerysync.app.testing.FakeSheetServer.Need
 import com.grocerysync.app.testing.GroceryUiTest
 import com.grocerysync.app.testing.button
 import com.grocerysync.app.testing.choice
+import com.grocerysync.app.testing.darkTheme
 import com.grocerysync.app.testing.itemRow
 import com.grocerysync.app.testing.needSwitch
+import com.grocerysync.app.testing.openDialogWindow
 import com.grocerysync.app.testing.tab
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -76,6 +81,20 @@ class AddCommonItemsTest : GroceryUiTest() {
         showAllItems()
         waitForNode(itemRow("Potato"))
         node(needSwitch("Hari mirch")).assertIsOff()
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q) // WindowInspector
+    fun theDialogCoversTheWholeScreenWithReadableSystemBars() {
+        launchConnected()
+
+        waitForNode(button("Add common items")).performClick()
+        waitForNode(starterRow("Onion"))
+        // Edge to edge (1.5): the green app bar under the status bar (light icons in both themes) and the bottom bar
+        // under the navigation bar, whose buttons follow the theme. In 1.4 the dialog stopped above the gesture bar,
+        // and the dimmed list behind showed through there.
+        val expected = DialogWindowState(lightStatusBars = false, lightNavigationBars = !darkTheme, edgeToEdge = true)
+        waitFor("$expected") { openDialogWindow() == expected }
     }
 
     @Test

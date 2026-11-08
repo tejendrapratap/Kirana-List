@@ -6,11 +6,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -58,7 +63,11 @@ import com.grocerysync.app.data.CatalogEntry
 import com.grocerysync.app.data.CatalogSet
 import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemCatalog
+import com.grocerysync.app.data.ShopSection
+import com.grocerysync.app.ui.components.SectionAccentBar
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
+import com.grocerysync.app.ui.theme.appBarColors
+import com.grocerysync.app.ui.theme.choiceChipColors
 
 /** Alpha of the texts of a row that can't be ticked (its item is on the list), as Material dims disabled content. */
 private const val DISABLED_ALPHA = 0.38f
@@ -91,9 +100,14 @@ fun StarterListDialog(onList: List<GroceryItem>, onDismiss: () -> Unit, onAdd: (
 
     Dialog(
         onDismissRequest = onDismiss,
-        // Full screen: a set has up to about 150 items.
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        // Full screen, a set has up to about 150 items, and edge to edge: drawn under the status bar (its green app
+        // bar) and the navigation bar (its bottom bar), so the list behind never shows through there.
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
+        DialogSystemBarIcons(
+            statusBarBackground = GrocerySyncTheme.extendedColors.appBar,
+            navigationBarBackground = MaterialTheme.colorScheme.surfaceContainer,
+        )
         StarterListContent(
             set = set,
             onSetChange = { set = it },
@@ -108,8 +122,9 @@ fun StarterListDialog(onList: List<GroceryItem>, onDismiss: () -> Unit, onAdd: (
 }
 
 /**
- * The dialog's screen: the top bar (X and title), the set chips, the rows under sticky section headers (TalkBack
- * headings), and a bottom bar with Select all / Select none and "Add N items".
+ * The dialog's screen: the green top bar (X and title), the set chips, the rows under sticky section headers
+ * (TalkBack headings), and a bottom bar with Select all / Select none and "Add N items". The bars reach under the
+ * system bars; the rows keep clear of them and of a display cutout ([WindowInsets.safeDrawing]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,6 +147,7 @@ private fun StarterListContent(
         topBar = {
             TopAppBar(
                 title = { Text(StarterList.TITLE, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                colors = appBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = "Close")
@@ -152,6 +168,7 @@ private fun StarterListContent(
                 onAdd = { onAdd(toAdd) },
             )
         },
+        contentWindowInsets = WindowInsets.safeDrawing,
     ) { innerPadding ->
         Column(
             Modifier
@@ -175,7 +192,7 @@ private fun StarterListContent(
                 }
                 for (group in groups) {
                     stickyHeader(key = "section:" + group.section.id, contentType = "section") {
-                        SectionHeader(group.section.label)
+                        SectionHeader(group.section)
                     }
                     items(group.rows, key = { "entry:" + it.id }, contentType = { "row" }) { row ->
                         StarterRowItem(
@@ -211,6 +228,8 @@ private fun SetChips(set: CatalogSet, onSetChange: (CatalogSet) -> Unit) {
                 selected = selected,
                 onClick = { onSetChange(option) },
                 label = { Text(option.label, maxLines = 1) },
+                // Leaf green when selected, like the list's To buy / All items row.
+                colors = choiceChipColors(),
                 // Not only the colour says which set is shown.
                 leadingIcon = if (selected) {
                     { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
@@ -222,18 +241,26 @@ private fun SetChips(set: CatalogSet, onSetChange: (CatalogSet) -> Unit) {
     }
 }
 
-/** A shop section's name above its rows; it stays at the top while its rows scroll under it. */
+/**
+ * A shop section's name above its rows, after its accent mark as on To buy ([SectionAccentBar]); it stays at the
+ * top while its rows scroll under it.
+ */
 @Composable
-private fun SectionHeader(label: String) {
+private fun SectionHeader(section: ShopSection) {
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp)
-                .semantics { heading() },
-        )
+        Row(
+            modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SectionAccentBar(section)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = section.label,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.semantics { heading() },
+            )
+        }
     }
 }
 
@@ -270,8 +297,8 @@ private fun StarterRowItem(row: StarterRow, ticked: Boolean, onTickedChange: (Bo
 
 /**
  * The bottom bar: Select all / Select none ([selectText]; none when nothing in the set can be added) and the
- * confirm button [addText], enabled ([addEnabled]) once something is ticked. With very large text the button's
- * label wraps rather than pushing it off the screen.
+ * confirm button [addText] (filled, primary green), enabled ([addEnabled]) once something is ticked. With very large
+ * text the button's label wraps rather than pushing it off the screen. Its surface reaches under the navigation bar.
  */
 @Composable
 private fun AddBar(selectText: String?, onSelect: () -> Unit, addText: String, addEnabled: Boolean, onAdd: () -> Unit) {
@@ -279,7 +306,7 @@ private fun AddBar(selectText: String?, onSelect: () -> Unit, addText: String, a
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,

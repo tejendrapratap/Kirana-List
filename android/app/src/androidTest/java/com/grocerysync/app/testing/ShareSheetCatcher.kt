@@ -2,6 +2,7 @@ package com.grocerysync.app.testing
 
 import android.app.Activity
 import android.app.Instrumentation
+import android.content.ComponentName
 import android.content.Intent
 import androidx.core.content.IntentCompat
 import androidx.test.platform.app.InstrumentationRegistry
@@ -34,12 +35,21 @@ class ShareSheetCatcher : AutoCloseable {
     /** How many times the app opened the share sheet. */
     val count: Int get() = choosers.size
 
+    /** The share sheet opened last: the chooser intent itself (ACTION_CHOOSER). */
+    fun lastChooser(): Intent = choosers.lastOrNull() ?: throw AssertionError("The app didn't open the share sheet")
+
     /** What the share sheet opened last would have shared: the chooser's EXTRA_INTENT (ACTION_SEND). */
     fun lastShared(): Intent {
-        val chooser = choosers.lastOrNull() ?: throw AssertionError("The app didn't open the share sheet")
+        val chooser = lastChooser()
         return IntentCompat.getParcelableExtra(chooser, Intent.EXTRA_INTENT, Intent::class.java)
             ?: throw AssertionError("The share sheet has nothing to share (no EXTRA_INTENT): $chooser")
     }
+
+    /** The apps the share sheet opened last leaves out (its EXTRA_EXCLUDE_COMPONENTS); empty if none. */
+    fun lastExcluded(): List<ComponentName> =
+        IntentCompat.getParcelableArrayExtra(lastChooser(), Intent.EXTRA_EXCLUDE_COMPONENTS, ComponentName::class.java)
+            ?.map { it as ComponentName }
+            .orEmpty()
 
     override fun close() {
         InstrumentationRegistry.getInstrumentation().removeMonitor(monitor)

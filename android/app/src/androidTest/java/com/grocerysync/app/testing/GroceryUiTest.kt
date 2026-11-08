@@ -90,7 +90,7 @@ abstract class GroceryUiTest {
         }
     }
 
-    /** What another app's Share > Grocery Sync sends: ACTION_SEND with [text] as text/plain, for MainActivity. */
+    /** What another app's Share > Kirana List sends: ACTION_SEND with [text] as text/plain, for MainActivity. */
     protected fun sharedTextIntent(text: String): Intent =
         Intent(Intent.ACTION_SEND)
             .setClass(InstrumentationRegistry.getInstrumentation().targetContext, MainActivity::class.java)
@@ -98,7 +98,7 @@ abstract class GroceryUiTest {
             .putExtra(Intent.EXTRA_TEXT, text)
 
     /**
-     * Share > Grocery Sync of [text] while the app is open: started from the app itself, so it reaches the running
+     * Share > Kirana List of [text] while the app is open: started from the app itself, so it reaches the running
      * MainActivity (singleTop, on top of its task) through onNewIntent, as a share from another app does then.
      */
     protected fun shareIntoOpenApp(text: String) {

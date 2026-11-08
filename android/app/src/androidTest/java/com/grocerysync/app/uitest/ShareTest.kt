@@ -1,10 +1,13 @@
 package com.grocerysync.app.uitest
 
+import android.content.ComponentName
 import android.content.Intent
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.grocerysync.app.MainActivity
 import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.Units
@@ -24,8 +27,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Share in the app bar (1.4): the To buy list as text, through Android's share sheet. The sheet itself is another
- * app's screen, so [ShareSheetCatcher] keeps it from opening and the test reads the text it was given. How the text
+ * Share in the app bar (1.4): the To buy list as text, through Android's share sheet, which leaves this app out
+ * (1.5). The sheet itself is another app's screen, so [ShareSheetCatcher] keeps it from opening and the test reads
+ * the text it was given. How the text
  * is built is tested on the JVM too (ShareListTest, ShareRoundTripTest).
  */
 @RunWith(AndroidJUnit4::class)
@@ -53,6 +57,11 @@ class ShareTest : GroceryUiTest() {
             shareButton().performClick()
             waitFor("the share sheet") { shareSheet.count == 1 }
             val shared = shareSheet.lastShared()
+            // The sheet never offers this app itself (it takes shared lists: Paste a list).
+            assertEquals(
+                listOf(ComponentName(InstrumentationRegistry.getInstrumentation().targetContext, MainActivity::class.java)),
+                shareSheet.lastExcluded(),
+            )
             assertEquals(Intent.ACTION_SEND, shared.action)
             assertEquals("text/plain", shared.type)
             assertEquals(

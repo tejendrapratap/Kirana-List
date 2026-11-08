@@ -49,6 +49,7 @@ import com.grocerysync.app.data.FailedChange
 import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.sync.PushProblem
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
+import com.grocerysync.app.ui.theme.leafTonalButtonColors
 
 @Composable
 private fun BannerCard(
@@ -263,7 +264,10 @@ fun FailedChangesBanner(
     }
 }
 
-/** A page with nothing on it: [title] and [hint], and a button [actionText] that calls [onAction] when given. */
+/**
+ * A page with nothing on it: a leaf-green cart, [title] and [hint], and a button [actionText] that calls [onAction]
+ * when given (leaf-green tonal, [leafTonalButtonColors]).
+ */
 @Composable
 fun EmptyListState(
     title: String,
@@ -295,7 +299,9 @@ fun EmptyListState(
         )
         if (actionText != null) {
             Spacer(Modifier.height(16.dp))
-            FilledTonalButton(onClick = onAction) { Text(actionText, textAlign = TextAlign.Center) }
+            FilledTonalButton(onClick = onAction, colors = leafTonalButtonColors()) {
+                Text(actionText, textAlign = TextAlign.Center)
+            }
         }
     }
 }

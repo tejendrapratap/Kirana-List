@@ -83,7 +83,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: no
 - Much easier after the backend move: no
-- Status: Done in 1.4 (⋮ > Paste a list, and Share > Grocery Sync from another app, open a preview of what each line does; offered once the family's list has loaded from the sheet)
+- Status: Done in 1.4 (⋮ > Paste a list, and Share > Kirana List from another app, open a preview of what each line does; offered once the family's list has loaded from the sheet)
 
 ## 5. Group To buy by shop section (automatic categories)
 
@@ -258,7 +258,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Share the To buy list as text (WhatsApp bold section headings, or A to Z), with an app bar of Search, Share and a ⋮ menu that holds Settings (1.4)
 - Add common items: tick items from built-in sets (Everyday, Monthly kirana, Diwali puja, Vrat / fasting, All); items already on the list under any of their names are skipped (1.4)
 - Search by another name ('curd' finds Dahi, 'pyaaz' or 'प्याज' finds Onion, at word starts only) and a 'Similar' warning in the Add and Edit dialogs (1.4)
-- Paste a list, or Share > Grocery Sync from another app: a preview of what each line does (add, mark needed, change an amount, skip with the reason) before anything changes; a list shared from the app pastes back as the same items (1.4)
+- Paste a list, or Share > Kirana List from another app: a preview of what each line does (add, mark needed, change an amount, skip with the reason) before anything changes; a list shared from the app pastes back as the same items (1.4)
 - To buy grouped by shop section in walking order with sticky headers; this phone can turn it off or move an item to another section (1.4)
 
 ## Considered and left out

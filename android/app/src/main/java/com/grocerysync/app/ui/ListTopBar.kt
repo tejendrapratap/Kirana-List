@@ -7,11 +7,13 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -56,7 +58,8 @@ internal fun ListTopBar(groupBySection: Boolean, actions: ListActions) {
 
 /**
  * The ⋮ button (More options) and its menu: Add common items, Paste a list, the "Group by shop section" tick and
- * Settings. Choosing anything closes the menu first, the tick too (it flips [groupBySection]).
+ * Settings. Choosing anything closes the menu first, the tick too (it flips [groupBySection]). The button takes the
+ * app bar's icon colour; the menu is a normal surface (not the green of the bar) with a leaf-green tick.
  */
 @Composable
 private fun ListMenu(groupBySection: Boolean, actions: ListActions) {
@@ -75,7 +78,11 @@ private fun ListMenu(groupBySection: Boolean, actions: ListActions) {
         }) {
             Icon(Icons.Default.MoreVert, contentDescription = "More options")
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
             DropdownMenuItem(
                 text = { Text("Add common items") },
                 onClick = { choose(actions.openStarterList) },
@@ -88,7 +95,17 @@ private fun ListMenu(groupBySection: Boolean, actions: ListActions) {
                 text = { Text("Group by shop section") },
                 onClick = { choose { actions.setGroupBySection(!groupBySection) } },
                 // The box only shows the state; TalkBack reads the whole row as one checkbox ("checked").
-                trailingIcon = { Checkbox(checked = groupBySection, onCheckedChange = null) },
+                trailingIcon = {
+                    Checkbox(
+                        checked = groupBySection,
+                        onCheckedChange = null,
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary,
+                            checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                            uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                },
                 modifier = Modifier.semantics {
                     role = Role.Checkbox
                     toggleableState = ToggleableState(groupBySection)

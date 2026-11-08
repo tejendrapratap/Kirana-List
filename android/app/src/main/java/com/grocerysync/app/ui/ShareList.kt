@@ -1,8 +1,10 @@
 package com.grocerysync.app.ui
 
 import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import com.grocerysync.app.MainActivity
 import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ItemKeys
@@ -64,8 +66,9 @@ internal fun catalogSectionOf(item: GroceryItem): ShopSection = ItemCatalog.sect
 
 /**
  * Share: opens Android's share sheet with the needed items of [toBuy] as text ([buildShareText], grouped by
- * [sectionOf] or A to Z when it is null). When nothing is needed, or no app can take the text, it calls [onMessage]
- * with the snackbar to show instead.
+ * [sectionOf] or A to Z when it is null). The sheet doesn't offer this app itself: Kirana List takes shared text
+ * (Paste a list), and sharing the list back into it would only open its preview. When nothing is needed, or no app
+ * can take the text, it calls [onMessage] with the snackbar to show instead.
  */
 internal fun shareToBuy(
     context: Context,
@@ -81,9 +84,12 @@ internal fun shareToBuy(
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, buildShareText(toBuy, sectionOf))
     }
+    // No chooser title: Android uses its own ("Share"), and newer versions show none for text.
+    val chooser = Intent.createChooser(send, null).apply {
+        putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(context, MainActivity::class.java)))
+    }
     try {
-        // No chooser title: Android uses its own ("Share"), and newer versions show none for text.
-        context.startActivity(Intent.createChooser(send, null))
+        context.startActivity(chooser)
     } catch (e: ActivityNotFoundException) {
         onMessage(NO_SHARE_APP_TEXT)
     }

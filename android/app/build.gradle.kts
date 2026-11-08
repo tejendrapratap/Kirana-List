@@ -31,15 +31,16 @@ android {
         // 2: amounts with units (database version 2). 3: search, swipe, unique names, hidden token and
         // "Added by" (database version 3). 4: search on the page shown, To buy too (database version 3).
         // 5: share the list, common items, Hindi / English names, paste a list and shop sections
-        // (database version 3).
+        // (database version 3). 6: the new name (Kirana List) and look, the same data (database version 3).
         // Android refuses to install an older versionCode over this one, so an older app, which cannot
         // open a newer database, can't replace it.
-        versionCode = 5
+        versionCode = 6
         // Shown to people (and at the bottom of Settings); raise it with every release (1.1 = units,
         // 1.2 = search, swipe, unique names, hidden token, "Added by" and required units, 1.3 = search
         // on To buy too: it searches the page shown, 1.4 = share the list, common items, Hindi / English
-        // names, paste a list and To buy by shop section).
-        versionName = "1.4"
+        // names, paste a list and To buy by shop section, 1.5 = Kirana List: the new name, icon and
+        // "fresh market" colours, with a colour for each shop section).
+        versionName = "1.5"
 
         // UI tests (src/androidTest): run them on an emulator with tools/e2e/uitest.sh, not with
         // ./gradlew connectedDebugAndroidTest (that runs on every connected device). How they work: GroceryUiTest.kt.

@@ -525,7 +525,7 @@ class ListViewModel(
     }
 
     /**
-     * A share into the app (Share > Grocery Sync): the preview of its [text] at once. It comes from another app, so
+     * A share into the app (Share > Kirana List): the preview of its [text] at once. It comes from another app, so
      * it is only parsed; nothing changes until the user confirms, and that waits for the family's list
      * ([PasteListState.waitingForList]: a share may start the app right after setup, before its first sync). Before
      * the app is set up, for a share without a text it can read ([text] null) or a text that is too long, a

@@ -2,13 +2,7 @@ package com.grocerysync.app.uitest
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.res.Configuration
 import android.os.Build
-import android.view.View
-import android.view.ViewGroup
-import android.view.Window
-import android.view.inspector.WindowInspector
-import androidx.annotation.RequiresApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsOff
@@ -17,18 +11,19 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.grocerysync.app.data.Units
+import com.grocerysync.app.testing.DialogWindowState
 import com.grocerysync.app.testing.FakeSheetServer.Companion.quantity
 import com.grocerysync.app.testing.FakeSheetServer.Companion.yesNo
 import com.grocerysync.app.testing.FakeSheetServer.Need
 import com.grocerysync.app.testing.GroceryUiTest
 import com.grocerysync.app.testing.button
+import com.grocerysync.app.testing.darkTheme
 import com.grocerysync.app.testing.gotIt
+import com.grocerysync.app.testing.openDialogWindow
 import com.grocerysync.app.testing.textField
 import com.grocerysync.app.testing.toBuyRowWithAmount
 import org.junit.After
@@ -39,8 +34,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Many items at once (1.4): ⋮ > Paste a list, and a list shared into the app from another one (Share > Grocery
- * Sync). Nothing changes before the preview's button is tapped. The parser and the preview's rules are tested on the
+ * Many items at once (1.4): ⋮ > Paste a list, and a list shared into the app from another one (Share > Kirana
+ * List). Nothing changes before the preview's button is tapped. The parser and the preview's rules are tested on the
  * JVM (PasteParserTest, PastePlanTest, ShareRoundTripTest).
  */
 @RunWith(AndroidJUnit4::class)
@@ -114,7 +109,7 @@ class PasteListTest : GroceryUiTest() {
     fun aListSharedBeforeSetupIsNotRead() {
         launchApp(sharedTextIntent("Rice 2 kg"))
 
-        waitForNode(hasText("Set up Grocery Sync first, then share the list again."))
+        waitForNode(hasText("Set up Kirana List first, then share the list again."))
         assertNoNode(hasText("Add Rice - 2 kg"))
     }
 
@@ -218,35 +213,15 @@ class PasteListTest : GroceryUiTest() {
 
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q) // WindowInspector
-    fun theStatusBarStaysReadableOverTheDialog() {
+    fun theSystemBarsStayReadableOverTheDialog() {
         launchConnected()
 
         chooseFromMenu("Paste a list")
         waitForNode(textField("List"))
-        // The dialog is drawn under the status bar, so its own window sets the colour of the clock and icons there:
-        // dark over the light theme's surface, light over the dark one's. They were white on white.
-        val night = (instrumentation.targetContext.resources.configuration.uiMode and
-            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        waitFor("${if (night) "light" else "dark"} status bar icons over the dialog") {
-            dialogHasLightStatusBars() == !night
-        }
-    }
-
-    /** Whether the open dialog's window asks for dark status bar icons (for a light background); null: no dialog. */
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private fun dialogHasLightStatusBars(): Boolean? {
-        var light: Boolean? = null
-        instrumentation.runOnMainSync {
-            val window = WindowInspector.getGlobalWindowViews().firstNotNullOfOrNull(::dialogWindowIn)
-            if (window != null) light = WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars
-        }
-        return light
-    }
-
-    /** The window of a Compose dialog whose views [view] holds, if any. */
-    private fun dialogWindowIn(view: View): Window? = when {
-        view is DialogWindowProvider -> view.window
-        view is ViewGroup -> (0 until view.childCount).firstNotNullOfOrNull { dialogWindowIn(view.getChildAt(it)) }
-        else -> null
+        // The dialog is drawn under the system bars, so its own window sets the colour of their icons: light over its
+        // green app bar in both themes (1.5), and over its surface at the bottom dark in the light theme and light in
+        // the dark one. In 1.4 they followed the surface at the top too, and before that they were white on white.
+        val expected = DialogWindowState(lightStatusBars = false, lightNavigationBars = !darkTheme, edgeToEdge = true)
+        waitFor("$expected") { openDialogWindow() == expected }
     }
 }

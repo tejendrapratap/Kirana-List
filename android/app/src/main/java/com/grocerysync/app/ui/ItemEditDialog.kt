@@ -107,6 +107,7 @@ import com.grocerysync.app.data.displayText
 import com.grocerysync.app.data.stepped
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.selectorColors
+import com.grocerysync.app.ui.theme.warningFieldColors
 import kotlinx.coroutines.delay
 import kotlin.math.min
 
@@ -379,13 +380,19 @@ fun ItemEditDialog(
                     placeholder = { Text("e.g. Milk") },
                     singleLine = true,
                     isError = (nameError != null && name.isNotEmpty()) || takenBy != null,
+                    // The Similar warning colours the field in marigold (tertiary), as an error colours it red.
+                    colors = if (nameMessage == null && similarMessage != null) {
+                        warningFieldColors()
+                    } else {
+                        OutlinedTextFieldDefaults.colors()
+                    },
                     supportingText = when {
                         nameMessage != null -> {
                             { Text(nameMessage) }
                         }
-                        // In the warning colour, like Settings' URL warnings.
+                        // In the warning colour (warningFieldColors), like Settings' URL warnings.
                         similarMessage != null -> {
-                            { Text(similarMessage, color = MaterialTheme.colorScheme.tertiary) }
+                            { Text(similarMessage) }
                         }
                         else -> null
                     },

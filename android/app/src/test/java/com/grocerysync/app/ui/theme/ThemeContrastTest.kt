@@ -3,6 +3,7 @@ package com.grocerysync.app.ui.theme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import com.grocerysync.app.data.ShopSection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -132,6 +133,76 @@ class ThemeContrastTest {
             listOf(
                 Check("Set up button (primary) on secondaryContainer", c.primary, c.secondaryContainer, UI),
                 Check("text button (primary) on errorContainer", c.primary, c.errorContainer, TEXT),
+            )
+        }
+    }
+
+    /**
+     * To buy's shop-section headers (1.5): each section's accent mark stands out (3:1) from its header, which is the
+     * surface tinted with the same accent, and the name (onSurface) and count (onSurfaceVariant) read on it (4.5:1).
+     */
+    @Test
+    fun sectionHeadersReadInEverySection() {
+        assertAll { scheme ->
+            val c = scheme.colors
+            val accents = scheme.brand.sectionAccents
+            ShopSection.entries.flatMap { section ->
+                val header = accents.headerColor(section, c.surface)
+                listOf(
+                    Check("${section.label} mark on its header", accents[section], header, UI),
+                    Check("${section.label} name (onSurface) on its header", c.onSurface, header, TEXT),
+                    Check("${section.label} count (onSurfaceVariant) on its header", c.onSurfaceVariant, header, TEXT),
+                )
+            }
+        }
+    }
+
+    /**
+     * The accent marks elsewhere: Add common items' section headers (surface), the Edit dialog's Shop section picker
+     * (surfaceContainerHigh) and its menu (surfaceContainer). Non-text: 3:1.
+     */
+    @Test
+    fun sectionMarksStandOutWhereverTheyShow() {
+        assertAll { scheme ->
+            val c = scheme.colors
+            val surfaces = listOf(
+                "surface" to c.surface,
+                "surfaceContainer (menu)" to c.surfaceContainer,
+                "surfaceContainerHigh (dialog)" to c.surfaceContainerHigh,
+            )
+            ShopSection.entries.flatMap { section ->
+                surfaces.map { (name, surface) ->
+                    Check("${section.label} mark on $name", scheme.brand.sectionAccents[section], surface, UI)
+                }
+            }
+        }
+    }
+
+    /** Every section has its own accent, in both themes; a header's tint is light, never a block of colour. */
+    @Test
+    fun sectionAccentsAreDistinctAndOnlyTintTheHeaders() {
+        for (scheme in schemes) {
+            val accents = scheme.brand.sectionAccents
+            val colours = ShopSection.entries.map { accents[it] }
+            assertEquals("${scheme.name}: one accent per section", ShopSection.entries.size, colours.toSet().size)
+            assertTrue("${scheme.name}: header tint ${accents.headerTint}", accents.headerTint in 0.04f..0.16f)
+        }
+    }
+
+    /**
+     * The full-screen dialogs (Add common items, Paste a list) and the empty list: the filled Add / Apply button
+     * (primary) on the bottom bar (surfaceContainer, surface), the selected set chip and the empty list's tonal
+     * button (onPrimaryContainer on primaryContainer, checked with every on-colour), the menus' tick (primary).
+     */
+    @Test
+    fun buttonsAndTicksOnTheDialogs() {
+        assertAll { scheme ->
+            val c = scheme.colors
+            listOf(
+                Check("Add button (primary) on the bottom bar (surfaceContainer)", c.primary, c.surfaceContainer, UI),
+                Check("Apply button (primary) on surface", c.primary, c.surface, UI),
+                Check("the menu's tick (primary) on surfaceContainer", c.primary, c.surfaceContainer, UI),
+                Check("the Similar warning's outline (tertiary) on the dialog", c.tertiary, c.surfaceContainerHigh, UI),
             )
         }
     }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -37,13 +38,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.grocerysync.app.data.ShopSection
+import com.grocerysync.app.ui.components.SectionAccentDot
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 
 /**
  * "Shop section" in the Edit dialog: which section of To buy the item is in on this phone, with every section to
  * choose from in walking order. It looks like an outlined field (as the unit picker does) and says "This phone
- * only" under it, as the choice is never synced. [labelGap]: the space under its label, as the dialog's other
- * labels have.
+ * only" under it, as the choice is never synced. Each section shows its accent dot, the colour of its header on
+ * To buy ([SectionAccentDot]), and the chosen one a leaf-green tick in the menu. [labelGap]: the space under its
+ * label, as the dialog's other labels have.
  */
 @Composable
 internal fun ShopSectionPicker(section: ShopSection, onSectionChange: (ShopSection) -> Unit, labelGap: Dp) {
@@ -74,12 +77,23 @@ internal fun ShopSectionPicker(section: ShopSection, onSectionChange: (ShopSecti
                 modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                SectionAccentDot(section)
+                Spacer(Modifier.width(12.dp))
                 // Wraps at large text sizes rather than being cut.
-                Text(section.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                Text(
+                    section.label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = colors.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant)
             }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = colors.surfaceContainer,
+        ) {
             ShopSection.entries.forEach { choice ->
                 DropdownMenuItem(
                     text = { Text(choice.label) },
@@ -87,8 +101,9 @@ internal fun ShopSectionPicker(section: ShopSection, onSectionChange: (ShopSecti
                         expanded = false
                         onSectionChange(choice)
                     },
+                    leadingIcon = { SectionAccentDot(choice) },
                     trailingIcon = if (choice == section) {
-                        { Icon(Icons.Default.Check, contentDescription = "Selected") }
+                        { Icon(Icons.Default.Check, contentDescription = "Selected", tint = colors.primary) }
                     } else {
                         null
                     },

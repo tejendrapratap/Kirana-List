@@ -336,7 +336,7 @@ internal val PASTE_TOO_LONG_TEXT =
     "Too long: paste up to ${PasteParser.MAX_LINES} lines and ${"%,d".format(Locale.ROOT, PasteParser.MAX_CHARS)} characters."
 
 /** The snackbar when a list is shared into the app before it is set up. */
-internal const val SHARE_NOT_SET_UP_TEXT = "Set up Grocery Sync first, then share the list again."
+internal const val SHARE_NOT_SET_UP_TEXT = "Set up Kirana List first, then share the list again."
 
 /** The snackbar when something was shared into the app without a text it can read (a file, an image). */
 internal const val SHARE_UNREADABLE_TEXT = "Couldn't read that. Share the list as text."
