@@ -12,12 +12,12 @@ Researched on 2026-11-08 from other shared-list apps (Bring!, AnyList, OurGrocer
 | 4 | [Paste a list / share a WhatsApp message into the app (bulk add)](#4-paste-a-list-share-a-whatsapp-message-into-the-app-bulk-add) | Medium | No | Done in 1.4 |
 | 5 | [Group To buy by shop section (automatic categories)](#5-group-to-buy-by-shop-section-automatic-categories) | Medium | No | Done in 1.4 |
 | 6 | [Join the family list without setup (invite link, QR or short code)](#6-join-the-family-list-without-setup-invite-link-qr-or-short-code) | Large | Replaces both | Later |
-| 7 | [Notification when someone else changes the list, and an 'I'm going shopping' alert](#7-notification-when-someone-else-changes-the-list-and-an-im-going-shopping-alert) | Medium | Yes | Later |
-| 8 | [More Undo (-/+, Need switch, rename, type) and a 'Ticked today' strip](#8-more-undo---need-switch-rename-type-and-a-ticked-today-strip) | Small | No | Later |
+| 7 | [Notification when someone else changes the list, and an 'I'm going shopping' alert](#7-notification-when-someone-else-changes-the-list-and-an-im-going-shopping-alert) | Medium | Yes | Partly done in 1.6 |
+| 8 | [More Undo (-/+, Need switch, rename, type) and a 'Ticked today' strip](#8-more-undo---need-switch-rename-type-and-a-ticked-today-strip) | Small | No | Done in 1.6 |
 | 9 | [Voice add in Hindi / Hinglish](#9-voice-add-in-hindi-hinglish) | Medium | No | Later |
 | 10 | ['Buy again' suggestions from purchase history](#10-buy-again-suggestions-from-purchase-history) | Medium | Yes | Later |
 | 11 | [Note per item (brand, size)](#11-note-per-item-brand-size) | Large | Yes | Later |
-| 12 | [Hindi UI and a simple mode for elders](#12-hindi-ui-and-a-simple-mode-for-elders) | Medium | No | Later |
+| 12 | [Hindi UI and a simple mode for elders](#12-hindi-ui-and-a-simple-mode-for-elders) | Medium | No | Done in 1.6 |
 | 13 | [Home-screen widget (display only)](#13-home-screen-widget-display-only) | Medium | No | Later |
 | 14 | [Multiple lists (Kirana, Sabzi, Medical, Diwali)](#14-multiple-lists-kirana-sabzi-medical-diwali) | Large | Yes | Later |
 
@@ -128,7 +128,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: no
 - Much easier after the backend move: yes
-- Status: Later
+- Status: Partly done in 1.6 (a notification when someone else puts items on To buy or changes an amount there, such as 'Mummy added 3 items to To buy' with 'Dahi, Oil 2 L, Batti', from a background check about every 15 minutes while the app is closed, so up to about 15 minutes late; app only, no Code.gs change; on unless turned off under Settings > This phone, and a one-time offer on the list asks for Android 13+'s permission. Still open: the 'I'm going shopping' alert, which needs a new script action and a Code.gs redeploy; instant notifications, which need push; and notifications of other changes, such as items ticked off or deleted)
 
 ## 8. More Undo (-/+, Need switch, rename, type) and a 'Ticked today' strip
 
@@ -143,7 +143,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Small
 - India-specific: no
 - Much easier after the backend move: no
-- Status: Later
+- Status: Done in 1.6 (Undo after -/+ ('Rice: 2 kg → 3 kg', steps of one item undo together), the Need switch and a save in the Edit dialog (a rename, a type, amount or unit change, or both); every Undo, Got it's too, writes the old value only while the item still has the value this phone set, so it never overwrites the other phone's change; 'Ticked today (n)' at the end of To buy lists what this phone ticked off today, with Put back, kept on the phone until midnight without a database change)
 
 ## 9. Voice add in Hindi / Hinglish
 
@@ -203,7 +203,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Effort: Medium
 - India-specific: yes
 - Much easier after the backend move: no
-- Status: Later
+- Status: Done in 1.6 (every text in English and Hindi, from typed Kotlin text catalogues instead of values-hi, chosen per phone under Settings > This phone > Language or by Android 13+'s app language; Share writes its message in the phone's language and Paste a list reads both. Simple mode, per phone: only To buy, bigger text and rows, a big Got it on each row and a big Add item button, Undo that stays until tapped, laid out for 200% text. The mic waits for voice add, #9)
 
 ## 13. Home-screen widget (display only)
 
@@ -235,17 +235,17 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Much easier after the backend move: yes
 - Status: Later
 
-## Already in the app (1.4)
+## Already in the app (1.6)
 
 - Near-real-time sync between phones: about every 5 s while the app is open, edits sent at once (300 ms grouping), pull-to-refresh
-- Works offline: local SQLite copy plus an outbox of unsent changes, retries with backoff, and a WorkManager send when the app is closed (no background fetch)
+- Works offline: local SQLite copy plus an outbox of unsent changes, retries with backoff, and a WorkManager send when the app is closed (no background fetch before 1.6's check for notifications)
 - Two pages, To buy and All items, switched by tab or swipe, each keeping its own scroll position
 - Reusable master list: All items with a Need switch or a -/+ stepper; Got it keeps the item (sets 0/false) instead of deleting it
 - Two item types, Yes/no or Quantity, switchable; units pcs, kg, g, L, ml, dozen, pack plus any custom unit up to 16 characters (so pao or bunch can already be typed); spelling clean-up (Kgs->kg, pkt->pack, nos->pcs); up to 3 decimals, comma as decimal mark
 - Add dialog that remembers the last type, and a snackbar telling you where a new item went
 - Duplicate names blocked (ignoring case and spacing), with 'Rice is already on the list' and Open 'Rice'; checked again on save
 - Edit dialog: rename, change type, amount or unit, delete with confirmation, and a warning if the other phone changed or deleted the item meanwhile
-- Undo after Got it and after Delete
+- Undo after Got it and after Delete (more in 1.6, below)
 - Offline search on the current page: ignores case, accents and the Devanagari nukta/chandrabindu, matches words in any order, offers 'Show n in All items' and Add '...'
 - Who changed what per item ('Added by X - 2 hours ago' / 'Updated by X'), highlight for others' changes in the last 2 minutes, an icon on unsynced rows
 - Full change log in the Sheet's History tab (not shown in the app), plus 30-day tombstones so deleted items stay deleted
@@ -260,6 +260,11 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Search by another name ('curd' finds Dahi, 'pyaaz' or 'प्याज' finds Onion, at word starts only) and a 'Similar' warning in the Add and Edit dialogs (1.4)
 - Paste a list, or Share > Kirana List from another app: a preview of what each line does (add, mark needed, change an amount, skip with the reason) before anything changes; a list shared from the app pastes back as the same items (1.4)
 - To buy grouped by shop section in walking order with sticky headers; this phone can turn it off or move an item to another section (1.4)
+- More Undo: after -/+ (steps of one item together), the Need switch and an Edit dialog save; every Undo of a value is checked against the other phone's changes (1.6)
+- Ticked today at the end of To buy: what this phone ticked off today, with Put back (1.6)
+- The app in English or Hindi, chosen per phone under Settings > This phone; Share writes in the phone's language, and a list shared from a Hindi phone pastes on an English one and the other way round (1.6)
+- Simple mode for elders: only To buy, bigger text and buttons, Undo that stays on screen (1.6)
+- A notification when someone else adds to To buy, from a background check about every 15 minutes while the app is closed (1.6)
 
 ## Considered and left out
 
