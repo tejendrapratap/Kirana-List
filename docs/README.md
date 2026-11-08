@@ -17,7 +17,7 @@ Planning notes for Kirana List (formerly Grocery Sync), kept with the code.
 
 ## Look and name
 
-The app is **Kirana List**, formerly Grocery Sync (a *kirana* is the neighbourhood grocery shop). Only the visible name changed: the app id `com.grocerysync.app`, the Kotlin packages, the signing key and `Code.gs` are the same, so it installs over Grocery Sync as an update. The name is `app_name` in `android/app/src/main/res/values/strings.xml`, which the list's app bar shows too; the qa build is called **Kirana QA**.
+The app is **Kirana List**, formerly Grocery Sync (a *kirana* is the neighbourhood grocery shop). Only the visible name changed: the app id `com.grocerysync.app`, the Kotlin packages, the signing key and `Code.gs` are the same, so it installs over Grocery Sync as an update. The name is `app_name` in `android/app/src/main/res/values/strings.xml` (the launcher's name); the list's app bar shows it in the app's language (`ListTexts.appTitle`: Kirana List, किराना लिस्ट), so renaming the app means changing both. The qa build is called **Kirana QA**, and its app bar says so in every language.
 
 <img src="images/app-icon.svg" alt="The app icon: a cream cloth bag with a turmeric check mark on green" width="108">
 
