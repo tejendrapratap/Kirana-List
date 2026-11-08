@@ -31,12 +31,6 @@ interface ListTexts {
     /** The app bar's ⋮ button (TalkBack). */
     val moreOptions: String
 
-    /** The ⋮ menu's choice, and the button of an empty list. */
-    val addCommonItems: String
-
-    /** The ⋮ menu's choice. */
-    val pasteList: String
-
     /** The ⋮ menu's tick: To buy grouped by shop section, or A to Z. */
     val groupBySection: String
 
@@ -306,8 +300,6 @@ object EnglishListTexts : ListTexts {
     override val closeSearch = "Close search"
     override val shareList = "Share list"
     override val moreOptions = "More options"
-    override val addCommonItems = "Add common items"
-    override val pasteList = "Paste a list"
     override val groupBySection = "Group by shop section"
 
     override val notConnected = "Not connected"
@@ -420,8 +412,6 @@ object HindiListTexts : ListTexts {
     override val closeSearch = "खोज बंद करें"
     override val shareList = "लिस्ट शेयर करें"
     override val moreOptions = "और विकल्प"
-    override val addCommonItems = "आम सामान जोड़ें"
-    override val pasteList = "लिस्ट पेस्ट करें"
     override val groupBySection = "सेक्शन के हिसाब से दिखाएँ"
 
     override val notConnected = "शीट से नहीं जुड़ा"
@@ -507,8 +497,8 @@ object HindiListTexts : ListTexts {
     // "Curd बदल दिया, अब इसका नाम Dahi है": changed Curd, its name is now Dahi.
     override fun changedAndRenamedSnackbar(oldName: String, newName: String) = "$oldName बदल दिया, अब इसका नाम $newName है"
     override fun couldNotSave(name: String) = "\"$name\" सेव नहीं हो सका। नाम जाँचें और फिर से कोशिश करें।"
-    override fun changedElsewhere(name: String) = "\"$name\" किसी दूसरे फ़ोन पर बदला गया"
-    override val itemChangedElsewhere = "वह सामान किसी दूसरे फ़ोन पर बदला गया"
+    override fun changedElsewhere(name: String) = "\"$name\" दूसरे फ़ोन पर बदला गया"
+    override val itemChangedElsewhere = "वह सामान दूसरे फ़ोन पर बदला गया"
     override fun cantChange(name: String) = "\"$name\" नहीं बदला जा सका। इसे खोलकर इसका नाम छोटा करें।"
     override val editFailed = "यह बदलाव सेव नहीं हो सका। कृपया फिर से कोशिश करें।"
 

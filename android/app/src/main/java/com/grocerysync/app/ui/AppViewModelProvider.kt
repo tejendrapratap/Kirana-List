@@ -21,6 +21,7 @@ object AppViewModelProvider {
                 shopSectionStore = container.shopSections,
                 phoneSettingsStore = container.phoneSettings,
                 savedStateHandle = createSavedStateHandle(),
+                tickedTodayStore = container.tickedToday,
             )
         }
         initializer {

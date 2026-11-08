@@ -66,6 +66,8 @@ class ThisPhoneSwitchesTest : GroceryUiTest() {
         allowNotifications()
         launchConnected()
         waitFor("the background check to be planned") { listCheckPlanned() }
+        // Not answered yet (AppState.reset answers it), so the switch below is seen to answer it.
+        AppState.container.phoneSettings.setNotifyOfferDone(false)
         openSettings()
 
         waitForNode(notifySwitch)

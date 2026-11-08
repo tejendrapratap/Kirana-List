@@ -253,8 +253,8 @@ class StarterListTest {
         assertEquals("चीज़ें जोड़ें", StarterList.addButtonText(0))
         assertEquals("1 चीज़ जोड़ें", StarterList.addButtonText(1))
         assertEquals("12 चीज़ें जोड़ें", StarterList.addButtonText(12))
-        assertEquals("सारा सामान में 1 चीज़ जोड़ दी", StarterList.addedText(1))
-        assertEquals("सारा सामान में 12 चीज़ें जोड़ दीं", StarterList.addedText(12))
+        assertEquals("\"सारा सामान\" में 1 चीज़ जोड़ दी", StarterList.addedText(1))
+        assertEquals("\"सारा सामान\" में 12 चीज़ें जोड़ दीं", StarterList.addedText(12))
         assertEquals("कुछ नहीं जुड़ा: ये चीज़ें पहले से लिस्ट में हैं", StarterList.addedText(0))
         assertEquals("1 चीज़ नहीं हटी: दूसरे फ़ोन पर बदली गई है", StarterList.keptText(1))
         assertEquals("3 चीज़ें नहीं हटीं: दूसरे फ़ोन पर बदली गई हैं", StarterList.keptText(3))
@@ -262,7 +262,7 @@ class StarterListTest {
             "पहले सेटिंग्स में अपनी शीट से जुड़ें, ताकि उसमें पहले से रखा सामान बदल न जाए।",
             StarterList.NOT_CONNECTED_TEXT,
         )
-        assertEquals("शीट से आपकी लिस्ट आने तक रुकें, फिर दोबारा कोशिश करें।", StarterList.LIST_NOT_LOADED_TEXT)
+        assertEquals("शीट से आपकी लिस्ट आने तक रुकें, इसके बाद फिर से कोशिश करें।", StarterList.LIST_NOT_LOADED_TEXT)
     }
 
     /** Records what the dialog adds; answers [refuse]d names with AlreadyOnList, as the repository would. */

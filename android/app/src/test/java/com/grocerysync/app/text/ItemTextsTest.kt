@@ -52,8 +52,8 @@ class ItemTextsTest {
         assertEquals("100 अक्षरों से छोटा रखें", t.nameTooLong(100))
         assertEquals("0 से 999999 तक की मात्रा लिखें, दशमलव के बाद 3 अंक तक", t.amountError(999_999L, 3))
         // The step is data (an amount and its unit): it stays as it is.
-        assertEquals("0.5 kg कम", t.stepLess("0.5 kg"))
-        assertEquals("100 g ज़्यादा", t.stepMore("100 g"))
+        assertEquals("0.5 kg कम करें", t.stepLess("0.5 kg"))
+        assertEquals("100 g बढ़ाएँ", t.stepMore("100 g"))
         assertEquals("यूनिट: kg", t.unitChosen("kg"))
         assertEquals("सेक्शन: मसाले", t.shopSectionChosen("मसाले"))
         assertEquals("\"Rice\" हटाएँ?", t.deleteQuestion("Rice"))

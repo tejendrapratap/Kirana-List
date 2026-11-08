@@ -118,7 +118,9 @@ private val ScrollHintFadeHeight = 24.dp
 
 /**
  * Add / edit dialog. [item] null = add mode (name autofocused, value starts as "not needed",
- * type = [defaultType]). The draft survives rotation.
+ * type = [defaultType]). The draft survives rotation. [defaultNeeded]: add mode starts at needed instead
+ * (yes, or 1 of the unit to be chosen), for Simple mode, whose list shows only To buy: there, a new item
+ * saved as it starts would otherwise be out of sight at once.
  *
  * Every field needs a value before Save is enabled ([canSaveItem]): a quantity needs a unit, and
  * there is no default one. A new quantity, a yes / no item switched to a quantity and a quantity from
@@ -161,15 +163,19 @@ fun ItemEditDialog(
     initialName: String = "",
     shopSection: ((name: String) -> ShopSection)? = null,
     onShopSectionChange: (name: String, section: ShopSection) -> Unit = { _, _ -> },
+    defaultNeeded: Boolean = false,
 ) {
     val t = Texts.current
     val isAdd = item == null
     val itemQuantity = item?.value as? ItemValue.Quantity
+    val startNeeded = isAdd && defaultNeeded
     var name by rememberSaveable { mutableStateOf(item?.name ?: initialName) }
     var nameTouched by rememberSaveable { mutableStateOf(false) }
     var type by rememberSaveable { mutableStateOf(item?.value?.type ?: defaultType) }
-    var needed by rememberSaveable { mutableStateOf((item?.value as? ItemValue.BoolValue)?.value ?: false) }
-    var amountText by rememberSaveable { mutableStateOf((itemQuantity?.amount ?: Amount.ZERO).format()) }
+    var needed by rememberSaveable { mutableStateOf((item?.value as? ItemValue.BoolValue)?.value ?: startNeeded) }
+    var amountText by rememberSaveable {
+        mutableStateOf((itemQuantity?.amount ?: if (startNeeded) Amount.ONE else Amount.ZERO).format())
+    }
     // The unit as stored; "" = none chosen yet (no default: the user picks one before saving).
     var unit by rememberSaveable { mutableStateOf(itemQuantity?.unitText.orEmpty()) }
     var valueTouched by rememberSaveable { mutableStateOf(false) }

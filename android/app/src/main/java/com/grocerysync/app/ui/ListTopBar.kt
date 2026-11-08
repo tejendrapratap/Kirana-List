@@ -92,12 +92,13 @@ private fun ListMenu(groupBySection: Boolean, actions: ListActions, choices: Lis
         ) {
             for (choice in choices) {
                 when (choice) {
+                    // Named as the dialogs they open are titled (BulkTexts), so the two always match.
                     ListMenuChoice.ADD_COMMON_ITEMS -> DropdownMenuItem(
-                        text = { Text(t.list.addCommonItems) },
+                        text = { Text(t.bulk.addCommonItemsTitle) },
                         onClick = { choose(actions.openStarterList) },
                     )
                     ListMenuChoice.PASTE_LIST -> DropdownMenuItem(
-                        text = { Text(t.list.pasteList) },
+                        text = { Text(t.bulk.pasteListTitle) },
                         onClick = { choose(actions.openPasteList) },
                     )
                     ListMenuChoice.GROUP_BY_SECTION -> DropdownMenuItem(

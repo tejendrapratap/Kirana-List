@@ -8,6 +8,7 @@ import com.grocerysync.app.data.PrefsClockOffsetStore
 import com.grocerysync.app.data.ServerClock
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.ShopSectionStore
+import com.grocerysync.app.data.TickedTodayStore
 import com.grocerysync.app.sync.LiveSync
 import com.grocerysync.app.sync.SheetsClient
 import com.grocerysync.app.sync.SyncEngine
@@ -28,6 +29,8 @@ class AppContainer(context: Context) {
     val shopSections = ShopSectionStore(appContext)
     /** This phone's own preferences: language, Simple mode, change notifications (never synced). */
     val phoneSettings = PhoneSettingsStore(appContext)
+    /** "Ticked today" under To buy: the items this phone took off To buy today (never synced). */
+    val tickedToday = TickedTodayStore(appContext)
     val database = GroceryDatabase(appContext)
     val serverClock = ServerClock(offsetStore = PrefsClockOffsetStore(appContext))
     val sheetsClient = SheetsClient()

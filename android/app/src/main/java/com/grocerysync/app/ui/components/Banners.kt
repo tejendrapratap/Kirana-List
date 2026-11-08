@@ -50,6 +50,7 @@ import com.grocerysync.app.data.FailedChange
 import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.sync.PushProblem
 import com.grocerysync.app.text.Texts
+import com.grocerysync.app.ui.StarterList
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.leafTonalButtonColors
 
@@ -389,7 +390,7 @@ private fun BannersPreview() {
                 onDiscard = {},
             )
             val t = Texts.current.list
-            EmptyListState(t.emptyToBuyTitle, t.emptyToBuyHintNewList, actionText = t.addCommonItems)
+            EmptyListState(t.emptyToBuyTitle, t.emptyToBuyHintNewList, actionText = StarterList.TITLE)
             NoSearchMatches(t.noSearchMatch, t.addToList("Corriander"), Icons.Default.Add, onAction = {})
             NoSearchMatches(t.noToBuySearchMatch, t.showInAllItems(2), Icons.AutoMirrored.Filled.ArrowForward, onAction = {})
         }

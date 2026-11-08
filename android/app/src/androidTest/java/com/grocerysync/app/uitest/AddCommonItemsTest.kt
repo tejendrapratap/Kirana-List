@@ -200,7 +200,7 @@ class AddCommonItemsTest : GroceryUiTest() {
         waitForNode(button("आम सामान जोड़ें")).performClick()
         waitForNode(choice("रोज़ का"))
         waitForNode(isHeading() and hasText("सब्ज़ी और फल"))
-        node(hasText("टिक की गई चीज़ें सारा सामान में जुड़ेंगी", substring = true)).assertExists()
+        node(hasText("टिक की गई चीज़ें \"सारा सामान\" में जुड़ेंगी", substring = true)).assertExists()
         node(starterRow("Onion") and hasText("kg")).assertIsOn()
         node(starterList).performScrollToNode(starterRow("Dahi"))
         node(starterRow("Dahi") and hasText("हाँ या नहीं") and hasContentDescription("Dahi, Curd, दही, हाँ या नहीं"))
@@ -213,7 +213,7 @@ class AddCommonItemsTest : GroceryUiTest() {
         node(starterRow("Potato")).assertIsOff().performClick()
         node(button("1 चीज़ जोड़ें")).assertIsEnabled().performClick()
 
-        waitForNode(hasText("सारा सामान में 1 चीज़ जोड़ दी"))
+        waitForNode(hasText("\"सारा सामान\" में 1 चीज़ जोड़ दी"))
         waitFor("Potato on the sheet") { fake.item("Potato") != null }
         assertTrue((fake.item("Potato")!!.need as Need.Quantity).amountIs("0"))
     }

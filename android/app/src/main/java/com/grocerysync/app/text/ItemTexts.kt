@@ -221,8 +221,9 @@ object HindiItemTexts : ItemTexts {
     override val yes = "हाँ"
     override val no = "नहीं"
     override val howMuchToBuy = "कितना ख़रीदना है? (0 = कुछ नहीं)"
-    override fun stepLess(step: String) = "$step कम"
-    override fun stepMore(step: String) = "$step ज़्यादा"
+    // Said as what the button does, like the list rows' − / + (ListTexts.stepDown / stepUp).
+    override fun stepLess(step: String) = "$step कम करें"
+    override fun stepMore(step: String) = "$step बढ़ाएँ"
     override fun amountError(max: Long, decimals: Int) = "0 से $max तक की मात्रा लिखें, दशमलव के बाद $decimals अंक तक"
     override val unitPrompt = "यूनिट चुनें"
     override val unitPromptToSave = "सेव करने के लिए यूनिट चुनें"

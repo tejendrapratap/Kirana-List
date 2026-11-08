@@ -98,8 +98,8 @@ class ItemDialogHindiTest {
         compose.onNode(isSelectable() and hasText("कितना चाहिए")).assertIsSelected()
         compose.onNode(hasText("कितना ख़रीदना है? (0 = कुछ नहीं)")).assertExists()
         // The amount's steps (no unit: 1) and the unit picker, which says why Save is disabled.
-        compose.onNode(hasContentDescription("1 कम")).assertExists()
-        compose.onNode(hasContentDescription("1 ज़्यादा")).assertExists()
+        compose.onNode(hasContentDescription("1 कम करें")).assertExists()
+        compose.onNode(hasContentDescription("1 बढ़ाएँ")).assertExists()
         compose.onNode(hasContentDescription("मात्रा")).assertExists()
         compose.onNode(unitPicker and hasStateDescription("सेव करने के लिए यूनिट चुनें")).assertExists()
         // The shop section, by its Hindi name.

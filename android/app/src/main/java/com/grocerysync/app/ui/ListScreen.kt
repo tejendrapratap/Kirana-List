@@ -98,6 +98,7 @@ import com.grocerysync.app.ui.components.EmptyListState
 import com.grocerysync.app.ui.components.FailedChangesBanner
 import com.grocerysync.app.ui.components.LiveStatusLine
 import com.grocerysync.app.ui.components.NoSearchMatches
+import com.grocerysync.app.ui.components.NotifyOffer
 import com.grocerysync.app.ui.components.PushWarningLine
 import com.grocerysync.app.ui.components.ScriptUpdateLine
 import com.grocerysync.app.ui.components.SetupBanner
@@ -206,6 +207,8 @@ fun ListScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // Followed while the screen is shown, so turning it on or off in Settings shows on the way back.
     val simpleMode by viewModel.simpleMode.collectAsStateWithLifecycle()
+    // For the offer of change notifications above the list (NotifyOffer).
+    val phoneSettings by viewModel.phoneSettings.collectAsStateWithLifecycle()
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val starterListOpen by viewModel.starterListOpen.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -332,6 +335,14 @@ fun ListScreen(
         },
         snackbarHostState = snackbarHostState,
         actions = actions,
+        // Asks for the permission itself and draws nothing unless it is offered; in Simple mode too.
+        notifyOffer = {
+            NotifyOffer(
+                phoneSettings = phoneSettings,
+                isConfigured = state.isConfigured,
+                onAnswered = viewModel::onNotifyOfferAnswered,
+            )
+        },
     )
 
     when (val current = dialog) {
@@ -351,6 +362,8 @@ fun ListScreen(
                 // Replaces this dialog with the edit dialog of the item already on the list.
                 onOpenExisting = viewModel::openEdit,
                 initialName = addName,
+                // Simple mode shows only To buy: what is added there is needed, unless the person says not.
+                defaultNeeded = simpleMode,
             )
         }
         is ItemDialog.Edit -> key("edit:${current.key}") {
@@ -441,6 +454,10 @@ class ListActions(
  * app bar [SIMPLE_TEXT_SCALE] times as big, [SimpleToBuyRow]s, one big [SimpleAddItemButton], Undo snackbars that
  * stay ([SimpleModeSnackbar], [SnackbarLook]) and Ticked today open at first. Internal for the UI tests, which show it
  * at 200% text.
+ *
+ * [notifyOffer] is drawn first in each page's banner header, above the banners: ListScreen gives it the offer of
+ * change notifications ([NotifyOffer]), which draws nothing unless it is offered. Empty by default, so previews and
+ * tests of this screen never depend on the device's notification permission.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -454,6 +471,7 @@ internal fun ListContent(
     snackbarHostState: SnackbarHostState,
     actions: ListActions,
     simpleMode: Boolean = false,
+    notifyOffer: @Composable () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     // Hoisted (not inside the pages), so a page keeps its scroll position while the other one is shown.
@@ -549,6 +567,7 @@ internal fun ListContent(
                     onTickedTodayExpandedChange = { tickedTodayExpanded = it },
                     now = now,
                     actions = actions,
+                    notifyOffer = notifyOffer,
                 )
             },
         )
@@ -584,6 +603,7 @@ private fun ListBody(
     onTickedTodayExpandedChange: (Boolean) -> Unit,
     now: () -> Long,
     actions: ListActions,
+    notifyOffer: @Composable () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     val layoutDirection = LocalLayoutDirection.current
@@ -639,6 +659,7 @@ private fun ListBody(
                 now = now,
                 bottomPadding = bottomPadding,
                 actions = actions,
+                notifyOffer = notifyOffer,
                 onShowAllItems = {},
                 modifier = Modifier
                     .weight(1f)
@@ -694,6 +715,7 @@ private fun ListBody(
                     now = now,
                     bottomPadding = bottomPadding,
                     actions = actions,
+                    notifyOffer = notifyOffer,
                     onShowAllItems = { onFilterChange(ListFilter.ALL) },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -723,6 +745,7 @@ private fun ListPage(
     now: () -> Long,
     bottomPadding: Dp,
     actions: ListActions,
+    notifyOffer: @Composable () -> Unit,
     onShowAllItems: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -748,7 +771,7 @@ private fun ListPage(
             state = listState,
             contentPadding = PaddingValues(bottom = bottomPadding),
         ) {
-            bannerHeader(state, actions)
+            bannerHeader(state, actions, notifyOffer)
             pageItems(filter, content, state, now, actions, onShowAllItems, simpleMode)
             // Below To buy's rows or its empty state; not while a search is open.
             if (filter == ListFilter.TO_BUY && !searchOpen && content != PageContent.NotLoaded) {
@@ -857,8 +880,9 @@ private fun itemKey(item: GroceryItem): String = "item:" + item.key
  * row), holding the banners. A banner that appears while the list is at the top grows this item in
  * place and pushes the rows down. As an item of its own, inserted in front of the rows, it would land
  * above the visible part: a lazy list keeps its first visible row where it is. Never filtered by search.
+ * [notifyOffer] (ListContent's) comes first: a question asked once, above the banners about the connection.
  */
-private fun LazyListScope.bannerHeader(state: ListUiState, actions: ListActions) {
+private fun LazyListScope.bannerHeader(state: ListUiState, actions: ListActions, notifyOffer: @Composable () -> Unit) {
     item(key = "header", contentType = "header") {
         Column(
             Modifier
@@ -866,6 +890,7 @@ private fun LazyListScope.bannerHeader(state: ListUiState, actions: ListActions)
                 .animateContentSize()
                 .padding(top = 8.dp),
         ) {
+            notifyOffer()
             if (!state.isConfigured) {
                 SetupBanner(onSetUp = actions.openSettings)
             } else if (state.status.state == ConnectionState.ERROR) {
@@ -937,7 +962,7 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, acti
                     else -> t.emptyToBuyHintAllTicked
                 },
                 modifier = Modifier.animateItem(),
-                actionText = t.addCommonItems.takeIf { offerStarterList },
+                actionText = StarterList.TITLE.takeIf { offerStarterList },
                 onAction = actions.openStarterList,
             )
         }
@@ -947,7 +972,7 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, acti
                 title = if (notLoaded) t.listNotLoadedTitle else t.emptyListTitle,
                 hint = if (notLoaded) t.listNotLoadedHint else t.emptyListHint,
                 modifier = Modifier.animateItem(),
-                actionText = t.addCommonItems.takeIf { offerStarterList },
+                actionText = StarterList.TITLE.takeIf { offerStarterList },
                 onAction = actions.openStarterList,
             )
         }

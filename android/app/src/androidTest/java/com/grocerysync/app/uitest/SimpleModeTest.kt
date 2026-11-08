@@ -3,6 +3,7 @@ package com.grocerysync.app.uitest
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -23,6 +24,7 @@ import com.grocerysync.app.testing.FakeSheetServer.Companion.yesNo
 import com.grocerysync.app.testing.FakeSheetServer.Need
 import com.grocerysync.app.testing.GroceryUiTest
 import com.grocerysync.app.testing.button
+import com.grocerysync.app.testing.choice
 import com.grocerysync.app.testing.gotIt
 import com.grocerysync.app.testing.hasTextMatching
 import com.grocerysync.app.testing.itemRow
@@ -170,6 +172,23 @@ class SimpleModeTest : GroceryUiTest() {
         assertNoNode(button("Add common items"))
         addButton().performClick()
         waitForNode(nameField)
+    }
+
+    @Test
+    fun aNewItemStartsAsNeeded() {
+        fake.seed("Coffee", yesNo(false))
+        launchInSimpleMode()
+
+        waitForNode(hasText("Everything is ticked off. Tap Add item when you need something."))
+        addButton().performClick()
+        waitForNode(nameField).performTextInput("Stapler")
+        // Only To buy is shown, so a new item starts at "Need to buy? Yes": saved as it is, it stays in sight.
+        node(choice("Yes / no")).assertIsSelected()
+        node(choice("Yes")).assertIsSelected()
+        node(button("Save")).performClick()
+
+        waitForNode(gotItButton("Stapler")).assertIsDisplayed()
+        waitFor("Stapler needed on the sheet") { fake.item("Stapler")?.need == Need.YesNo(true) }
     }
 
     @Test

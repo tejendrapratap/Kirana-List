@@ -31,7 +31,8 @@ import org.junit.Test
 
 /**
  * The list screen's Simple mode comes from this phone's settings (PhoneSettingsStore) and follows them while the view
- * model lives: turning it on or off in Settings shows on the list screen when the person comes back.
+ * model lives: turning it on or off in Settings shows on the list screen when the person comes back. The offer of
+ * change notifications above the list reads the same settings, and its answer is saved there.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ListViewModelSimpleModeTest {
@@ -92,5 +93,18 @@ class ListViewModelSimpleModeTest {
         // A new start of the app: the saved choice, before anything has run.
         val viewModel = viewModel(PhoneSettingsStore(prefs))
         assertTrue(viewModel.simpleMode.value)
+    }
+
+    @Test
+    fun theNotificationsOfferIsAnsweredForGood() = runTest(dispatcher) {
+        val phoneSettings = PhoneSettingsStore(prefs)
+        val viewModel = viewModel(phoneSettings)
+        assertFalse(viewModel.phoneSettings.value.notifyOfferDone)
+
+        viewModel.onNotifyOfferAnswered()
+        assertTrue(viewModel.phoneSettings.value.notifyOfferDone)
+        // Saved: the offer doesn't come back after a restart. Only the offer is answered; notifications stay on.
+        assertTrue(PhoneSettingsStore(prefs).current().notifyOfferDone)
+        assertTrue(PhoneSettingsStore(prefs).current().notifyChanges)
     }
 }

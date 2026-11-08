@@ -226,7 +226,7 @@ class ListTextsHindiTest {
         val t = HindiListTexts
         assertEquals("Rice ले लिया", t.gotItSnackbar("Rice"))
         assertEquals("Rice हटा दिया", t.deletedSnackbar("Rice"))
-        assertEquals("\"Rice\" किसी दूसरे फ़ोन पर बदला गया", t.changedElsewhere("Rice"))
+        assertEquals("\"Rice\" दूसरे फ़ोन पर बदला गया", t.changedElsewhere("Rice"))
         assertEquals("ले लिया: Dahi", t.gotItDescription("Dahi"))
         assertEquals("Dahi चाहिए", t.needDescription("Dahi"))
         assertEquals("Rice 0.5 kg कम करें", t.stepDown("0.5 kg", "Rice"))

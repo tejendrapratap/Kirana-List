@@ -279,6 +279,9 @@ object HindiBulkTexts : BulkTexts {
     /** [one] for a count of 1, else [many]: the verb forms of [HindiBulkTexts]' counted texts. */
     private fun plural(n: Int, one: String, many: String) = if (n == 1) one else many
 
+    /** A page's or a button's name inside a sentence, in quotes as the other screens write it. */
+    private fun quoted(name: String) = "\"$name\""
+
     override val addCommonItemsTitle = "आम सामान जोड़ें"
 
     override fun setName(set: CatalogSet) = when (set) {
@@ -289,9 +292,10 @@ object HindiBulkTexts : BulkTexts {
         CatalogSet.ALL -> "सब"
     }
 
+    // A page's name and the Need word inside a sentence are quoted, as on the list screen: "सारा सामान" में.
     override val addCommonItemsHint =
-        "टिक की गई चीज़ें ${common.allItems} में जुड़ेंगी, अभी ${common.needed} नहीं होंगी। " +
-            "ख़त्म होने पर उन्हें ${common.needed} कर दें।"
+        "टिक की गई चीज़ें ${quoted(common.allItems)} में जुड़ेंगी, अभी ${quoted(common.needed)} नहीं होंगी। " +
+            "ख़त्म होने पर उन्हें ${quoted(common.needed)} कर दें।"
     override val allOfSetOnList = "इस सेट का सारा सामान पहले से आपकी लिस्ट में है।"
     override val selectAll = "सब चुनें"
     override val selectNone = "कोई न चुनें"
@@ -305,7 +309,7 @@ object HindiBulkTexts : BulkTexts {
         if (count == 0) {
             "कुछ नहीं जुड़ा: ये चीज़ें पहले से लिस्ट में हैं"
         } else {
-            "${common.allItems} में ${common.itemCount(count)} ${plural(count, "जोड़ दी", "जोड़ दीं")}"
+            "${quoted(common.allItems)} में ${common.itemCount(count)} ${plural(count, "जोड़ दी", "जोड़ दीं")}"
         }
 
     override fun commonItemsKept(count: Int) =
@@ -313,7 +317,8 @@ object HindiBulkTexts : BulkTexts {
             plural(count, "नहीं हटी: दूसरे फ़ोन पर बदली गई है", "नहीं हटीं: दूसरे फ़ोन पर बदली गई हैं")
 
     override val connectFirst = "पहले सेटिंग्स में अपनी शीट से जुड़ें, ताकि उसमें पहले से रखा सामान बदल न जाए।"
-    override val waitForList = "शीट से आपकी लिस्ट आने तक रुकें, फिर दोबारा कोशिश करें।"
+    // "Try again" in the words of the Retry button (फिर से कोशिश करें); "इसके बाद" for "then", as SyncTexts says it.
+    override val waitForList = "शीट से आपकी लिस्ट आने तक रुकें, इसके बाद फिर से कोशिश करें।"
 
     override val pasteListTitle = "लिस्ट पेस्ट करें"
     override val paste = "पेस्ट करें"
