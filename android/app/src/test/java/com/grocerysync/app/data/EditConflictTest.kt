@@ -65,6 +65,21 @@ class EditConflictTest {
     }
 
     @Test
+    fun aPastedUpdateNeedsTheValueThePreviewShowed() {
+        // The preview planned Rice 2 kg -> 3 kg; a sync landed halfway through the paste with Rice set to 5 kg.
+        val rice2 = Quantity.of(2, "kg")
+        assertNull(ListLogic.updateConflict(rice2, shown(listOf(item("Rice", rice2)), name = "Rice")))
+        assertEquals(EditResult.ValueChanged, ListLogic.updateConflict(rice2, shown(listOf(item("Rice", Quantity.of(5, "kg"))), name = "Rice")))
+        // Marked needed there meanwhile: not "marked" again on top of it.
+        assertEquals(EditResult.ValueChanged, ListLogic.updateConflict(BoolValue(false), item("Dahi", BoolValue(true))))
+        // Deleted or renamed there: never re-created under the old name.
+        assertEquals(EditResult.NotOnList, ListLogic.updateConflict(rice2, shown(listOf(item("Basmati rice", rice2)), name = "Rice")))
+        // A change of its own still queued on this phone counts: it is what the preview showed.
+        val mine = OutboxOp(1, "id-1", OpType.UPSERT, "rice", "Rice", Quantity.of(3, "kg"), 2_000L, OpStatus.PENDING)
+        assertNull(ListLogic.updateConflict(Quantity.of(3, "kg"), shown(listOf(item("Rice", rice2)), listOf(mine), "Rice")))
+    }
+
+    @Test
     fun undoOfGotItDoesNotBringBackANameThatWasRenamed() {
         // Got it on Milk, then the other phone renamed it to Oat milk: the Undo has nothing to change.
         val oatMilk = item("Oat milk", Quantity.of(0, "L"))

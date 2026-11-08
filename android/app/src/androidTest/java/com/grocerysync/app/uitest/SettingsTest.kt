@@ -66,7 +66,7 @@ class SettingsTest : GroceryUiTest() {
     @Test
     fun theSavedTokenIsNeverShownAndTheVersionIs() {
         launchConnected()
-        settingsButton().performClick()
+        openSettings()
         waitForNode(tokenField)
         // Let the cross-fade from the list finish, so only Settings is on screen.
         waitForNoNode(tab("To buy"))

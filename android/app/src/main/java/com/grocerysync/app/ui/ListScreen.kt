@@ -1,5 +1,6 @@
 package com.grocerysync.app.ui
 
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -26,7 +27,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -43,7 +43,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -78,8 +78,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.grocerysync.app.data.Amount
 import com.grocerysync.app.data.GroceryItem
+import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
+import com.grocerysync.app.data.ShopSectionSettings
 import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.ValueType
 import com.grocerysync.app.sync.ConnectionState
@@ -92,6 +94,7 @@ import com.grocerysync.app.ui.components.NoSearchMatches
 import com.grocerysync.app.ui.components.PushWarningLine
 import com.grocerysync.app.ui.components.ScriptUpdateLine
 import com.grocerysync.app.ui.components.SetupBanner
+import com.grocerysync.app.ui.components.ShopSectionHeader
 import com.grocerysync.app.ui.components.SyncErrorBanner
 import com.grocerysync.app.ui.components.ToBuyRow
 import com.grocerysync.app.ui.components.rememberTickingTime
@@ -186,9 +189,11 @@ fun ListScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
+    val starterListOpen by viewModel.starterListOpen.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     // Saved: the page shown survives rotation, process death and a trip to Settings.
     val pagerState = rememberPagerState(initialPage = ListFilter.TO_BUY.page) { ListFilter.entries.size }
     val pages = remember(pagerState, scope) { PageSwitcher(pagerState, scope) }
@@ -220,6 +225,7 @@ fun ListScreen(
         snackbarHostState = snackbarHostState,
         onUndoGotIt = viewModel::undoGotIt,
         onUndoDelete = viewModel::undoDelete,
+        onUndoCommonItems = viewModel::undoAddCommonItems,
         addedText = { name, value ->
             val shown = filterOfPage(pages.shownPage)
             addedSnackbarText(name, value.isNeeded, shown, if (search.open) search.query else "")
@@ -228,7 +234,7 @@ fun ListScreen(
 
     // Everything that opens a dialog or leaves the screen clears focus first, so the keyboard never
     // stays over a dialog or comes back when it closes.
-    val actions = remember(viewModel, onOpenSettings, focusManager, search) {
+    val actions = remember(viewModel, onOpenSettings, focusManager, search, context, scope, snackbarHostState) {
         ListActions(
             openSettings = {
                 focusManager.clearFocus()
@@ -236,6 +242,17 @@ fun ListScreen(
             },
             // On the page shown: the search never switches pages.
             openSearch = search::openAndFocus,
+            // Every needed item, whatever the search shows, grouped like To buy: the same sections, this phone's
+            // choices from the Edit dialog included, or A to Z while grouping is off.
+            share = {
+                focusManager.clearFocus()
+                val current = viewModel.uiState.value
+                shareToBuy(
+                    context = context,
+                    toBuy = current.toBuy,
+                    sectionOf = if (current.groupBySection) current::sectionOf else null,
+                ) { message -> scope.showReplacingSnackbar(snackbarHostState, message) }
+            },
             refresh = viewModel::refresh,
             retrySync = viewModel::retrySync,
             retryFailed = viewModel::retryFailed,
@@ -252,6 +269,17 @@ fun ListScreen(
             gotIt = viewModel::markGotIt,
             setNeeded = viewModel::setNeeded,
             stepQuantity = viewModel::stepQuantity,
+            // ⋮ > Add common items, and the empty list's button.
+            openStarterList = {
+                focusManager.clearFocus()
+                viewModel.openStarterList()
+            },
+            // ⋮ > Paste a list. A list shared into the app opens the same dialog (MainActivity).
+            openPasteList = {
+                focusManager.clearFocus()
+                viewModel.openPasteList()
+            },
+            setGroupBySection = viewModel::setGroupBySection,
         )
     }
 
@@ -296,6 +324,17 @@ fun ListScreen(
             EditItemDialog(key = current.key, state = state, viewModel = viewModel)
         }
     }
+
+    if (starterListOpen) {
+        StarterListDialog(
+            onList = state.allItems,
+            onDismiss = viewModel::closeStarterList,
+            onAdd = viewModel::addCommonItems,
+        )
+    }
+
+    // "Paste a list" and lists shared into the app; above an item dialog that may be open.
+    PasteListHost(viewModel)
 }
 
 /**
@@ -322,6 +361,9 @@ private fun EditItemDialog(key: String, state: ListUiState, viewModel: ListViewM
             },
             onDelete = { viewModel.deleteItem(key) },
             removedElsewhere = live == null,
+            // This phone's choice for the item, else the dictionary's section for the name being typed.
+            shopSection = { name -> state.shopSections.chosen[key] ?: ItemCatalog.sectionFor(name) },
+            onShopSectionChange = { name, section -> viewModel.setShopSection(key, name, section) },
         )
         // Gone before this screen saw it (e.g. after the app was restarted with the dialog open).
         state.loaded -> LaunchedEffect(key) { viewModel.onEditedItemRemoved(null) }
@@ -333,6 +375,8 @@ class ListActions(
     val openSettings: () -> Unit,
     /** The app bar's Search icon: shows the search field, focused, on the page shown (no page switch). */
     val openSearch: () -> Unit,
+    /** The app bar's Share icon: the To buy list as a message, through Android's share sheet ([shareToBuy]). */
+    val share: () -> Unit,
     val refresh: () -> Unit,
     val retrySync: () -> Unit,
     val retryFailed: () -> Unit,
@@ -343,12 +387,19 @@ class ListActions(
     val gotIt: (key: String) -> Unit,
     val setNeeded: (key: String, needed: Boolean) -> Unit,
     val stepQuantity: (key: String, up: Boolean) -> Unit,
+    /** ⋮ > Add common items, and the empty list's button: opens [StarterListDialog]. */
+    val openStarterList: () -> Unit,
+    /** ⋮ > Paste a list: adds the items of a pasted message. */
+    val openPasteList: () -> Unit,
+    /** ⋮ > Group by shop section: turns grouping To buy by shop section on or off (this phone only). */
+    val setGroupBySection: (Boolean) -> Unit,
 )
 
 /**
  * The screen: status lines, the To buy / All items row, the search field while search is open (shared by
  * both pages: it searches the page shown), and a pager with one list per page (swipe or tap the row to
- * switch). Each page keeps its own scroll position, banners and pull to refresh.
+ * switch). Each page keeps its own scroll position, banners and pull to refresh. The app bar menu's
+ * "Group by shop section" tick ([ListTopBar]) shows [ListUiState.groupBySection].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -382,19 +433,7 @@ private fun ListContent(
     val now = { rowClock.value }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(state.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                actions = {
-                    IconButton(onClick = actions.openSearch) {
-                        Icon(Icons.Default.Search, contentDescription = "Search items")
-                    }
-                    IconButton(onClick = actions.openSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                },
-            )
-        },
+        topBar = { ListTopBar(title = state.title, groupBySection = state.groupBySection, actions = actions) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             // Always a blank Add dialog, also during a search.
@@ -479,8 +518,8 @@ private fun ListContent(
                 SideEffect {
                     if (searchScroll.takeScrollToTop(filter, query)) listState.requestScrollToItem(0)
                 }
-                val content = remember(filter, state.loaded, state.toBuy, state.allItems, query) {
-                    pageContent(filter, state.loaded, state.toBuy, state.allItems, query)
+                val content = remember(filter, state.loaded, state.toBuy, state.allItems, query, state.toBuySections) {
+                    pageContent(filter, state.loaded, state.toBuy, state.allItems, query, toBuySections = state.toBuySections)
                 }
                 PullToRefreshBox(
                     isRefreshing = state.isRefreshing,
@@ -635,39 +674,56 @@ private fun LazyListScope.pageItems(
 ) {
     when (content) {
         PageContent.NotLoaded -> Unit
-        PageContent.Empty -> emptyPage(filter, state)
+        PageContent.Empty -> emptyPage(filter, state, actions)
         is PageContent.Rows -> when (filter) {
             ListFilter.TO_BUY -> toBuyRows(content.items, state, now, actions)
             ListFilter.ALL -> allItemsRows(content.items, state, now, actions)
         }
+        is PageContent.Sections -> toBuySectionRows(content.groups, state, now, actions)
         is PageContent.NoMatch -> noSearchMatches(content, actions, onShowAllItems)
     }
 }
 
-private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState) {
+/**
+ * A page's empty state. While the whole list is empty, with a button to "Add common items" once the family's list
+ * has come from the sheet ([ListUiState.hasSheetList]). Before setup the setup banner shows the way; after it, until
+ * the first sync, the page says the list hasn't loaded yet (the status line or a banner says why it takes long).
+ */
+private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, actions: ListActions) {
+    val listEmpty = state.allItems.isEmpty()
+    val notLoaded = listEmpty && state.isConfigured && !state.hasSheetList
+    val starterList = if (listEmpty && state.hasSheetList) StarterList.TITLE else null
     when (filter) {
         ListFilter.TO_BUY -> item(key = "empty:to-buy", contentType = "empty") {
             EmptyListState(
-                title = "Nothing to buy right now",
-                hint = if (state.allItems.isEmpty()) {
-                    "Tap + to add the things you usually buy. Mark them as needed when you run out."
-                } else {
-                    "Everything is ticked off. Open All items to mark what you need."
+                title = if (notLoaded) LIST_NOT_LOADED_TITLE else "Nothing to buy right now",
+                hint = when {
+                    notLoaded -> LIST_NOT_LOADED_HINT
+                    listEmpty -> "Tap + to add the things you usually buy. Mark them as needed when you run out."
+                    else -> "Everything is ticked off. Open All items to mark what you need."
                 },
                 modifier = Modifier.animateItem(),
+                actionText = starterList,
+                onAction = actions.openStarterList,
             )
         }
         ListFilter.ALL -> item(key = "empty:all", contentType = "empty") {
             EmptyListState(
-                title = "Your list is empty",
-                hint = "Tap + to add your first item.",
+                title = if (notLoaded) LIST_NOT_LOADED_TITLE else "Your list is empty",
+                hint = if (notLoaded) LIST_NOT_LOADED_HINT else "Tap + to add your first item.",
                 modifier = Modifier.animateItem(),
+                actionText = starterList,
+                onAction = actions.openStarterList,
             )
         }
     }
 }
 
-/** To buy's rows: every needed item, or (search active) the needed items that match, A to Z. */
+/** The empty pages while the family's list hasn't come from the sheet yet (right after setup). */
+private const val LIST_NOT_LOADED_TITLE = "Your list hasn't loaded yet"
+private const val LIST_NOT_LOADED_HINT = "It shows here once it has come from the sheet."
+
+/** To buy's rows: every needed item, or (search active) the needed items that match, A to Z; or a section's. */
 private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState, now: () -> Long, actions: ListActions) {
     items(items, key = ::itemKey, contentType = { "to-buy" }) { item ->
         ToBuyRow(
@@ -678,6 +734,19 @@ private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState
             onClick = { actions.edit(item.key) },
             modifier = Modifier.animateItem(),
         )
+    }
+}
+
+/**
+ * To buy by shop section: per section a sticky header (its name and count; a heading for TalkBack), then its rows
+ * as [toBuyRows] draws them. Header keys can't collide with item keys ("item:..."), and each item is in one section.
+ */
+private fun LazyListScope.toBuySectionRows(groups: List<ShopSectionGroup>, state: ListUiState, now: () -> Long, actions: ListActions) {
+    for (group in groups) {
+        stickyHeader(key = "section:" + group.section.id, contentType = "section") {
+            ShopSectionHeader(section = group.section, count = group.items.size, modifier = Modifier.animateItem())
+        }
+        toBuyRows(group.items, state, now, actions)
     }
 }
 
@@ -730,11 +799,13 @@ private fun ListEventsEffect(
     snackbarHostState: SnackbarHostState,
     onUndoGotIt: (name: String, value: ItemValue) -> Unit,
     onUndoDelete: (name: String, value: ItemValue) -> Unit,
+    onUndoCommonItems: (List<AddedItem>) -> Unit,
     addedText: (name: String, value: ItemValue) -> String?,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnUndoGotIt by rememberUpdatedState(onUndoGotIt)
     val currentOnUndoDelete by rememberUpdatedState(onUndoDelete)
+    val currentOnUndoCommonItems by rememberUpdatedState(onUndoCommonItems)
     val currentAddedText by rememberUpdatedState(addedText)
     LaunchedEffect(events, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -747,6 +818,10 @@ private fun ListEventsEffect(
                         currentOnUndoDelete(event.name, event.previous)
                     }
                     is ListEvent.Message -> showReplacingSnackbar(snackbarHostState, event.text)
+                    is ListEvent.CommonItemsAdded ->
+                        showReplacingSnackbar(snackbarHostState, StarterList.addedText(event.items.size), "Undo") {
+                            currentOnUndoCommonItems(event.items)
+                        }
                     is ListEvent.Added -> currentAddedText(event.name, event.value)?.let {
                         showReplacingSnackbar(snackbarHostState, it)
                     }
@@ -799,6 +874,7 @@ private fun previewItem(
 private val PreviewItems = listOf(
     previewItem("bread", "Bread", ItemValue.BoolValue(true), 40_000L, "Home", pending = false, added = true),
     previewItem("milk", "Milk", ItemValue.Quantity(Amount(1_500L), Units.L), 600_000L, "Shop", pending = true, added = true),
+    previewItem("onion", "Onion", ItemValue.Quantity(Amount.whole(1L), Units.KG), 300_000L, "Home", pending = false),
     previewItem("rice", "Rice", ItemValue.Quantity(Amount.whole(2L), Units.KG), 900_000L, "Home", pending = false),
     previewItem("basmati rice", "Basmati rice", ItemValue.BoolValue(false), 3_600_000L, "Home", pending = false),
     previewItem("coffee", "Coffee", ItemValue.BoolValue(false), 7_200_000L, "Sheet", pending = false),
@@ -807,6 +883,7 @@ private val PreviewItems = listOf(
 private fun previewState(items: List<GroceryItem>) = ListUiState(
     loaded = true,
     toBuy = items.filter { it.value.isNeeded },
+    toBuySections = groupBySection(items.filter { it.value.isNeeded }, ShopSectionSettings()::sectionOf),
     allItems = items.filter { it.value.isNeeded } + items.filterNot { it.value.isNeeded },
     namesByKey = items.associate { it.key to it.name },
     outbox = OutboxStatus(pending = 1, failed = emptyList()),
@@ -815,7 +892,7 @@ private fun previewState(items: List<GroceryItem>) = ListUiState(
     myDeviceName = "Shop",
 )
 
-private val PreviewActions = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, { _, _ -> })
+private val PreviewActions = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, { _, _ -> }, {}, {}, {})
 
 @Composable
 private fun ListContentPreviewOf(filter: ListFilter, search: SearchState) {
@@ -862,4 +939,11 @@ private fun ToBuySearchPreview() {
 @Composable
 private fun ToBuySearchInAllItemsPreview() {
     ListContentPreviewOf(ListFilter.TO_BUY, SearchState(open = true, query = "coffee"))
+}
+
+/** To buy by shop section (the default) on a 360dp phone with large text, in the dark theme. */
+@Preview(showBackground = true, widthDp = 360, heightDp = 640, fontScale = 1.3f, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun ToBuySectionsPreview() {
+    ListContentPreviewOf(ListFilter.TO_BUY, SearchState())
 }

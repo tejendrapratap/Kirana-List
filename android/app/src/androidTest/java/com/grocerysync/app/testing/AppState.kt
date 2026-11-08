@@ -38,6 +38,8 @@ object AppState {
      * 4. Empties every table of the app's database (list, waiting changes, revision, script version), then makes
      *    one write through GroceryDatabase so the app's flows read it again.
      * 5. Clears the saved clock offset.
+     * 6. Groups To buy by shop section again and forgets the sections chosen for items (through ShopSectionStore,
+     *    which also updates what the running app sees).
      */
     fun reset() {
         val app = container
@@ -46,6 +48,8 @@ object AppState {
         runBlocking { app.syncEngine.syncOnce() }
         clearDatabase(app)
         context.getSharedPreferences(CLOCK_PREFS, Context.MODE_PRIVATE).edit(commit = true) { clear() }
+        app.shopSections.setGroupBySection(true)
+        app.shopSections.current().chosen.keys.forEach { app.shopSections.setSection(it, null) }
     }
 
     /** Saves the connection the way Settings > Save does (SettingsStore cleans the values). */

@@ -77,6 +77,24 @@ class GroceryRepository(
      */
     suspend fun update(name: String, value: ItemValue): EditResult = save(name, value, EditIntent.UPDATE)
 
+    /**
+     * Sets the value of the item [key] to [value], but only while it still has [expected], the value the user saw:
+     * the paste preview's updates. Checked in the same transaction as the enqueue ([ListLogic.updateConflict]), so
+     * a list from the sheet that lands while a long paste is being applied can't slip in between: a value set on
+     * the other phone meanwhile is never overwritten ([EditResult.ValueChanged]), and an item renamed or removed
+     * there is never re-created ([EditResult.NotOnList]). Keeps the item's name.
+     */
+    suspend fun updateIf(key: String, expected: ItemValue, value: ItemValue): EditResult = withContext(io) {
+        edit { list ->
+            val current = list.current(key)
+            val conflict = ListLogic.updateConflict(expected, current?.item)
+            if (current == null || conflict != null) return@edit refuse(conflict ?: EditResult.NotOnList)
+            val item = current.item
+            val name = ListLogic.nameForChange(item.name, item) ?: return@edit refuse(EditResult.InvalidName)
+            listOf(upsertOp(key, name, value.sanitized(), editTime(item), current.addedAtHint)) to EditResult.Saved
+        }
+    }
+
     private suspend fun save(name: String, value: ItemValue, intent: EditIntent): EditResult = withContext(io) {
         val key = ItemKeys.normalize(name)
         edit { list ->
@@ -124,6 +142,22 @@ class GroceryRepository(
                     upsertOp(newKey, cleanName, newValue, editTime(null), current.addedAtHint),
                 ) to EditResult.Saved
             }
+        }
+    }
+
+    /**
+     * Deletes the item [key], but only while it still has [expected]: the Undo of "Add common items", which takes
+     * back what it added and nothing more. An item marked needed or changed on the other phone since is kept
+     * ([EditResult.ValueChanged]), checked in the same transaction as the enqueue like [updateIf].
+     */
+    suspend fun deleteIf(key: String, expected: ItemValue): EditResult = withContext(io) {
+        edit { list ->
+            val current = list.current(key)
+            val conflict = ListLogic.updateConflict(expected.sanitized(), current?.item)
+            if (current == null || conflict != null) return@edit refuse(conflict ?: EditResult.NotOnList)
+            val item = current.item
+            val name = ListLogic.nameForChange(item.name, item) ?: return@edit refuse(EditResult.InvalidName)
+            listOf(deleteOp(key, name, editTime(item))) to EditResult.Saved
         }
     }
 

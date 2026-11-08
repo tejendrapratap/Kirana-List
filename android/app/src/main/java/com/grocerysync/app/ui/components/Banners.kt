@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -262,8 +263,15 @@ fun FailedChangesBanner(
     }
 }
 
+/** A page with nothing on it: [title] and [hint], and a button [actionText] that calls [onAction] when given. */
 @Composable
-fun EmptyListState(title: String, hint: String, modifier: Modifier = Modifier) {
+fun EmptyListState(
+    title: String,
+    hint: String,
+    modifier: Modifier = Modifier,
+    actionText: String? = null,
+    onAction: () -> Unit = {},
+) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -285,6 +293,10 @@ fun EmptyListState(title: String, hint: String, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        if (actionText != null) {
+            Spacer(Modifier.height(16.dp))
+            FilledTonalButton(onClick = onAction) { Text(actionText, textAlign = TextAlign.Center) }
+        }
     }
 }
 
@@ -345,7 +357,7 @@ private fun BannersPreview() {
                 onRetry = {},
                 onDiscard = {},
             )
-            EmptyListState("Nothing to buy right now", "Tap + to add items.")
+            EmptyListState("Nothing to buy right now", "Tap + to add items.", actionText = "Add common items")
             NoSearchMatches("No items match your search", "Add \"Corriander\" to the list", Icons.Default.Add, onAction = {})
             NoSearchMatches(
                 "No items to buy match your search",

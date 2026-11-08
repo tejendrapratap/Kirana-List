@@ -5,13 +5,18 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.grocerysync.app.data.CatalogEntry
 import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.EditResult
 import com.grocerysync.app.data.GroceryRepository
 import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
+import com.grocerysync.app.data.PasteParser
 import com.grocerysync.app.data.SettingsStore
+import com.grocerysync.app.data.ShopSection
+import com.grocerysync.app.data.ShopSectionSettings
+import com.grocerysync.app.data.ShopSectionStore
 import com.grocerysync.app.data.SyncSettings
 import com.grocerysync.app.data.notNeeded
 import com.grocerysync.app.data.stepped
@@ -29,6 +34,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -62,6 +69,10 @@ data class ListUiState(
     val myDeviceName: String = "",
     /** True only while a pull-to-refresh sync is running. */
     val isRefreshing: Boolean = false,
+    /** This phone's shop sections: whether To buy is grouped, and the sections chosen in the Edit dialog. */
+    val shopSections: ShopSectionSettings = ShopSectionSettings(),
+    /** [toBuy] by shop section in walking order while [groupBySection]; null while To buy is A to Z. */
+    val toBuySections: List<ShopSectionGroup>? = null,
 ) {
     val title: String
         get() = status.spreadsheetName?.takeIf { it.isNotBlank() } ?: DEFAULT_TITLE
@@ -87,6 +98,21 @@ data class ListUiState(
             status.state != ConnectionState.NOT_CONFIGURED
 
     fun item(key: String): GroceryItem? = allItems.firstOrNull { it.key == key }
+
+    /**
+     * The family's list has come from the sheet on this phone (once is enough: it is kept in the database). Until
+     * then the list is empty or out of date, so changes of many items at once ("Add common items", a paste) wait:
+     * every item would look new, and its change could replace the family's item of that name on the sheet.
+     */
+    val hasSheetList: Boolean
+        get() = isConfigured && status.lastSuccessAt != null
+
+    /** To buy is grouped by shop section (this phone's choice; on unless turned off). */
+    val groupBySection: Boolean
+        get() = shopSections.groupBySection
+
+    /** [item]'s shop section on this phone ([ShopSectionSettings.sectionOf]). */
+    fun sectionOf(item: GroceryItem): ShopSection = shopSections.sectionOf(item)
 
     companion object {
         const val DEFAULT_TITLE = "Grocery Sync"
@@ -125,12 +151,16 @@ sealed interface ListEvent {
 
     /** The add dialog's item was saved; the screen says where it is if the page shown hides it. */
     data class Added(val name: String, val value: ItemValue) : ListEvent
+
+    /** "Add common items" added [items] (at least one); the snackbar says how many and offers Undo. */
+    data class CommonItemsAdded(val items: List<AddedItem>) : ListEvent
 }
 
 class ListViewModel(
     private val repository: GroceryRepository,
     private val liveSync: LiveSync,
     private val settingsStore: SettingsStore,
+    private val shopSectionStore: ShopSectionStore,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -148,9 +178,9 @@ class ListViewModel(
         repository.outboxStatus,
         liveSync.status,
         settingsStore.settings,
-        manualRefresh,
-    ) { items, outbox, status, settings, refreshing ->
-        buildState(items, outbox, status, settings, refreshing)
+        combine(manualRefresh, shopSectionStore.settings, ::Pair),
+    ) { items, outbox, status, settings, (refreshing, shopSections) ->
+        buildState(items, outbox, status, settings, refreshing, shopSections)
     }
         .flowOn(Dispatchers.Default)
         .stateIn(
@@ -159,6 +189,7 @@ class ListViewModel(
             initialValue = ListUiState(
                 status = liveSync.status.value,
                 isConfigured = settingsStore.current().isConfigured,
+                shopSections = shopSectionStore.current(),
             ),
         )
 
@@ -172,6 +203,7 @@ class ListViewModel(
         status: SyncStatus,
         settings: SyncSettings,
         refreshing: Boolean,
+        shopSections: ShopSectionSettings,
     ): ListUiState {
         // The repository already sorts by name, and partition keeps that order inside each group.
         val (needed, rest) = items.partition { it.value.isNeeded }
@@ -185,6 +217,8 @@ class ListViewModel(
             isConfigured = settings.isConfigured,
             myDeviceName = settingsStore.effectiveDeviceName(),
             isRefreshing = refreshing,
+            shopSections = shopSections,
+            toBuySections = if (shopSections.groupBySection) groupBySection(needed, shopSections::sectionOf) else null,
         )
     }
 
@@ -201,6 +235,64 @@ class ListViewModel(
     fun closeDialog() {
         // set (not remove) so the StateFlow from getStateFlow() emits the change.
         savedStateHandle.set<String?>(KEY_DIALOG, null)
+    }
+
+    // endregion
+
+    // region "Add common items" (StarterListDialog; its rules are in StarterList)
+
+    /** Whether "Add common items" is open. Kept in [SavedStateHandle] like [dialog]. */
+    val starterListOpen: StateFlow<Boolean> = savedStateHandle.getStateFlow(KEY_STARTER_LIST, false)
+
+    /**
+     * Opens "Add common items". Not before the family's list has come from the sheet ([bulkChangeProblem]): until
+     * then the items would go out as new and could set the family's items of the same name to "not needed".
+     */
+    fun openStarterList() {
+        bulkChangeProblem()?.let { problem ->
+            viewModelScope.launch { _events.send(ListEvent.Message(problem)) }
+            return
+        }
+        savedStateHandle[KEY_STARTER_LIST] = true
+    }
+
+    fun closeStarterList() {
+        savedStateHandle[KEY_STARTER_LIST] = false
+    }
+
+    /**
+     * "Add N items": adds [entries] to All items, not needed, through the repository's normal add, so the duplicate
+     * rules, the outbox and sync are those of any new item. An entry that reached the list meanwhile under any of its
+     * names is skipped ([StarterList.addEntries]). The snackbar says how many were added, with Undo
+     * ([undoAddCommonItems]): a set can be a hundred items, and they are on the family's list at once.
+     */
+    fun addCommonItems(entries: List<CatalogEntry>) {
+        // A second tap on "Add" before the dialog has gone would only say "Nothing added".
+        if (!starterListOpen.value) return
+        closeStarterList()
+        edit {
+            // Checked again: the dialog may have come back with the app after it was closed (process death).
+            bulkChangeProblem()?.let { problem ->
+                _events.send(ListEvent.Message(problem))
+                return@edit
+            }
+            val names = repository.items.first().map { it.name }
+            val added = StarterList.addEntries(entries, names, repository::add)
+            _events.send(if (added.isEmpty()) ListEvent.Message(StarterList.addedText(0)) else ListEvent.CommonItemsAdded(added))
+        }
+    }
+
+    /**
+     * Undo of "Add common items": deletes the [items] it added, each only while it is as it was added
+     * ([GroceryRepository.deleteIf]): one marked needed or changed on the other phone meanwhile stays, and a
+     * snackbar says how many did. One gone already (deleted there) needs nothing.
+     */
+    fun undoAddCommonItems(items: List<AddedItem>) = edit {
+        var kept = 0
+        for (item in items) {
+            if (repository.deleteIf(ItemKeys.normalize(item.name), item.value) == EditResult.ValueChanged) kept++
+        }
+        if (kept > 0) _events.send(ListEvent.Message(StarterList.keptText(kept)))
     }
 
     // endregion
@@ -256,6 +348,7 @@ class ListViewModel(
                 // queued, so an item that arrived meanwhile is never overwritten.
                 is ItemSavePlan.Upsert -> if (current == null) {
                     val result = repository.add(plan.name, plan.value)
+                    if (result == EditResult.Saved && originalKey != null) keepShopSection(originalKey, plan.name)
                     if (result == EditResult.Saved && originalKey == null) {
                         _events.send(ListEvent.Added(plan.name, plan.value))
                     } else {
@@ -266,6 +359,7 @@ class ListViewModel(
                 }
                 is ItemSavePlan.Rename -> {
                     val result = repository.rename(plan.key, plan.newName, plan.value)
+                    if (result == EditResult.Saved) keepShopSection(plan.key, plan.newName)
                     // "Not on the list" is about the item being renamed (its old name).
                     editRefused(result, plan.newName, goneName = current?.name ?: plan.newName)?.let { _events.send(it) }
                 }
@@ -281,7 +375,7 @@ class ListViewModel(
     private fun editRefused(result: EditResult, name: String, goneName: String = name): ListEvent.Message? = when (result) {
         EditResult.Saved -> null
         is EditResult.AlreadyOnList -> ListEvent.Message(alreadyOnListText(result.existingName))
-        EditResult.NotOnList -> ListEvent.Message(changedElsewhereText(goneName))
+        EditResult.NotOnList, EditResult.ValueChanged -> ListEvent.Message(changedElsewhereText(goneName))
         EditResult.InvalidName -> couldNotSave(name)
     }
 
@@ -352,6 +446,28 @@ class ListViewModel(
 
     // endregion
 
+    // region Shop sections (this phone only, never synced)
+
+    /** To buy grouped by shop section (true) or A to Z. */
+    fun setGroupBySection(group: Boolean) {
+        shopSectionStore.setGroupBySection(group)
+    }
+
+    /**
+     * The Edit dialog's "Shop section" for the item [key], which is being saved as [name] (a new name too: the
+     * choice follows the rename, see [keepShopSection]). See [ShopSectionStore.chooseSection].
+     */
+    fun setShopSection(key: String, name: String, section: ShopSection) {
+        shopSectionStore.chooseSection(key, name, section)
+    }
+
+    /** The item [fromKey] was saved as [name] from its Edit dialog: this phone's section for it goes along. */
+    private fun keepShopSection(fromKey: String, name: String) {
+        shopSectionStore.moveSection(fromKey, ItemKeys.normalize(name))
+    }
+
+    // endregion
+
     // region Sync
 
     fun retrySync() {
@@ -382,9 +498,129 @@ class ListViewModel(
 
     // endregion
 
+    // region Paste a list (PastePlan.kt, PasteListDialog.kt)
+
+    /**
+     * The "Paste a list" dialog; null while it is closed. In the preview, each line is planned against the list as
+     * it is now ([planPaste]), so the rows follow changes from the other phone, and it can't be applied before the
+     * family's list has come from the sheet ([PasteListState.waitingForList]). Kept in [SavedStateHandle] like the
+     * item dialog. The list comes from [uiState] (once loaded), so this reads nothing more from the database.
+     */
+    val pasteList: StateFlow<PasteListState?> = combine(
+        savedStateHandle.getStateFlow<String?>(KEY_PASTE, null),
+        uiState.filter { it.loaded }.map { it.allItems to it.hasSheetList }.distinctUntilChanged(),
+    ) { saved, (items, hasSheetList) ->
+        PasteDraft.decode(saved)?.let { PasteListState.of(it, items, waitingForList = !hasSheetList) }
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * "Paste a list": the dialog with an empty text field. Not before the family's list has come from the sheet
+     * ([bulkChangeProblem]), like "Add common items": without it every line would be a new item, and could replace
+     * the family's item of the same name (its type and amount) once it is sent.
+     */
+    fun openPasteList() {
+        bulkChangeProblem()?.let { problem ->
+            viewModelScope.launch { _events.send(ListEvent.Message(problem)) }
+            return
+        }
+        setPasteDraft(PasteDraft(text = "", previewing = false))
+    }
+
+    /**
+     * A share into the app (Share > Grocery Sync): the preview of its [text] at once. It comes from another app, so
+     * it is only parsed; nothing changes until the user confirms, and that waits for the family's list
+     * ([PasteListState.waitingForList]: a share may start the app right after setup, before its first sync). Before
+     * the app is set up, for a share without a text it can read ([text] null) or a text that is too long, a
+     * snackbar says so instead.
+     */
+    fun openSharedText(text: String?) {
+        val problem = when {
+            !settingsStore.current().isConfigured -> SHARE_NOT_SET_UP_TEXT
+            text == null -> SHARE_UNREADABLE_TEXT
+            PasteParser.isTooLong(text) -> PASTE_TOO_LONG_TEXT
+            else -> {
+                setPasteDraft(PasteDraft(text = text, previewing = true))
+                return
+            }
+        }
+        viewModelScope.launch { _events.send(ListEvent.Message(problem)) }
+    }
+
+    /** The dialog's Next: the preview of [text]. A text that is too long stays (the dialog says so). */
+    fun previewPaste(text: String) {
+        if (!PasteParser.isTooLong(text)) setPasteDraft(PasteDraft(text = text, previewing = true))
+    }
+
+    /** From the preview back to the text, to change it. */
+    fun editPasteText() {
+        pasteDraft()?.let { setPasteDraft(it.copy(previewing = false, choices = emptyMap())) }
+    }
+
+    /** Ticks or unticks the preview's row for line [index]. */
+    fun setPasteRowSelected(index: Int, selected: Boolean) {
+        pasteDraft()?.let { setPasteDraft(it.copy(choices = it.choices + (index to selected))) }
+    }
+
+    fun closePasteList() = setPasteDraft(null)
+
+    /**
+     * The preview's confirm button: applies [actions] (the ticked rows) as normal edits, one by one, so duplicate
+     * names, the outbox and sync work as for a single item. An update goes ahead only while the item still has the
+     * value the preview showed ([pasteEdit]), checked again as each change is queued
+     * ([GroceryRepository.updateIf]): the first change starts a sync, whose list may land halfway through a long
+     * paste. A snackbar says what was done.
+     */
+    fun applyPaste(actions: List<PasteAction>) {
+        // A second tap before the dialog has gone would apply the same rows again, and say they were all skipped.
+        if (savedStateHandle.get<String>(KEY_PASTE) == null) return
+        // The button waits for the family's list (PasteListState.canApply); the dialog stays open until then.
+        if (bulkChangeProblem() != null) return
+        closePasteList()
+        edit {
+            val byKey = repository.items.first().associateBy { it.key }
+            var added = 0
+            var updated = 0
+            var leftOut = 0
+            for (action in actions) {
+                when (val step = pasteEdit(action, action.itemKey?.let(byKey::get))) {
+                    is PasteEdit.Add -> if (repository.add(step.name, step.value) == EditResult.Saved) added++ else leftOut++
+                    is PasteEdit.Update ->
+                        if (repository.updateIf(step.key, step.expected, step.value) == EditResult.Saved) updated++ else leftOut++
+                    PasteEdit.Unchanged -> Unit
+                    PasteEdit.ChangedMeanwhile -> leftOut++
+                }
+            }
+            _events.send(ListEvent.Message(pasteResultText(added, updated, leftOut)))
+        }
+    }
+
+    /**
+     * Why a change of many items at once ("Add common items", a paste) can't go ahead now: the phone isn't set up,
+     * or the family's list hasn't come from the sheet yet ([ListUiState.hasSheetList]); null when it can. Read from
+     * [LiveSync] itself, which knows the last sync time (kept in the database) before [uiState] has caught up.
+     */
+    private fun bulkChangeProblem(): String? = when {
+        !settingsStore.current().isConfigured -> StarterList.NOT_CONNECTED_TEXT
+        liveSync.status.value.lastSuccessAt == null -> StarterList.LIST_NOT_LOADED_TEXT
+        else -> null
+    }
+
+    private fun pasteDraft(): PasteDraft? = PasteDraft.decode(savedStateHandle.get<String>(KEY_PASTE))
+
+    private fun setPasteDraft(draft: PasteDraft?) {
+        // set (not remove) so the StateFlow from getStateFlow() emits the change.
+        savedStateHandle.set(KEY_PASTE, draft?.encode())
+    }
+
+    // endregion
+
     private companion object {
         const val TAG = "ListViewModel"
         const val KEY_DIALOG = "item_dialog"
+        const val KEY_STARTER_LIST = "starter_list"
+        const val KEY_PASTE = "paste_list"
         val REFRESH_TIMEOUT = 10.seconds
         val MIN_REFRESH_INDICATOR = 600.milliseconds
     }

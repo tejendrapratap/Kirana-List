@@ -1,5 +1,6 @@
 package com.grocerysync.app.testing
 
+import android.content.Intent
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
+import androidx.test.platform.app.InstrumentationRegistry
 import com.grocerysync.app.MainActivity
 import org.junit.After
 import org.junit.Before
@@ -64,20 +66,44 @@ abstract class GroceryUiTest {
     }
 
     /**
-     * Connects the app to [fake] as device [ME] (through SettingsStore, as Settings > Save does), opens it and
-     * waits until it has synced and shows every item of the fake. Seed the fake first.
+     * Connects the app to [fake] as device [ME] (through SettingsStore, as Settings > Save does), opens it (with
+     * [intent], e.g. a list shared into the app, when given) and waits until it has synced and shows every item of
+     * the fake. Seed the fake first.
      */
-    protected fun launchConnected() {
+    protected fun launchConnected(intent: Intent? = null) {
         val before = System.currentTimeMillis()
         AppState.connect(fake.url, fake.token, ME)
-        launchApp()
+        launchApp(intent)
         waitFor("the first sync with the fake", SYNC_TIMEOUT_MS) { AppState.syncedSince(before) }
         waitForNode(tab("All items", fake.items().size))
     }
 
-    /** Opens the app as it is now (connected or not). */
-    protected fun launchApp() {
-        scenario = ActivityScenario.launch(MainActivity::class.java)
+    /**
+     * Opens the app as it is now (connected or not): from the launcher, or with [intent] (an explicit intent for
+     * MainActivity, such as [sharedTextIntent]).
+     */
+    protected fun launchApp(intent: Intent? = null) {
+        scenario = if (intent == null) {
+            ActivityScenario.launch(MainActivity::class.java)
+        } else {
+            ActivityScenario.launch<MainActivity>(intent)
+        }
+    }
+
+    /** What another app's Share > Grocery Sync sends: ACTION_SEND with [text] as text/plain, for MainActivity. */
+    protected fun sharedTextIntent(text: String): Intent =
+        Intent(Intent.ACTION_SEND)
+            .setClass(InstrumentationRegistry.getInstrumentation().targetContext, MainActivity::class.java)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_TEXT, text)
+
+    /**
+     * Share > Grocery Sync of [text] while the app is open: started from the app itself, so it reaches the running
+     * MainActivity (singleTop, on top of its task) through onNewIntent, as a share from another app does then.
+     */
+    protected fun shareIntoOpenApp(text: String) {
+        val open = checkNotNull(scenario) { "Open the app first (launchConnected or launchApp)" }
+        open.onActivity { activity -> activity.startActivity(sharedTextIntent(text)) }
     }
 
     // ---- Waiting ----------------------------------------------------------------------------------------
@@ -161,7 +187,19 @@ abstract class GroceryUiTest {
 
     protected fun searchButton() = compose.onNodeWithContentDescription("Search items")
 
-    protected fun settingsButton() = compose.onNodeWithContentDescription("Settings")
+    protected fun shareButton() = compose.onNodeWithContentDescription("Share list")
+
+    /** The app bar's ⋮ button, which opens the menu (Add common items, ..., Settings). */
+    protected fun moreOptionsButton() = compose.onNodeWithContentDescription("More options")
+
+    /** Opens the app bar's ⋮ menu and taps [label] in it ("Settings", "Paste a list", ...). */
+    protected fun chooseFromMenu(label: String) {
+        moreOptionsButton().performClick()
+        waitForNode(button(label)).performClick()
+    }
+
+    /** Opens Settings from the app bar's ⋮ menu. */
+    protected fun openSettings() = chooseFromMenu("Settings")
 
     /** Taps the All items tab and waits until it is shown. */
     protected fun showAllItems() {
