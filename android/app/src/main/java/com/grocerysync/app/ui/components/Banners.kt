@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -32,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.grocerysync.app.R
 import com.grocerysync.app.data.FailedChange
 import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.sync.PushProblem
@@ -265,8 +266,8 @@ fun FailedChangesBanner(
 }
 
 /**
- * A page with nothing on it: a leaf-green cart, [title] and [hint], and a button [actionText] that calls [onAction]
- * when given (leaf-green tonal, [leafTonalButtonColors]).
+ * A page with nothing on it: the leaf-green jhola (the app's bag, R.drawable.ic_jhola), [title] and [hint], and a
+ * button [actionText] that calls [onAction] when given (leaf-green tonal, [leafTonalButtonColors]).
  */
 @Composable
 fun EmptyListState(
@@ -283,7 +284,7 @@ fun EmptyListState(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
-            imageVector = Icons.Default.ShoppingCart,
+            painter = painterResource(R.drawable.ic_jhola),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(48.dp),

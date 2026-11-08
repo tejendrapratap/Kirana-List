@@ -106,6 +106,7 @@ import com.grocerysync.app.data.convertTo
 import com.grocerysync.app.data.displayText
 import com.grocerysync.app.data.stepped
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
+import com.grocerysync.app.ui.theme.quantityStepperColors
 import com.grocerysync.app.ui.theme.selectorColors
 import com.grocerysync.app.ui.theme.warningFieldColors
 import kotlinx.coroutines.delay
@@ -615,6 +616,7 @@ private fun AmountEditor(
             FilledTonalIconButton(
                 onClick = { step(up = false) },
                 enabled = (amount ?: Amount.ZERO).isPositive,
+                colors = quantityStepperColors(),
                 modifier = Modifier.semantics { contentDescription = "$step less" },
             ) {
                 Text("−", style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearAndSetSemantics { })
@@ -628,6 +630,7 @@ private fun AmountEditor(
             FilledTonalIconButton(
                 onClick = { step(up = true) },
                 enabled = (amount ?: Amount.ZERO) < Amount.MAX,
+                colors = quantityStepperColors(),
                 modifier = Modifier.semantics { contentDescription = "$step more" },
             ) {
                 Text("+", style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearAndSetSemantics { })

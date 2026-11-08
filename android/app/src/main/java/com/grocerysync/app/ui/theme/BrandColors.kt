@@ -3,6 +3,8 @@ package com.grocerysync.app.ui.theme
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.IconButtonColors
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButtonColors
@@ -15,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
 import com.grocerysync.app.data.ShopSection
 
 /**
@@ -77,6 +78,20 @@ fun leafTonalButtonColors(): ButtonColors {
 }
 
 /**
+ * The item dialog's − / + buttons: the bright turmeric of the quantity chips on To buy (secondaryFixedDim), in both
+ * themes, so "turmeric = amounts" holds everywhere. Material's tonal default, the turmeric container, turns brown
+ * in the dark theme. Disabled (at 0, or at the largest amount), they keep Material's grey.
+ */
+@Composable
+fun quantityStepperColors(): IconButtonColors {
+    val colors = MaterialTheme.colorScheme
+    return IconButtonDefaults.filledTonalIconButtonColors(
+        containerColor = colors.secondaryFixedDim,
+        contentColor = colors.onSecondaryFixed,
+    )
+}
+
+/**
  * An outlined field with a warning that doesn't block saving (the item dialog's "Similar: Dahi is already on the
  * list"): outline, label and supporting text in marigold (tertiary, the colour of the app's notices), as an error
  * colours them red. The cursor and the typed text stay as usual.
@@ -95,68 +110,71 @@ fun warningFieldColors(): TextFieldColors {
 }
 
 /**
- * The accent of each shop section:a small mark in front of its name on To buy's section headers, in Add common
- * items and in the Edit dialog's Shop section picker, and (lightly, [headerTint]) the background of To buy's
- * section header. Each colour hints at what the section holds: leaf green for sabzi, milk-packet blue for dairy,
- * haldi for masala, marigold for puja, ... They are mid tones in the light theme and soft pastels in the dark one,
- * so a mark stands out (3:1) from every surface it sits on, while the header's text keeps the usual onSurface /
+ * The colours of each shop section ([SectionAccent]): a small mark in front of its name on To buy's section headers,
+ * in Add common items and in the Edit dialog's Shop section picker, and the background of To buy's section header.
+ * Each colour hints at what the section holds: leaf green for sabzi, milk-packet blue for dairy, haldi for masala,
+ * marigold for puja, ... The marks are mid tones in the light theme and soft pastels in the dark one, so a mark
+ * stands out (3:1) from every surface it sits on. The headers are the mark's hue at one pale (light theme) or deep
+ * (dark theme) tone, so each section keeps its own colour and the header's text keeps the usual onSurface /
  * onSurfaceVariant (ThemeContrastTest checks both). Colour is only an accent: the section's name always shows.
  */
 @Immutable
-class SectionAccents internal constructor(
-    private val colors: Map<ShopSection, Color>,
-    /** How much of the accent tints a section header's background (over the surface). */
-    val headerTint: Float,
-) {
+class SectionAccents internal constructor(private val accents: Map<ShopSection, SectionAccent>) {
     init {
-        require(colors.keys == ShopSection.entries.toSet()) { "every shop section needs an accent" }
+        require(accents.keys == ShopSection.entries.toSet()) { "every shop section needs an accent" }
     }
 
-    operator fun get(section: ShopSection): Color = colors.getValue(section)
+    /** [section]'s mark: the bar or dot in front of its name. */
+    operator fun get(section: ShopSection): Color = accents.getValue(section).mark
 
-    /** [section]'s header background: its accent at [headerTint] over [surface]. Opaque, as the header sticks. */
-    fun headerColor(section: ShopSection, surface: Color): Color =
-        get(section).copy(alpha = headerTint).compositeOver(surface)
+    /** [section]'s header background on To buy. Opaque, as the header sticks. */
+    fun headerColor(section: ShopSection): Color = accents.getValue(section).header
 }
 
-// Picked in OKLCH (one hue per section; the lightness solved for about 3.6:1 on the light theme's tinted header
-// and 6.5:1 on the dark theme's), then rounded to sRGB.
+/** One shop section's [mark] (bar, dot) and [header] (the background of its header on To buy). */
+@Immutable
+data class SectionAccent(val mark: Color, val header: Color)
+
+// Picked in OKLCH, one hue per section. The marks: the lightness solved for about 3.6:1 on the light theme's header
+// and 6.5:1 on the dark theme's; Tea, sugar & salt is a darker kadak-chai brown, so it stays apart from Atta's
+// wheat (ThemeContrastTest keeps every two marks at least 0.05 apart in OKLab). The headers: the mark's hue at
+// L 0.95, C 0.03 (light) and L 0.29, C 0.04 (dark); Other, a grey, keeps its low chroma. Then rounded to sRGB.
+// Laying a translucent accent over the cream surface instead turned the cool hues grey and the warm ones all the
+// same beige.
 internal val LightSectionAccents = SectionAccents(
-    colors = mapOf(
-        ShopSection.SABZI_FRUIT to Color(0xFF4F8A39), // leaf green
-        ShopSection.DAIRY_EGGS_BREAD to Color(0xFF3B81B8), // milk-packet blue
-        ShopSection.MEAT_FISH to Color(0xFFC65966), // rose
-        ShopSection.ATTA_RICE_DAL to Color(0xFF98764E), // wheat
-        ShopSection.OIL_GHEE to Color(0xFF818032), // mustard-oil olive
-        ShopSection.MASALA to Color(0xFFA37401), // haldi
-        ShopSection.TEA_SUGAR_SALT to Color(0xFFB06B4B), // chai
-        ShopSection.DRY_FRUITS_NUTS to Color(0xFFAA678E), // kishmish plum
-        ShopSection.SNACKS_PACKAGED to Color(0xFF6B7D9B), // packet slate
-        ShopSection.CLEANING_HOUSEHOLD to Color(0xFF238A85), // cool teal
-        ShopSection.PERSONAL_CARE to Color(0xFF8B6EBC), // soap lavender
-        ShopSection.PUJA to Color(0xFFBC6603), // marigold saffron
-        ShopSection.OTHER to Color(0xFF807C73), // warm grey
+    mapOf(
+        ShopSection.SABZI_FRUIT to SectionAccent(Color(0xFF4F8A39), Color(0xFFE5F4E0)), // leaf green
+        ShopSection.DAIRY_EGGS_BREAD to SectionAccent(Color(0xFF3B81B8), Color(0xFFDFF1FF)), // milk-packet blue
+        ShopSection.MEAT_FISH to SectionAccent(Color(0xFFC65966), Color(0xFFFFE7E8)), // rose
+        ShopSection.ATTA_RICE_DAL to SectionAccent(Color(0xFF98764E), Color(0xFFFCECD9)), // wheat
+        ShopSection.OIL_GHEE to SectionAccent(Color(0xFF818032), Color(0xFFF0F0DA)), // mustard-oil olive
+        ShopSection.MASALA to SectionAccent(Color(0xFFA37401), Color(0xFFF9EDD9)), // haldi
+        ShopSection.TEA_SUGAR_SALT to SectionAccent(Color(0xFF9A5238), Color(0xFFFFE8E0)), // kadak chai
+        ShopSection.DRY_FRUITS_NUTS to SectionAccent(Color(0xFFAA678E), Color(0xFFFEE7F3)), // kishmish plum
+        ShopSection.SNACKS_PACKAGED to SectionAccent(Color(0xFF6B7D9B), Color(0xFFE3EFFF)), // packet slate
+        ShopSection.CLEANING_HOUSEHOLD to SectionAccent(Color(0xFF238A85), Color(0xFFD9F5F3)), // cool teal
+        ShopSection.PERSONAL_CARE to SectionAccent(Color(0xFF8B6EBC), Color(0xFFF1EAFF)), // soap lavender
+        ShopSection.PUJA to SectionAccent(Color(0xFFBC6603), Color(0xFFFFEADB)), // marigold saffron
+        ShopSection.OTHER to SectionAccent(Color(0xFF807C73), Color(0xFFF1EEE8)), // warm grey
     ),
-    headerTint = 0.08f,
 )
 
 internal val DarkSectionAccents = SectionAccents(
-    colors = mapOf(
-        ShopSection.SABZI_FRUIT to Color(0xFF80C369),
-        ShopSection.DAIRY_EGGS_BREAD to Color(0xFF79B8EC),
-        ShopSection.MEAT_FISH to Color(0xFFEE9BA0),
-        ShopSection.ATTA_RICE_DAL to Color(0xFFD0AC82),
-        ShopSection.OIL_GHEE to Color(0xFFB7B668),
-        ShopSection.MASALA to Color(0xFFE7A503),
-        ShopSection.TEA_SUGAR_SALT to Color(0xFFE0A48A),
-        ShopSection.DRY_FRUITS_NUTS to Color(0xFFDBA1C1),
-        ShopSection.SNACKS_PACKAGED to Color(0xFFA0B3D2),
-        ShopSection.CLEANING_HOUSEHOLD to Color(0xFF63C1BB),
-        ShopSection.PERSONAL_CARE to Color(0xFFBDA7E6),
-        ShopSection.PUJA to Color(0xFFF69C51),
-        ShopSection.OTHER to Color(0xFFB5B2A7),
+    mapOf(
+        ShopSection.SABZI_FRUIT to SectionAccent(Color(0xFF80C369), Color(0xFF21301C)),
+        ShopSection.DAIRY_EGGS_BREAD to SectionAccent(Color(0xFF79B8EC), Color(0xFF192D3E)),
+        ShopSection.MEAT_FISH to SectionAccent(Color(0xFFEE9BA0), Color(0xFF3D2325)),
+        ShopSection.ATTA_RICE_DAL to SectionAccent(Color(0xFFD0AC82), Color(0xFF382814)),
+        ShopSection.OIL_GHEE to SectionAccent(Color(0xFFB7B668), Color(0xFF2D2D14)),
+        ShopSection.MASALA to SectionAccent(Color(0xFFE7A503), Color(0xFF362913)),
+        ShopSection.TEA_SUGAR_SALT to SectionAccent(Color(0xFFC7856B), Color(0xFF3C251B)),
+        ShopSection.DRY_FRUITS_NUTS to SectionAccent(Color(0xFFDBA1C1), Color(0xFF3A2330)),
+        ShopSection.SNACKS_PACKAGED to SectionAccent(Color(0xFFA0B3D2), Color(0xFF232C3A)),
+        ShopSection.CLEANING_HOUSEHOLD to SectionAccent(Color(0xFF63C1BB), Color(0xFF0F3230)),
+        ShopSection.PERSONAL_CARE to SectionAccent(Color(0xFFBDA7E6), Color(0xFF2E273C)),
+        ShopSection.PUJA to SectionAccent(Color(0xFFF69C51), Color(0xFF3A2617)),
+        ShopSection.OTHER to SectionAccent(Color(0xFFB5B2A7), Color(0xFF2D2B26)),
     ),
-    headerTint = 0.14f,
 )
 
 /** [section]'s accent in the current theme ([SectionAccents]): the colour of its mark. */
@@ -164,8 +182,8 @@ internal val DarkSectionAccents = SectionAccents(
 @ReadOnlyComposable
 fun sectionAccent(section: ShopSection): Color = GrocerySyncTheme.extendedColors.sectionAccents[section]
 
-/** The background of [section]'s header on To buy: the surface, lightly tinted with its accent. */
+/** The background of [section]'s header on To buy: a pale (light theme) or deep (dark theme) tone of its accent. */
 @Composable
 @ReadOnlyComposable
 fun sectionHeaderColor(section: ShopSection): Color =
-    GrocerySyncTheme.extendedColors.sectionAccents.headerColor(section, MaterialTheme.colorScheme.surface)
+    GrocerySyncTheme.extendedColors.sectionAccents.headerColor(section)

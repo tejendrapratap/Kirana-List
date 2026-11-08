@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The jhola (cloth bag) with the check mark cut out, as a 24dp icon to tint: the brand mark in front of the app's
+    name in the list's app bar and on the empty list. The strap and bag of ic_launcher_monochrome.xml, moved from
+    the launcher icon's 108 grid onto a 56 one.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="56"
+    android:viewportHeight="56">
+
+    <group
+        android:translateX="-26"
+        android:translateY="-26.5">
+
+        <!-- Strap -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M39.5,47 C39.5,27 51,27 51,47 M57,47 C57,27 68.5,27 68.5,47"
+            android:strokeWidth="4"
+            android:strokeColor="#FF000000"
+            android:strokeLineCap="round" />
+
+        <!-- Bag with the check mark cut out (even-odd fill) -->
+        <path
+            android:fillColor="#FF000000"
+            android:fillType="evenOdd"
+            android:pathData="M36,46 H72 Q73.6,46 73.8,47.6 L76.4,74 Q76.8,79 71.8,79 H36.2 Q31.2,79 31.6,74 L34.2,47.6 Q34.4,46 36,46 Z M41.45,65.55 L51,75.09 L68.05,58.05 L62.95,52.95 L51,64.91 L46.55,60.45 Z" />
+    </group>
+</vector>

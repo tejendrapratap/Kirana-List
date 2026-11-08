@@ -29,12 +29,12 @@
   <rect x="20" y="262" width="460" height="54" rx="10" fill="#FFCD61"/>
   <text x="34" y="285" class="r" fill="#261900">secondaryContainer</text>
   <text x="466" y="285" class="x" fill="#261900" text-anchor="end">#FFCD61</text>
-  <text x="34" y="305" class="s" fill="#261900">Setup banner, − / + buttons</text>
+  <text x="34" y="305" class="s" fill="#261900">Setup banner</text>
   <text x="466" y="305" class="s" fill="#261900" text-anchor="end">onSecondaryContainer #261900 (11.6:1)</text>
   <rect x="20" y="324" width="460" height="54" rx="10" fill="#FEBB04"/>
   <text x="34" y="347" class="r" fill="#261900">secondaryFixedDim</text>
   <text x="466" y="347" class="x" fill="#261900" text-anchor="end">#FEBB04</text>
-  <text x="34" y="367" class="s" fill="#261900">Quantity chips (same in both themes)</text>
+  <text x="34" y="367" class="s" fill="#261900">Quantity chips, − / + (both themes)</text>
   <text x="466" y="367" class="s" fill="#261900" text-anchor="end">onSecondaryFixed #261900 (10.1:1)</text>
   <rect x="20" y="386" width="460" height="54" rx="10" fill="#8E4F00"/>
   <text x="34" y="409" class="r" fill="#FFFFFF">tertiary</text>
@@ -112,12 +112,12 @@
   <rect x="520" y="262" width="460" height="54" rx="10" fill="#5D4200"/>
   <text x="534" y="285" class="r" fill="#FFDE9D">secondaryContainer</text>
   <text x="966" y="285" class="x" fill="#FFDE9D" text-anchor="end">#5D4200</text>
-  <text x="534" y="305" class="s" fill="#FFDE9D">Setup banner, − / + buttons</text>
+  <text x="534" y="305" class="s" fill="#FFDE9D">Setup banner</text>
   <text x="966" y="305" class="s" fill="#FFDE9D" text-anchor="end">onSecondaryContainer #FFDE9D (7.2:1)</text>
   <rect x="520" y="324" width="460" height="54" rx="10" fill="#FEBB04"/>
   <text x="534" y="347" class="r" fill="#261900">secondaryFixedDim</text>
   <text x="966" y="347" class="x" fill="#261900" text-anchor="end">#FEBB04</text>
-  <text x="534" y="367" class="s" fill="#261900">Quantity chips (same in both themes)</text>
+  <text x="534" y="367" class="s" fill="#261900">Quantity chips, − / + (both themes)</text>
   <text x="966" y="367" class="s" fill="#261900" text-anchor="end">onSecondaryFixed #261900 (10.1:1)</text>
   <rect x="520" y="386" width="460" height="54" rx="10" fill="#FFB772"/>
   <text x="534" y="409" class="r" fill="#4B2700">tertiary</text>

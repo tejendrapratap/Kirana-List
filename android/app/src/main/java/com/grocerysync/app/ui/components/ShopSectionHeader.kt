@@ -31,9 +31,9 @@ import com.grocerysync.app.ui.theme.sectionHeaderColor
 
 /**
  * The header of a shop section on To buy: the section's accent mark ([SectionAccentBar]), its name and how many
- * items in it are to buy, on the surface lightly tinted with the accent ([sectionHeaderColor]). Opaque, as it sticks
- * to the top while its rows scroll under it. A long name wraps rather than hiding the count. TalkBack reads it as
- * one heading ("Masala, 3 items"), so moving by headings jumps from section to section.
+ * items in it are to buy, on a pale (dark theme: deep) tone of the accent ([sectionHeaderColor]). Opaque, as it
+ * sticks to the top while its rows scroll under it. A long name wraps rather than hiding the count. TalkBack reads
+ * it as one heading ("Masala, 3 items"), so moving by headings jumps from section to section.
  */
 @Composable
 fun ShopSectionHeader(section: ShopSection, count: Int, modifier: Modifier = Modifier) {

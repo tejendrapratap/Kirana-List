@@ -34,7 +34,7 @@ import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.appBarColors
 
 /**
- * The list screen's app bar, deep green ([appBarColors]): the app's name after a turmeric cart ([AppBarTitle]),
+ * The list screen's app bar, deep green ([appBarColors]): the app's name after a turmeric jhola ([AppBarTitle]),
  * then Search, Share (the To buy list as a message) and the ⋮ menu ([ListMenu]), all three in the bar's light
  * icon colour (onAppBar). [groupBySection] is the menu's tick for "Group by shop section".
  */

@@ -31,7 +31,8 @@ import androidx.compose.ui.platform.LocalContext
  * P40 / P90 / P10, surfaces N98 and down; dark: P80 / P30 / P90, surfaces N8 and up), with two hand-tuned
  * exceptions: the light turmeric container is S85 (a real haldi yellow rather than a pale butter), and the
  * marigold container is T75 in both themes, so the + button is marigold in light and dark mode alike. The quantity
- * chips use secondaryFixedDim (S80) for the same reason: the dark turmeric container (S30) would look brown.
+ * chips and the item dialog's − / + buttons use secondaryFixedDim (S80) for the same reason: the dark turmeric
+ * container (S30) would look brown.
  * The launcher icon and the splash screen use the light primary (res/values/colors.xml, brand_green).
  * ThemeContrastTest checks the text and icon pairs against WCAG (4.5:1; 3:1 for outlines and icons), and
  * docs/images/palette.svg shows the main roles. The shop sections' accents are in BrandColors.kt (SectionAccents).
@@ -47,7 +48,7 @@ internal val LightColorScheme = lightColorScheme(
     // Turmeric.
     secondary = Color(0xFF7B5800), // S40
     onSecondary = Color(0xFFFFFFFF), // S100
-    secondaryContainer = Color(0xFFFFCD61), // S85, haldi yellow (setup banner, − / + buttons)
+    secondaryContainer = Color(0xFFFFCD61), // S85, haldi yellow (setup banner)
     onSecondaryContainer = Color(0xFF261900), // S10
     // Marigold.
     tertiary = Color(0xFF8E4F00), // T40
@@ -84,7 +85,7 @@ internal val LightColorScheme = lightColorScheme(
     onPrimaryFixed = Color(0xFF012200), // P10
     onPrimaryFixedVariant = Color(0xFF1E510F), // P30
     secondaryFixed = Color(0xFFFFDE9D), // S90
-    secondaryFixedDim = Color(0xFFFEBB04), // S80, turmeric (quantity chips)
+    secondaryFixedDim = Color(0xFFFEBB04), // S80, turmeric (quantity chips, − / + buttons)
     onSecondaryFixed = Color(0xFF261900), // S10
     onSecondaryFixedVariant = Color(0xFF5D4200), // S30
     tertiaryFixed = Color(0xFFFFDCBD), // T90
@@ -103,7 +104,7 @@ internal val DarkColorScheme = darkColorScheme(
     // Turmeric.
     secondary = Color(0xFFFEBB04), // S80
     onSecondary = Color(0xFF412D00), // S20
-    secondaryContainer = Color(0xFF5D4200), // S30, roasted haldi (setup banner, − / + buttons)
+    secondaryContainer = Color(0xFF5D4200), // S30, roasted haldi (setup banner)
     onSecondaryContainer = Color(0xFFFFDE9D), // S90
     // Marigold.
     tertiary = Color(0xFFFFB772), // T80
@@ -140,7 +141,7 @@ internal val DarkColorScheme = darkColorScheme(
     onPrimaryFixed = Color(0xFF012200), // P10
     onPrimaryFixedVariant = Color(0xFF1E510F), // P30
     secondaryFixed = Color(0xFFFFDE9D), // S90
-    secondaryFixedDim = Color(0xFFFEBB04), // S80, turmeric (quantity chips)
+    secondaryFixedDim = Color(0xFFFEBB04), // S80, turmeric (quantity chips, − / + buttons)
     onSecondaryFixed = Color(0xFF261900), // S10
     onSecondaryFixedVariant = Color(0xFF5D4200), // S30
     tertiaryFixed = Color(0xFFFFDCBD), // T90
@@ -154,7 +155,7 @@ internal val DarkColorScheme = darkColorScheme(
  * - [live]: the dot of a working connection ("Live").
  * - [appBar] / [onAppBar]: the app bars, deep green with light text and icons in both themes (light: primary,
  *   dark: primaryContainer), so the status bar icons over them are always light (see MainActivity).
- * - [appBarIcon]: the turmeric cart in front of the app's name.
+ * - [appBarIcon]: the turmeric bag (jhola) in front of the app's name.
  * - [sectionAccents]: one accent per shop section, for To buy's section headers (BrandColors.kt).
  */
 @Immutable

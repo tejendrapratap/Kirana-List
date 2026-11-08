@@ -29,8 +29,7 @@ import org.junit.runner.RunWith
 /**
  * Share in the app bar (1.4): the To buy list as text, through Android's share sheet, which leaves this app out
  * (1.5). The sheet itself is another app's screen, so [ShareSheetCatcher] keeps it from opening and the test reads
- * the text it was given. How the text
- * is built is tested on the JVM too (ShareListTest, ShareRoundTripTest).
+ * the text it was given. How the text is built is tested on the JVM too (ShareListTest, ShareRoundTripTest).
  */
 @RunWith(AndroidJUnit4::class)
 class ShareTest : GroceryUiTest() {

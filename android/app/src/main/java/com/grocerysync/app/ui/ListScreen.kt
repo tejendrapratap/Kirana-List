@@ -457,11 +457,12 @@ private fun ListContent(
                     end = innerPadding.calculateEndPadding(layoutDirection),
                 ),
         ) {
-            // Below the app bar (not in its fixed-height title slot) so large text never clips it.
+            // Below the app bar (not in its fixed-height title slot) so large text never clips it. About as much
+            // space above it as below (the selector's 8dp plus its touch target's margin), off the green bar's edge.
             LiveStatusLine(
                 status = state.status,
                 isConfigured = state.isConfigured,
-                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp),
+                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 10.dp),
             )
             // Outside the list, so they are in view however far the list is scrolled.
             if (state.scriptUpdateNeeded) {

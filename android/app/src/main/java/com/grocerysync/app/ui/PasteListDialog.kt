@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -115,10 +114,11 @@ fun PasteListDialog(
         onDismissRequest = if (state.previewing) onEditText else onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        // Light status bar icons over the green app bar; the navigation bar's over the bottom bar's surface.
+        // Light status bar icons over the green app bar; the navigation bar's over the bottom bar (surfaceContainer,
+        // as in Add common items).
         DialogSystemBarIcons(
             statusBarBackground = GrocerySyncTheme.extendedColors.appBar,
-            navigationBarBackground = MaterialTheme.colorScheme.surface,
+            navigationBarBackground = MaterialTheme.colorScheme.surfaceContainer,
         )
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             if (state.previewing) {
@@ -150,12 +150,13 @@ private fun PasteScaffold(
             )
         },
         bottomBar = {
-            Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) {
-                HorizontalDivider()
+            // The same band as Add common items' bottom bar: surfaceContainer, reaching under the navigation bar.
+            Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
                 // Wraps (rather than cutting a label) with large text on a narrow phone.
                 FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -286,8 +287,9 @@ private fun PastePreviewStep(
 
 /**
  * One line: a check box (the whole row toggles it) when it changes something; else a tick for "Already needed"
- * or an info icon for a skipped line. The text says it all, so the icons are silent for TalkBack, which reads the
- * row as one, in words rather than the arrows shown ([pasteRowDescription]).
+ * or a marigold info icon (tertiary, the colour of the app's notices) for a skipped line. The text says it all, so
+ * the icons are silent for TalkBack, which reads the row as one, in words rather than the arrows shown
+ * ([pasteRowDescription]).
  */
 @Composable
 private fun PasteRowItem(row: PasteRow, selected: Boolean, onSelectedChange: (Boolean) -> Unit) {
@@ -312,7 +314,7 @@ private fun PasteRowItem(row: PasteRow, selected: Boolean, onSelectedChange: (Bo
                 row.selectable -> Checkbox(checked = selected, onCheckedChange = null)
                 row.action is PasteAction.AlreadyNeeded ->
                     Icon(Icons.Default.Check, contentDescription = null, tint = colors.primary)
-                else -> Icon(Icons.Default.Info, contentDescription = null, tint = colors.onSurfaceVariant)
+                else -> Icon(Icons.Default.Info, contentDescription = null, tint = colors.tertiary)
             }
         }
         Spacer(Modifier.width(16.dp))
