@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.grocerysync.app.data.CatalogEntry
 import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.EditResult
 import com.grocerysync.app.data.GroceryRepository
@@ -205,6 +206,45 @@ class ListViewModel(
 
     // endregion
 
+    // region "Add common items" (StarterListDialog; its rules are in StarterList)
+
+    /** Whether "Add common items" is open. Kept in [SavedStateHandle] like [dialog]. */
+    val starterListOpen: StateFlow<Boolean> = savedStateHandle.getStateFlow(KEY_STARTER_LIST, false)
+
+    /**
+     * Opens "Add common items". Not before the phone is connected to the sheet: until it has the family's list, the
+     * items would go out as new and could set the family's items of the same name to "not needed".
+     */
+    fun openStarterList() {
+        if (!settingsStore.current().isConfigured) {
+            viewModelScope.launch { _events.send(ListEvent.Message(StarterList.NOT_CONNECTED_TEXT)) }
+            return
+        }
+        savedStateHandle[KEY_STARTER_LIST] = true
+    }
+
+    fun closeStarterList() {
+        savedStateHandle[KEY_STARTER_LIST] = false
+    }
+
+    /**
+     * "Add N items": adds [entries] to All items, not needed, through the repository's normal add, so the duplicate
+     * rules, the outbox and sync are those of any new item. An entry that reached the list meanwhile under any of its
+     * names is skipped ([StarterList.addEntries]). The snackbar says how many were added.
+     */
+    fun addCommonItems(entries: List<CatalogEntry>) {
+        // A second tap on "Add" before the dialog has gone would only say "Nothing added".
+        if (!starterListOpen.value) return
+        closeStarterList()
+        edit {
+            val names = repository.items.first().map { it.name }
+            val added = StarterList.addEntries(entries, names, repository::add)
+            _events.send(ListEvent.Message(StarterList.addedText(added)))
+        }
+    }
+
+    // endregion
+
     // region Item edits
 
     /**
@@ -385,6 +425,7 @@ class ListViewModel(
     private companion object {
         const val TAG = "ListViewModel"
         const val KEY_DIALOG = "item_dialog"
+        const val KEY_STARTER_LIST = "starter_list"
         val REFRESH_TIMEOUT = 10.seconds
         val MIN_REFRESH_INDICATOR = 600.milliseconds
     }

@@ -185,6 +185,7 @@ fun ListScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
+    val starterListOpen by viewModel.starterListOpen.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
@@ -264,8 +265,12 @@ fun ListScreen(
             gotIt = viewModel::markGotIt,
             setNeeded = viewModel::setNeeded,
             stepQuantity = viewModel::stepQuantity,
+            // ⋮ > Add common items, and the empty list's button.
+            openStarterList = {
+                focusManager.clearFocus()
+                viewModel.openStarterList()
+            },
             // The ⋮ menu's other choices: not in this version of the screen yet.
-            openStarterList = {},
             openPasteList = {},
             setGroupBySection = {},
         )
@@ -312,6 +317,14 @@ fun ListScreen(
         is ItemDialog.Edit -> key("edit:${current.key}") {
             EditItemDialog(key = current.key, state = state, viewModel = viewModel)
         }
+    }
+
+    if (starterListOpen) {
+        StarterListDialog(
+            onList = state.allItems,
+            onDismiss = viewModel::closeStarterList,
+            onAdd = viewModel::addCommonItems,
+        )
     }
 }
 
@@ -362,7 +375,7 @@ class ListActions(
     val gotIt: (key: String) -> Unit,
     val setNeeded: (key: String, needed: Boolean) -> Unit,
     val stepQuantity: (key: String, up: Boolean) -> Unit,
-    /** ⋮ > Add common items: the list of common items to tick and add. */
+    /** ⋮ > Add common items, and the empty list's button: opens [StarterListDialog]. */
     val openStarterList: () -> Unit,
     /** ⋮ > Paste a list: adds the items of a pasted message. */
     val openPasteList: () -> Unit,
@@ -650,7 +663,7 @@ private fun LazyListScope.pageItems(
 ) {
     when (content) {
         PageContent.NotLoaded -> Unit
-        PageContent.Empty -> emptyPage(filter, state)
+        PageContent.Empty -> emptyPage(filter, state, actions)
         is PageContent.Rows -> when (filter) {
             ListFilter.TO_BUY -> toBuyRows(content.items, state, now, actions)
             ListFilter.ALL -> allItemsRows(content.items, state, now, actions)
@@ -659,7 +672,12 @@ private fun LazyListScope.pageItems(
     }
 }
 
-private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState) {
+/**
+ * A page's empty state. While the whole list is empty, with a button to "Add common items" once the phone is
+ * connected to the sheet (before that, the setup banner shows the way).
+ */
+private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState, actions: ListActions) {
+    val starterList = if (state.allItems.isEmpty() && state.isConfigured) StarterList.TITLE else null
     when (filter) {
         ListFilter.TO_BUY -> item(key = "empty:to-buy", contentType = "empty") {
             EmptyListState(
@@ -670,6 +688,8 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState) {
                     "Everything is ticked off. Open All items to mark what you need."
                 },
                 modifier = Modifier.animateItem(),
+                actionText = starterList,
+                onAction = actions.openStarterList,
             )
         }
         ListFilter.ALL -> item(key = "empty:all", contentType = "empty") {
@@ -677,6 +697,8 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState) {
                 title = "Your list is empty",
                 hint = "Tap + to add your first item.",
                 modifier = Modifier.animateItem(),
+                actionText = starterList,
+                onAction = actions.openStarterList,
             )
         }
     }
