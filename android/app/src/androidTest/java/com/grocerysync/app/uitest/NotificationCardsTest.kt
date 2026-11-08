@@ -12,6 +12,7 @@ import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.grocerysync.app.testing.UseTextsRule
 import com.grocerysync.app.testing.button
 import com.grocerysync.app.text.AppTexts
 import com.grocerysync.app.text.HindiNotifyTexts
@@ -20,7 +21,6 @@ import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.NotifyChangesSetting
 import com.grocerysync.app.ui.components.NotifyOfferCard
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -37,14 +37,13 @@ class NotificationCardsTest {
     @get:Rule
     val compose = createComposeRule()
 
+    /** English for each test whatever ran before (inHindi switches to Hindi itself); English again afterwards. */
+    @get:Rule
+    val english = UseTextsRule(AppTexts.English)
+
     private val blockedLine = hasText("Notifications are blocked for this app.")
     private val allowButton = button("Allow in Android settings")
     private val notifySwitch = isToggleable() and hasText("Notify me when someone adds to To buy")
-
-    @After
-    fun backToEnglish() {
-        Texts.current = AppTexts.English
-    }
 
     @Test
     fun blockedNotificationsSayHowToAllowThem() {

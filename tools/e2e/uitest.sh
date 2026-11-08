@@ -4,8 +4,10 @@
 # Usage: uitest.sh [-s emulator-NNNN] [--class CLASS[#method]]... [--no-build] [--fresh] [--uninstall] [-- ARGS]
 #        uitest.sh [-s emulator-NNNN] uninstall
 #   Builds the debug app and its test APK (./gradlew assembleDebug assembleDebugAndroidTest), installs both on
-#   the emulator (adb -s emulator-NNNN install -r -t), runs them with "am instrument -w -r" and prints one line
-#   per test, then a pass/fail summary and the wall time of each step. Exits 0 only when every test passed.
+#   the emulator (adb -s emulator-NNNN install -r -t), takes back the app's notification permission (Android 13+;
+#   a test grants it, and a reinstall keeps it), runs them with "am instrument -w -r" and prints one line per
+#   test, then a pass/fail summary (naming any skipped test) and the wall time of each step. Exits 0 only when
+#   every test passed.
 #   Use it instead of ./gradlew connectedDebugAndroidTest, which runs on EVERY device adb knows (a phone on
 #   USB or Wi-Fi too): this script only talks to emulator-NNNN, and lib.sh refuses any other serial.
 #   --class C        only test class C (SearchTest, or the full name), or one test with C#method; repeatable
@@ -131,6 +133,17 @@ install_apk() {
 }
 install_apk "$app_apk"
 install_apk "$test_apk"
+# Android keeps a granted permission when the app is reinstalled (install -r), so ThisPhoneSwitchesTest's grant of
+# POST_NOTIFICATIONS would last into every later run on this emulator, and NotifyOfferOnListTest would skip the tests
+# that need the app without it. Take it back (and forget a "Don't allow" from a session by hand) before each run.
+# Only on Android 13+, where the permission exists; done here, as no test may run while it is taken away (that ends
+# the app's process, which the tests share).
+sdk=$(gs_sh getprop ro.build.version.sdk)
+if [[ "$sdk" =~ ^[0-9]+$ ]] && [ "$sdk" -ge 33 ]; then
+  gs_adb shell pm revoke "$APP_PACKAGE" android.permission.POST_NOTIFICATIONS >/dev/null 2>&1
+  gs_adb shell pm clear-permission-flags "$APP_PACKAGE" android.permission.POST_NOTIFICATIONS user-set user-fixed \
+    >/dev/null 2>&1
+fi
 install_s=$((SECONDS - t))
 
 # ---- run
@@ -179,6 +192,7 @@ t=$SECONDS
 now_us() { local e=${EPOCHREALTIME:-}; if [ -n "$e" ]; then printf '%s\n' "${e/./}"; else printf '%s000000\n' "$(date +%s)"; fi; }
 total="" passed=0 failed=0 skipped=0 started=0 result_code="" short_msg="" key="" cls="" test="" stack="" t_test=0
 failures=()
+skips=()
 while IFS= read -r line; do
   line=${line%$'\r'}
   printf '%s\n' "$line" >>"$raw"
@@ -204,8 +218,8 @@ while IFS= read -r line; do
           printf '  FAIL  %-70s %6.1f s\n' "$name" "$(( ($(now_us) - t_test) / 100000 ))e-1"
           printf '%s\n' "$stack" | head -n 6 | sed 's/^/          /'
           failures+=("$name");;
-        -3) skipped=$((skipped + 1)); printf '  skip  %s (ignored)\n' "$name";;
-        -4) skipped=$((skipped + 1)); printf '  skip  %s (assumption failed)\n' "$name";;
+        -3) skipped=$((skipped + 1)); printf '  skip  %s (ignored)\n' "$name"; skips+=("$name (ignored)");;
+        -4) skipped=$((skipped + 1)); printf '  skip  %s (assumption failed)\n' "$name"; skips+=("$name (assumption failed)");;
       esac
       [ "$code" != 1 ] && stack=""
       key="";;
@@ -245,6 +259,8 @@ wall_s=$((SECONDS - wall_start))
 echo
 echo "UI tests on $GS_SERIAL: ${total:-$started} tests, $passed passed, $failed failed, $skipped skipped -> $([ -n "$ok" ] && echo PASSED || echo FAILED)"
 echo "wall time $(fmt $wall_s) (build $(fmt $build_s), install $(fmt $install_s), run $(fmt $run_s))"
+# A skipped test checked nothing: name each one again here, so a skip isn't lost above a PASSED.
+for s in "${skips[@]}"; do echo "  skipped: $s"; done
 if [ -z "$ok" ]; then
   for f in "${failures[@]}"; do echo "  failed: $f"; done
   [ -n "$short_msg" ] && echo "  instrumentation: $short_msg"

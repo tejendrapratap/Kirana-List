@@ -21,14 +21,13 @@ import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.ShopSection
 import com.grocerysync.app.data.ValueType
+import com.grocerysync.app.testing.UseTextsRule
+import com.grocerysync.app.testing.isCutOff
 import com.grocerysync.app.text.AppTexts
-import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.ItemEditDialog
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
-import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,15 +44,8 @@ class ItemDialogHindiTest {
     @get:Rule
     val compose = createComposeRule()
 
-    @Before
-    fun showHindi() {
-        Texts.current = AppTexts.Hindi
-    }
-
-    @After
-    fun backToEnglish() {
-        Texts.current = AppTexts.English
-    }
+    @get:Rule
+    val hindi = UseTextsRule(AppTexts.Hindi)
 
     /** Haldi, a quantity from before units: 1, no unit yet (so the dialog asks for one). */
     private val haldi = GroceryItem(
@@ -152,7 +144,7 @@ class ItemDialogHindiTest {
                 val layouts = mutableListOf<TextLayoutResult>()
                 node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
                 for (layout in layouts) {
-                    assertFalse("cut off: \"${layout.layoutInput.text}\"", layout.hasVisualOverflow)
+                    assertFalse("cut off: \"${layout.layoutInput.text}\"", isCutOff(layout))
                 }
             }
         }
