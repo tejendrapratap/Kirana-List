@@ -89,6 +89,89 @@ class ItemSearchTest {
     }
 
     @Test
+    fun otherNamesFromTheDictionaryFindTheItem() {
+        // English, Roman Hindi and Devanagari names of the same thing.
+        assertTrue(matches("Dahi", "curd"))
+        assertTrue(matches("Onion", "pyaaz"))
+        assertTrue(matches("Onion", "प्याज")) // प्याज
+        assertTrue(matches("Onion", "प्याज़")) // प्याज़, with the nukta
+        assertTrue(matches("Kishmish", "raisins"))
+        assertTrue(matches("Kishmish", "raisin"))
+        assertTrue(matches("Eggs", "anda"))
+        // The other way round: the family's own name is found by the dictionary's.
+        assertTrue(matches("Curd", "dahi"))
+        assertTrue(matches("Kanda", "onion"))
+        assertTrue(matches("Tel", "oil"))
+        // Part of a word at its start; capitals, accents and punctuation around it don't count.
+        assertTrue(matches("Onion", "PYA"))
+        assertTrue(matches("Dahi", "Cúrd"))
+        assertTrue(matches("Dahi", "curd,"))
+        // Every word, in any order: each may match the name or another name of it.
+        assertTrue(matches("Toor dal", "arhar dal"))
+        assertTrue(matches("Dahi", "dahi curd"))
+        assertFalse(matches("Dahi", "curd milk"))
+        // Only an item whose whole name is in the dictionary has other names.
+        assertFalse(matches("Basmati rice", "chawal"))
+        assertFalse(matches("Amul dahi", "curd"))
+        assertFalse(matches("Batteries", "curd"))
+    }
+
+    @Test
+    fun otherNamesMatchOnlyAtWordStarts() {
+        // "dal" never finds Dalchini by another name; the whole other name or its start does.
+        assertFalse(matches("Cinnamon", "dal"))
+        assertTrue(matches("Cinnamon", "dalchini"))
+        assertTrue(matches("Cinnamon", "dalc"))
+        // An item called Dalchini still has "dal" in its own name, as before.
+        assertTrue(matches("Dalchini", "dal"))
+        // Not inside a word of another name: "nion" is only in the name Onion itself.
+        assertFalse(matches("Pyaaz", "nion"))
+        assertTrue(matches("Onion", "nion"))
+        assertFalse(matches("Haldi", "meric"))
+        assertTrue(matches("Haldi", "turmeric"))
+        // A word without letters or digits matches no other name.
+        for (query in listOf("*", "-", "( )", "curd *")) assertFalse(query, matches("Dahi", query))
+    }
+
+    @Test
+    fun filterAndCountFindOtherNamesToo() {
+        val dahi = item("Dahi", needed = true)
+        val onion = item("Onion")
+        val cinnamon = item("Cinnamon")
+        val basmati = item("Basmati rice")
+        val items = listOf(onion, dahi, cinnamon, basmati)
+        assertEquals(listOf(dahi), filter(items, "curd"))
+        assertEquals(listOf(onion), filter(items, "प्याज"))
+        assertEquals(emptyList<GroceryItem>(), filter(items, "dal"))
+        assertEquals(emptyList<GroceryItem>(), filter(items, "chawal"))
+        for (query in listOf("curd", "pya", "dal", "dalc", "rice", "r", "x")) {
+            assertEquals(query, filter(items, query).size, count(items, query))
+        }
+        // Results stay A to Z whichever name matched.
+        val kanda = item("kanda")
+        val rings = item("Onion rings")
+        assertEquals(listOf(kanda, rings), filter(listOf(rings, kanda), "onion"))
+    }
+
+    @Test
+    fun pagesOfferWhatOtherNamesFind() {
+        val dahi = item("Dahi")
+        val milk = item("Milk", needed = true)
+        val all = listOf(dahi, milk)
+        // To buy: Dahi isn't needed, so "curd" offers it under All items instead of adding a Curd.
+        assertEquals(
+            PageContent.NoMatch(ItemSearch.NO_TO_BUY_MATCH_TEXT, NoMatchAction.ShowInAllItems(1)),
+            pageContent(ListFilter.TO_BUY, loaded = true, toBuy = listOf(milk), allItems = all, query = "curd"),
+        )
+        assertEquals(
+            PageContent.Rows(listOf(dahi)),
+            pageContent(ListFilter.ALL, loaded = true, toBuy = listOf(milk), allItems = all, query = "curd"),
+        )
+        // Adding "Curd" while searching "dahi" shows it, so no snackbar says to clear the search.
+        assertNull(addedSnackbarText("Curd", needed = true, page = ListFilter.ALL, query = "dahi"))
+    }
+
+    @Test
     fun emptyOrMarkOnlyQueriesAreInactive() {
         for (query in listOf("", "   ", "'", "\u2019 \u2018", "\u0301", "\t", "\u00A0\u3000")) {
             assertFalse(query, isActive(query))

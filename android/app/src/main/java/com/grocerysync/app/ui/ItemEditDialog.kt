@@ -136,7 +136,9 @@ private val ScrollHintFadeHeight = 24.dp
  * [existingNames]: every item's name by key, kept up to date while the dialog is open. A name another
  * item already has (capitals and extra spaces don't count) is an error and Save is disabled, so an item
  * is never overwritten by adding or renaming; re-spelling the edited item itself is fine. In add mode a
- * button under the name calls [onOpenExisting] with that item's key, to edit it instead.
+ * button under the name calls [onOpenExisting] with that item's key, to edit it instead. A new name that the
+ * item dictionary knows as another name of an item on the list ("Curd" while "Dahi" is there) only gets a
+ * warning ([similarItemName]) and Save stays enabled; in add mode it offers the same button.
  * [initialName]: add mode only, the name the field starts with (e.g. the All items search); when given,
  * the name field is not autofocused.
  */
@@ -202,6 +204,8 @@ fun ItemEditDialog(
     val nameError = InputValidation.validateName(name)
     // The other item that already has this name (as stored), if any.
     val takenBy = if (nameError == null) nameTakenBy(name, item?.key, existingNames) else null
+    // The same thing under another name ("Curd" while "Dahi" is on the list): a warning only.
+    val similarTo = remember(name, item?.key, existingNames) { similarItemName(name, item?.key, existingNames) }
     val canSave = canSaveItem(name, item?.key, existingNames, type, amountText, unit)
     val changedElsewhere = !removedElsewhere && liveValue != null && baseValue != null && liveValue != baseValue
 
@@ -349,6 +353,8 @@ fun ItemEditDialog(
                     takenBy != null -> if (isAdd) alreadyOnListText(takenBy) else anotherItemCalledText(takenBy)
                     else -> null
                 }
+                // Never together with nameMessage (see similarItemName); not an error, so Save stays enabled.
+                val similarMessage = similarTo?.let(::similarItemText)
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
@@ -359,10 +365,15 @@ fun ItemEditDialog(
                     placeholder = { Text("e.g. Milk") },
                     singleLine = true,
                     isError = (nameError != null && name.isNotEmpty()) || takenBy != null,
-                    supportingText = if (nameMessage != null) {
-                        { Text(nameMessage) }
-                    } else {
-                        null
+                    supportingText = when {
+                        nameMessage != null -> {
+                            { Text(nameMessage) }
+                        }
+                        // In the warning colour, like Settings' URL warnings.
+                        similarMessage != null -> {
+                            { Text(similarMessage, color = MaterialTheme.colorScheme.tertiary) }
+                        }
+                        else -> null
                     },
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Sentences,
@@ -378,6 +389,9 @@ fun ItemEditDialog(
                 if (isAdd && takenBy != null) {
                     // Edit the item that is already there instead (this dialog closes).
                     TextButton(onClick = { onOpenExisting(ItemKeys.normalize(name)) }) { Text(openItemText(takenBy)) }
+                } else if (isAdd && similarTo != null) {
+                    // Or edit the item it is similar to (this dialog closes); Save adds the new one anyway.
+                    TextButton(onClick = { onOpenExisting(ItemKeys.normalize(similarTo)) }) { Text(openItemText(similarTo)) }
                 }
 
                 Spacer(Modifier.height(spacing.sectionGapDp.dp))

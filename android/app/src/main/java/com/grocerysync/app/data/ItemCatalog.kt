@@ -89,9 +89,13 @@ data class CatalogEntry(
 
     /**
      * True when the search word [queryWord] matches one of its names at a word start ("pya" and "pyaaz" find
-     * the onion entry), by the rules of [ItemCatalog.matchesQuery].
+     * the onion entry), by the rules of [ItemCatalog.matchesQuery]. False for a word with no letters or digits
+     * ("*", "-"), which is part of no name.
      */
-    fun matchesWord(queryWord: String): Boolean = ItemCatalog.matchesAllWords(CatalogText.words(queryWord), words)
+    fun matchesWord(queryWord: String): Boolean {
+        val queryWords = CatalogText.words(queryWord)
+        return queryWords.isNotEmpty() && ItemCatalog.matchesAllWords(queryWords, words)
+    }
 }
 
 /**
