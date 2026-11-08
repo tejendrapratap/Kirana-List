@@ -253,18 +253,45 @@ A row with a ↻ icon hasn't synced yet.
 android/                   Android app: Kotlin, Jetpack Compose, WorkManager, OkHttp, SQLite
 apps-script/Code.gs        The script you paste into your sheet
 apps-script/test/          Offline tests for the script (with a fake Apps Script runtime) + a local mock of the web app
+android/app/src/androidTest/  UI tests: the real app on an emulator against a fake web app inside the test APK
+tools/e2e/                 Emulator helper scripts (Git Bash): emulator, mock, qa build, UI tests, taps and checks
 ```
 
-## Running the tests
+## Testing
+
+How much to run depends on the change:
+
+| Change | Run |
+|---|---|
+| Small change (a fix, a text, a test) | Unit tests, node tests and UI tests, plus a targeted check of what changed on the emulator. |
+| App feature | The same, plus one focused review of the change and the **qa smoke test**. |
+| Sheet or database change (`Code.gs`, columns, the app's database version) | The same, plus the **upgrade test**, with the mock switching scripts. |
+
+The commands (Git Bash, from the repository root; `tools/e2e/README.md` has the details):
 
 ```bash
-cd android && ./gradlew testDebugUnitTest
-```
-```bash
-node --test apps-script/test/
+(cd android && ./gradlew testDebugUnitTest lintDebug)   # unit tests and lint
+node --test apps-script/test/                         # the script and the mock web app
+tools/e2e/emu.sh && tools/e2e/uitest.sh               # UI tests on the emulator (about 2 minutes)
 ```
 
-To check the shrunk release code against the mock server, build the **qa** variant: `./gradlew assembleQa` gives `android/app/build/outputs/apk/qa/app-qa.apk`. It is the release build (same R8 shrinking and rules) that may also use plain HTTP to the mock server, installed as a separate app called **Grocery QA** (`com.grocerysync.app.qa`, signed with the debug key), so it never replaces the real app. Don't give it to the phones.
+The UI tests run **on an emulator only**. Don't use `./gradlew connectedDebugAndroidTest` (or any `connected` or `install` task): it installs and runs on every device adb sees, so a phone plugged in or paired for debugging gets the test app too. `uitest.sh` builds, installs on `emulator-NNNN` and nothing else, and prints a pass/fail summary.
+
+**qa smoke test** (5-10 minutes): the **qa** build is the release build (same R8 shrinking and rules) that may also use plain HTTP to the mock, installed as a separate app called **Grocery QA** (`com.grocerysync.app.qa`, debug key), so it never replaces the real app. Don't give it to the phones.
+
+```bash
+cd tools/e2e
+./emu.sh && ./mock.sh start
+./build-test-apk.sh qa && ./app.sh install qa && ./app.sh configure --name Shop
+# In the app: add a quantity item with a unit, see "Added by Shop", search on To buy and on All items,
+# swipe between them. Then check the sheet: ./mock.sh sheets (or http://127.0.0.1:8787/debug/sheets)
+./ui.sh crashes                                       # must find no crash or ANR
+./app.sh uninstall; ./ui.sh reset; ./mock.sh stop; ./emu.sh stop
+```
+
+**Upgrade test**: build the previous version's qa APK from its tag (`git worktree add ../gs-old v1.2`, then `tools/e2e/build-test-apk.sh qa --src ../gs-old/android` and keep a copy of the APK), start the mock with the script that version shipped with (`./mock.sh start --script ../gs-old/apps-script/Code.gs`; `v3` and `v2` are the scripts of 1.1 and 1.0), install the old APK, `configure` and add items, then install the new APK over it (`./app.sh install qa`, without `--fresh`) and switch the script live with `./mock.sh script current`. The items, their "Added by" / "Updated by" and the changes waiting on the phone must survive.
+
+### The mock web app
 
 To try the app without Google (**debug and qa builds only**), start the local mock server:
 
