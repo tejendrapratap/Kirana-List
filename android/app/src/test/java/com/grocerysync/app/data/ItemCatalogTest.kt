@@ -157,6 +157,8 @@ class ItemCatalogTest {
         assertFalse(onion.matchesWord("nion"))
         assertFalse(entry("Dalchini").matchesWord("dal"))
         assertTrue(entry("Dalchini").matchesWord("cinna"))
+        // A word with no letters or digits is part of no name (the list's search keeps "*" as a word).
+        for (word in listOf("", " ", "*", "-", ".*", "\\", "’")) assertFalse(word, onion.matchesWord(word))
     }
 
     @Test
