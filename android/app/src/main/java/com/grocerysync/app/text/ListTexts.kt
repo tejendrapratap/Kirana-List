@@ -175,6 +175,24 @@ interface ListTexts {
     /** After [name] was deleted (with Undo). */
     fun deletedSnackbar(name: String): String
 
+    /**
+     * After - / + of [name] (with Undo): "Rice: 2 kg → 3 kg". [before] and [after] are amounts with their unit
+     * ("2 kg", or "2" without one): data, so the text is the same in every language.
+     */
+    fun stepSnackbar(name: String, before: String, after: String): String
+
+    /** After the Need switch of [name] (with Undo): "Dahi: needed" / "Dahi: not needed". */
+    fun needSnackbar(name: String, needed: Boolean): String
+
+    /** After the Edit dialog renamed [oldName] to [newName] (with Undo). */
+    fun renamedSnackbar(oldName: String, newName: String): String
+
+    /** After the Edit dialog changed the type, amount or unit of [name] (with Undo). */
+    fun changedSnackbar(name: String): String
+
+    /** After the Edit dialog changed the type, amount or unit of [oldName] and renamed it [newName] (with Undo). */
+    fun changedAndRenamedSnackbar(oldName: String, newName: String): String
+
     /** A change of [name] (shortened for a quote) the phone couldn't queue: its name isn't a valid one. */
     fun couldNotSave(name: String): String
 
@@ -189,6 +207,32 @@ interface ListTexts {
 
     /** Saving a change failed for a reason the phone can't name. */
     val editFailed: String
+
+    // ---- Ticked today -----------------------------------------------------------------------------------
+
+    /** To buy's row of the items this phone took off To buy today: "Ticked today (3)". Tapping it opens or closes it. */
+    fun tickedToday(n: Int): String
+
+    /** What TalkBack reads for that row, a heading: "Ticked today, 3 items". */
+    fun tickedTodayDescription(n: Int): String
+
+    /** The state TalkBack reads for that row while it shows its items. */
+    val expanded: String
+
+    /** The state TalkBack reads for that row while its items are hidden. */
+    val collapsed: String
+
+    /** What tapping that row does while it is closed (TalkBack's "double-tap to ..."). */
+    val showTickedItems: String
+
+    /** What tapping that row does while it is open. */
+    val hideTickedItems: String
+
+    /** The button of an item under Ticked today that makes it needed again, with the amount it had. */
+    val putBack: String
+
+    /** That button for TalkBack: "Put back Rice". */
+    fun putBackDescription(name: String): String
 
     // ---- Share ------------------------------------------------------------------------------------------
 
@@ -309,11 +353,26 @@ object EnglishListTexts : ListTexts {
 
     override fun gotItSnackbar(name: String) = "Got $name"
     override fun deletedSnackbar(name: String) = "Deleted $name"
+    override fun stepSnackbar(name: String, before: String, after: String) = "$name: $before → $after"
+    override fun needSnackbar(name: String, needed: Boolean) =
+        "$name: ${if (needed) EnglishCommonTexts.needed else EnglishCommonTexts.notNeeded}"
+    override fun renamedSnackbar(oldName: String, newName: String) = "Renamed $oldName to $newName"
+    override fun changedSnackbar(name: String) = "Changed $name"
+    override fun changedAndRenamedSnackbar(oldName: String, newName: String) = "Changed $oldName, now called $newName"
     override fun couldNotSave(name: String) = "Couldn't save \"$name\". Check the name and try again."
     override fun changedElsewhere(name: String) = "\"$name\" was changed on another phone"
     override val itemChangedElsewhere = "That item was changed on another phone"
     override fun cantChange(name: String) = "Couldn't change \"$name\". Open it and shorten its name."
     override val editFailed = "Couldn't save that change. Please try again."
+
+    override fun tickedToday(n: Int) = "Ticked today ($n)"
+    override fun tickedTodayDescription(n: Int) = "Ticked today, ${EnglishCommonTexts.itemCount(n)}"
+    override val expanded = "Expanded"
+    override val collapsed = "Collapsed"
+    override val showTickedItems = "Show items"
+    override val hideTickedItems = "Hide items"
+    override val putBack = "Put back"
+    override fun putBackDescription(name: String) = "Put back $name"
 
     override val nothingToShare = "Nothing to buy right now"
     override val noShareApp = "No app on this phone can share the list"
@@ -414,11 +473,32 @@ object HindiListTexts : ListTexts {
 
     override fun gotItSnackbar(name: String) = "$name ले लिया"
     override fun deletedSnackbar(name: String) = "$name हटा दिया"
+
+    // The amounts are data, so it reads the same as in English.
+    override fun stepSnackbar(name: String, before: String, after: String) = "$name: $before → $after"
+    override fun needSnackbar(name: String, needed: Boolean) =
+        "$name: ${if (needed) HindiCommonTexts.needed else HindiCommonTexts.notNeeded}"
+
+    // "Curd का नाम बदलकर Dahi कर दिया": changed Curd's name to Dahi.
+    override fun renamedSnackbar(oldName: String, newName: String) = "$oldName का नाम बदलकर $newName कर दिया"
+    override fun changedSnackbar(name: String) = "$name बदल दिया"
+
+    // "Curd बदल दिया, अब इसका नाम Dahi है": changed Curd, its name is now Dahi.
+    override fun changedAndRenamedSnackbar(oldName: String, newName: String) = "$oldName बदल दिया, अब इसका नाम $newName है"
     override fun couldNotSave(name: String) = "\"$name\" सेव नहीं हो सका। नाम जाँचें और फिर से कोशिश करें।"
     override fun changedElsewhere(name: String) = "\"$name\" किसी दूसरे फ़ोन पर बदला गया"
     override val itemChangedElsewhere = "वह सामान किसी दूसरे फ़ोन पर बदला गया"
     override fun cantChange(name: String) = "\"$name\" नहीं बदला जा सका। इसे खोलकर इसका नाम छोटा करें।"
     override val editFailed = "यह बदलाव सेव नहीं हो सका। कृपया फिर से कोशिश करें।"
+
+    override fun tickedToday(n: Int) = "आज लिया ($n)"
+    override fun tickedTodayDescription(n: Int) = "आज लिया, ${HindiCommonTexts.itemCount(n)}"
+    override val expanded = "खुला है"
+    override val collapsed = "बंद है"
+    override val showTickedItems = "सामान दिखाएँ"
+    override val hideTickedItems = "सामान छिपाएँ"
+    override val putBack = "वापस लाएँ"
+    override fun putBackDescription(name: String) = "$name वापस लाएँ"
 
     override val nothingToShare = "अभी कुछ ख़रीदना नहीं है"
     override val noShareApp = "इस फ़ोन पर लिस्ट शेयर करने के लिए कोई ऐप नहीं है"

@@ -82,6 +82,7 @@ import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
 import com.grocerysync.app.data.ShopSectionSettings
+import com.grocerysync.app.data.TickedEntry
 import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.ValueType
 import com.grocerysync.app.sync.ConnectionState
@@ -97,6 +98,8 @@ import com.grocerysync.app.ui.components.ScriptUpdateLine
 import com.grocerysync.app.ui.components.SetupBanner
 import com.grocerysync.app.ui.components.ShopSectionHeader
 import com.grocerysync.app.ui.components.SyncErrorBanner
+import com.grocerysync.app.ui.components.TickedTodayHeader
+import com.grocerysync.app.ui.components.TickedTodayRow
 import com.grocerysync.app.ui.components.ToBuyRow
 import com.grocerysync.app.ui.components.rememberTickingTime
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
@@ -225,7 +228,9 @@ fun ListScreen(
     ListEventsEffect(
         events = viewModel.events,
         snackbarHostState = snackbarHostState,
-        onUndoGotIt = viewModel::undoGotIt,
+        onUndoChange = viewModel::undoChange,
+        onUndoEdit = viewModel::undoEdit,
+        onSnackbarClosed = viewModel::snackbarClosed,
         onUndoDelete = viewModel::undoDelete,
         onUndoCommonItems = viewModel::undoAddCommonItems,
         addedText = { name, value ->
@@ -271,6 +276,7 @@ fun ListScreen(
             gotIt = viewModel::markGotIt,
             setNeeded = viewModel::setNeeded,
             stepQuantity = viewModel::stepQuantity,
+            putBack = viewModel::putBack,
             // ⋮ > Add common items, and the empty list's button.
             openStarterList = {
                 focusManager.clearFocus()
@@ -389,6 +395,8 @@ class ListActions(
     val gotIt: (key: String) -> Unit,
     val setNeeded: (key: String, needed: Boolean) -> Unit,
     val stepQuantity: (key: String, up: Boolean) -> Unit,
+    /** Ticked today's Put back: the item is needed again, with the amount it had. */
+    val putBack: (TickedEntry) -> Unit,
     /** ⋮ > Add common items, and the empty list's button: opens [StarterListDialog]. */
     val openStarterList: () -> Unit,
     /** ⋮ > Paste a list: adds the items of a pasted message. */
@@ -401,7 +409,8 @@ class ListActions(
  * The screen: status lines, the To buy / All items row, the search field while search is open (shared by
  * both pages: it searches the page shown), and a pager with one list per page (swipe or tap the row to
  * switch). Each page keeps its own scroll position, banners and pull to refresh. The app bar menu's
- * "Group by shop section" tick ([ListTopBar]) shows [ListUiState.groupBySection].
+ * "Group by shop section" tick ([ListTopBar]) shows [ListUiState.groupBySection]. To buy ends with "Ticked today"
+ * ([tickedTodaySection]), closed until it is tapped.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -431,6 +440,8 @@ private fun ListContent(
         ).collect { if (it is DragInteraction.Start) focusManager.clearFocus() }
     }
     val query = if (search.open) search.query else ""
+    // Saved like the page shown; closed at first.
+    var tickedTodayExpanded by rememberSaveable { mutableStateOf(false) }
     val rowClock = rememberTickingTime(ROW_CLOCK_PERIOD_MS)
     val now = { rowClock.value }
     val texts = Texts.current
@@ -543,6 +554,15 @@ private fun ListContent(
                     ) {
                         bannerHeader(state, actions)
                         pageItems(filter, content, state, now, actions, onShowAllItems = { onFilterChange(ListFilter.ALL) })
+                        // Below To buy's rows or its empty state; not while a search is open.
+                        if (filter == ListFilter.TO_BUY && !search.open && content != PageContent.NotLoaded) {
+                            tickedTodaySection(
+                                entries = state.tickedToday,
+                                expanded = tickedTodayExpanded,
+                                onExpandedChange = { tickedTodayExpanded = it },
+                                onPutBack = actions.putBack,
+                            )
+                        }
                     }
                 }
             }
@@ -777,6 +797,33 @@ private fun LazyListScope.allItemsRows(items: List<GroceryItem>, state: ListUiSt
     }
 }
 
+/**
+ * "Ticked today" ([ListUiState.tickedToday]): a header that sticks like a section's ("Ticked today (3)", a heading
+ * for TalkBack) and, while [expanded], one row per item with its Put back button. Nothing when no item is ticked.
+ * Keys can't collide with the rows' ("item:...") or the sections' ("section:...").
+ */
+private fun LazyListScope.tickedTodaySection(
+    entries: List<TickedEntry>,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onPutBack: (TickedEntry) -> Unit,
+) {
+    if (entries.isEmpty()) return
+    stickyHeader(key = "ticked:header", contentType = "ticked-header") {
+        TickedTodayHeader(
+            count = entries.size,
+            expanded = expanded,
+            onClick = { onExpandedChange(!expanded) },
+            modifier = Modifier.animateItem(),
+        )
+    }
+    if (expanded) {
+        items(entries, key = { "ticked:" + it.key }, contentType = { "ticked" }) { entry ->
+            TickedTodayRow(entry = entry, onPutBack = { onPutBack(entry) }, modifier = Modifier.animateItem())
+        }
+    }
+}
+
 /** The no-match line and its row (see [NoMatchAction]). */
 private fun LazyListScope.noSearchMatches(content: PageContent.NoMatch, actions: ListActions, onShowAllItems: () -> Unit) {
     // One key for every query, so it isn't inserted again with each letter typed; one call, so a row that turns
@@ -804,18 +851,24 @@ private fun LazyListScope.noSearchMatches(content: PageContent.NoMatch, actions:
 /**
  * Shows view-model events as snackbars while the screen is visible; a new one replaces the current one.
  * [addedText] says where an item just added shows up when the page shown hides it (null: no snackbar).
+ * [onSnackbarClosed] hears when the snackbar of a change has gone, whatever the reason (- / + of the same item join
+ * its change only while it is shown).
  */
 @Composable
 private fun ListEventsEffect(
     events: Flow<ListEvent>,
     snackbarHostState: SnackbarHostState,
-    onUndoGotIt: (name: String, value: ItemValue) -> Unit,
+    onUndoChange: (ListEvent.ValueChange) -> Unit,
+    onUndoEdit: (ListEvent.Edited) -> Unit,
+    onSnackbarClosed: (ListEvent) -> Unit,
     onUndoDelete: (name: String, value: ItemValue) -> Unit,
     onUndoCommonItems: (List<AddedItem>) -> Unit,
     addedText: (name: String, value: ItemValue) -> String?,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val currentOnUndoGotIt by rememberUpdatedState(onUndoGotIt)
+    val currentOnUndoChange by rememberUpdatedState(onUndoChange)
+    val currentOnUndoEdit by rememberUpdatedState(onUndoEdit)
+    val currentOnSnackbarClosed by rememberUpdatedState(onSnackbarClosed)
     val currentOnUndoDelete by rememberUpdatedState(onUndoDelete)
     val currentOnUndoCommonItems by rememberUpdatedState(onUndoCommonItems)
     val currentAddedText by rememberUpdatedState(addedText)
@@ -825,8 +878,16 @@ private fun ListEventsEffect(
                 // The texts as they are when the event is shown.
                 val t = Texts.current
                 when (event) {
-                    is ListEvent.GotIt -> showReplacingSnackbar(snackbarHostState, t.list.gotItSnackbar(event.name), t.common.undo) {
-                        currentOnUndoGotIt(event.name, event.previous)
+                    is ListEvent.ValueChange -> showReplacingSnackbar(
+                        snackbarHostState,
+                        event.snackbarText(),
+                        t.common.undo,
+                        onClosed = { currentOnSnackbarClosed(event) },
+                    ) {
+                        currentOnUndoChange(event)
+                    }
+                    is ListEvent.Edited -> showReplacingSnackbar(snackbarHostState, event.snackbarText(), t.common.undo) {
+                        currentOnUndoEdit(event)
                     }
                     is ListEvent.Deleted ->
                         showReplacingSnackbar(snackbarHostState, t.list.deletedSnackbar(event.name), t.common.undo) {
@@ -846,21 +907,29 @@ private fun ListEventsEffect(
     }
 }
 
-/** Dismisses the visible snackbar (so quick ticks don't queue up) and shows [message] without blocking the caller. */
+/**
+ * Dismisses the visible snackbar (so quick ticks don't queue up) and shows [message] without blocking the caller.
+ * [onAction] runs when its action is tapped; [onClosed] once it has gone for any reason (also when the screen stops).
+ */
 private fun CoroutineScope.showReplacingSnackbar(
     hostState: SnackbarHostState,
     message: String,
     actionLabel: String? = null,
+    onClosed: () -> Unit = {},
     onAction: () -> Unit = {},
 ) {
     hostState.currentSnackbarData?.dismiss()
     launch {
-        val result = hostState.showSnackbar(
-            message = message,
-            actionLabel = actionLabel,
-            duration = SnackbarDuration.Short,
-        )
-        if (result == SnackbarResult.ActionPerformed) onAction()
+        try {
+            val result = hostState.showSnackbar(
+                message = message,
+                actionLabel = actionLabel,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) onAction()
+        } finally {
+            onClosed()
+        }
     }
 }
 
@@ -905,9 +974,11 @@ private fun previewState(items: List<GroceryItem>) = ListUiState(
     status = SyncStatus(ConnectionState.LIVE, System.currentTimeMillis() - 2_000L, null, "Groceries"),
     isConfigured = true,
     myDeviceName = "Shop",
+    // Coffee was ticked off on this phone today.
+    tickedToday = listOf(TickedEntry("coffee", "Coffee", ItemValue.BoolValue(true), ItemValue.BoolValue(false), 0L)),
 )
 
-private val PreviewActions = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, { _, _ -> }, {}, {}, {})
+private val PreviewActions = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, { _, _ -> }, {}, {}, {}, {})
 
 @Composable
 private fun ListContentPreviewOf(filter: ListFilter, search: SearchState) {

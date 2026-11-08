@@ -233,4 +233,14 @@ class ListTextsHindiTest {
         assertEquals("Eggs 1 बढ़ाएँ", t.stepUp("1", "Eggs"))
         assertEquals("मात्रा 2 kg", t.amountDescription("2 kg"))
     }
+
+    @Test
+    fun tickedTodayCountsTheItemsAndPutBackNamesOne() {
+        val t = HindiListTexts
+        assertEquals("आज लिया (3)", t.tickedToday(3))
+        assertEquals("आज लिया, 1 चीज़", t.tickedTodayDescription(1))
+        assertEquals("आज लिया, 3 चीज़ें", t.tickedTodayDescription(3))
+        assertEquals("वापस लाएँ", t.putBack)
+        assertEquals("Rice वापस लाएँ", t.putBackDescription("Rice"))
+    }
 }

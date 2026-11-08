@@ -135,6 +135,7 @@ private val PreviewActions = ListActions(
     gotIt = {},
     setNeeded = { _, _ -> },
     stepQuantity = { _, _ -> },
+    putBack = {},
     openStarterList = {},
     openPasteList = {},
     setGroupBySection = {},

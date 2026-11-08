@@ -31,9 +31,10 @@ class EditConflictTest {
     }
 
     @Test
-    fun updateNeedsTheItem() {
-        assertEquals(EditResult.NotOnList, ListLogic.editConflict(EditIntent.UPDATE, null))
-        assertNull(ListLogic.editConflict(EditIntent.UPDATE, item("Rice", Quantity.of(2, "kg"))))
+    fun anUndoNeedsTheItemWithTheValueItSet() {
+        // 1.6: an Undo is checked against the value its change set (GroceryRepository.updateIf), not only the item.
+        assertEquals(EditResult.NotOnList, ListLogic.updateConflict(Quantity.of(2, "kg"), null))
+        assertNull(ListLogic.updateConflict(Quantity.of(2, "kg"), item("Rice", Quantity.of(2, "kg"))))
     }
 
     @Test
@@ -81,10 +82,14 @@ class EditConflictTest {
 
     @Test
     fun undoOfGotItDoesNotBringBackANameThatWasRenamed() {
-        // Got it on Milk, then the other phone renamed it to Oat milk: the Undo has nothing to change.
-        val oatMilk = item("Oat milk", Quantity.of(0, "L"))
-        assertEquals(EditResult.NotOnList, ListLogic.editConflict(EditIntent.UPDATE, shown(listOf(oatMilk), name = "Milk")))
-        // Still there: the previous value goes back.
-        assertNull(ListLogic.editConflict(EditIntent.UPDATE, shown(listOf(item("Milk", Quantity.of(0, "L"))), name = "Milk")))
+        // Got it on Milk (2 L to 0 L), then the other phone renamed it to Oat milk: the Undo has nothing to change.
+        val gotIt = Quantity.of(0, "L")
+        val oatMilk = item("Oat milk", gotIt)
+        assertEquals(EditResult.NotOnList, ListLogic.updateConflict(gotIt, shown(listOf(oatMilk), name = "Milk")))
+        // Still there as Got it left it: the previous value goes back.
+        assertNull(ListLogic.updateConflict(gotIt, shown(listOf(item("Milk", gotIt)), name = "Milk")))
+        // Needed again on the other phone meanwhile: its amount is kept (before 1.6 the newest change won).
+        val needed = item("Milk", Quantity.of(3, "L"), updatedAt = 5_000L)
+        assertEquals(EditResult.ValueChanged, ListLogic.updateConflict(gotIt, shown(listOf(needed), name = "Milk")))
     }
 }

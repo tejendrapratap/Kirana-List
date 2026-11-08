@@ -71,4 +71,13 @@ class ListTextsTest {
         assertEquals("0.5 kg more Rice", t.stepUp("0.5 kg", "Rice"))
         assertEquals("Quantity 2 kg", t.amountDescription("2 kg"))
     }
+
+    @Test
+    fun tickedToday() {
+        assertEquals("Ticked today (3)", t.tickedToday(3))
+        assertEquals("Ticked today, 1 item", t.tickedTodayDescription(1))
+        assertEquals("Ticked today, 3 items", t.tickedTodayDescription(3))
+        assertEquals("Put back", t.putBack)
+        assertEquals("Put back Rice", t.putBackDescription("Rice"))
+    }
 }
