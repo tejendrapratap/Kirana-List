@@ -339,6 +339,9 @@ class ListViewModel(
     /** The notifications offer was answered ("Turn on" or "Not now"): it never shows again on this phone. */
     fun onNotifyOfferAnswered() = phoneSettingsStore.setNotifyOfferDone(true)
 
+    /** The offer's "Turn on" asks Android for the permission: Settings no longer offers to ask it. */
+    fun onNotifyPermissionAsked() = phoneSettingsStore.setNotifyPermissionAsked(true)
+
     val dialog: StateFlow<ItemDialog?> = savedStateHandle.getStateFlow<String?>(KEY_DIALOG, null)
         .map { ItemDialog.decode(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, ItemDialog.decode(savedStateHandle.get<String>(KEY_DIALOG)))
@@ -510,10 +513,12 @@ class ListViewModel(
 
     /**
      * Sends the Undo snackbar of a [change] that was saved. One that took a needed item off To buy ([ticksOff]) puts
-     * it under Ticked today, with the value it had before.
+     * it under Ticked today, with the value it had before and the name this phone ticked it with.
      */
     private suspend fun sendChange(change: ListEvent.ValueChange) {
-        if (change.ticksOff) tickedTodayStore.record(change.key, change.name, change.before, change.after)
+        if (change.ticksOff) {
+            tickedTodayStore.record(change.key, change.name, change.before, change.after, settingsStore.effectiveDeviceName())
+        }
         _events.send(change)
     }
 

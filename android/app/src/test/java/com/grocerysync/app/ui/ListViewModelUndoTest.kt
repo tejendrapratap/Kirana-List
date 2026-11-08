@@ -64,6 +64,7 @@ class ListViewModelUndoTest {
     private val store = FakeListStore()
     private val ticked = TickedTodayStore(FakeSharedPreferences(), clock = { now }, zone = { zone })
     private val shopSections = ShopSectionStore(FakeSharedPreferences())
+    private lateinit var settings: SettingsStore
     private lateinit var repository: GroceryRepository
     private lateinit var viewModel: ListViewModel
     private val events = mutableListOf<ListEvent>()
@@ -71,7 +72,7 @@ class ListViewModelUndoTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        val settings = SettingsStore(FakeSharedPreferences()).apply { save(SyncSettings("", "", me)) }
+        settings = SettingsStore(FakeSharedPreferences()).apply { save(SyncSettings("", "", me)) }
         repository = GroceryRepository(store, settings, ServerClock(localClock = { 50_000L }), onLocalChange = {}, io = dispatcher)
         val syncStore = FakeSyncStore()
         val liveSync = LiveSync(
@@ -127,7 +128,7 @@ class ListViewModelUndoTest {
         settle()
         assertEquals(listOf(ListEvent.GotIt("rice", "Rice", before = kg("2"), after = kg("0"))), events)
         assertEquals(kg("0"), shown("Rice")!!.value)
-        assertEquals(listOf(TickedEntry("rice", "Rice", kg("2"), kg("0"), now)), ticked.today())
+        assertEquals(listOf(TickedEntry("rice", "Rice", kg("2"), kg("0"), now, by = me)), ticked.today())
     }
 
     @Test
@@ -221,7 +222,7 @@ class ListViewModelUndoTest {
             settle()
         }
         assertEquals(ListEvent.Stepped("rice", "Rice", kg("1"), kg("0")), events.last())
-        assertEquals(listOf(TickedEntry("rice", "Rice", kg("1"), kg("0"), now)), ticked.today())
+        assertEquals(listOf(TickedEntry("rice", "Rice", kg("1"), kg("0"), now, by = me)), ticked.today())
         viewModel.undoChange(events.last() as ListEvent.Stepped)
         settle()
         assertEquals(kg("1"), shown("Rice")!!.value)
@@ -332,7 +333,7 @@ class ListViewModelUndoTest {
         viewModel.setNeeded("dahi", needed = false)
         settle()
         assertEquals(ListEvent.NeedChanged("dahi", "Dahi", needed = false), events.last())
-        assertEquals(listOf(TickedEntry("dahi", "Dahi", BoolValue(true), BoolValue(false), now)), ticked.today())
+        assertEquals(listOf(TickedEntry("dahi", "Dahi", BoolValue(true), BoolValue(false), now, by = me)), ticked.today())
 
         viewModel.undoChange(events.last() as ListEvent.NeedChanged)
         settle()
@@ -602,6 +603,24 @@ class ListViewModelUndoTest {
     }
 
     // ---- Ticked today and the other phone ------------------------------------------------------------------
+
+    @Test
+    fun savingANameAfterATickReachedTheSheetKeepsItUnderTickedToday() = test {
+        store.synced(listOf(item("Rice", kg("2")), item("Dal", kg("1"))))
+        viewModel.markGotIt("rice")
+        settle()
+        val entry = ticked.today().single()
+        // The tick came back from the sheet under the name this phone had then.
+        store.synced(listOf(item("Rice", kg("0"), by = me, updatedAt = 50_000L), item("Dal", kg("1"))))
+        // Your name typed in Settings later (the line under the notifications switch asks for it).
+        settings.save(SyncSettings("", "", "Papa"))
+        assertEquals(listOf(entry), shownTickedToday(ticked.today(), repository.items.first(), "Papa"))
+        // The next change prunes Ticked today: Rice stays, Put back still there.
+        viewModel.markGotIt("dal")
+        settle()
+        assertEquals(listOf("dal", "rice"), ticked.today().map { it.key })
+        assertEquals(listOf("dal", "rice"), shownTickedToday(ticked.today(), repository.items.first(), "Papa").map { it.key })
+    }
 
     @Test
     fun anItemTheOtherPhoneNeededAndTickedOffAgainLeavesTickedToday() = test {

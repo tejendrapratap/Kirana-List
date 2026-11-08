@@ -56,6 +56,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -207,11 +208,11 @@ private class PageSwitcher(private val pagerState: PagerState, private val scope
     }
 }
 
-/** [showToBuy]: goes up with each tap on the change notification, which shows To buy (see MainActivity). */
+/** [showToBuy]: new with each tap on the change notification, which shows To buy (see MainActivity); 0 for none. */
 @Composable
 fun ListScreen(
     onOpenSettings: () -> Unit,
-    showToBuy: Int = 0,
+    showToBuy: Long = 0L,
     viewModel: ListViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -245,14 +246,14 @@ fun ListScreen(
             }
         }
     }
-    // A tap on the change notification shows To buy (Simple mode shows nothing else). Each tap once: the count seen
-    // last is saved, so coming back from Settings later doesn't switch pages, and after the activity is recreated
-    // (its count starts again at 0) it only takes the new count.
-    var toBuyShownFor by rememberSaveable { mutableIntStateOf(0) }
+    // A tap on the change notification shows To buy (Simple mode shows nothing else). Each tap once: the tap taken
+    // last is saved, so coming back from Settings later doesn't switch pages. Taps never repeat (MainActivity), so
+    // the saved one can't be mistaken for a new tap after the activity was recreated or the process stopped.
+    var toBuyShownFor by rememberSaveable { mutableLongStateOf(0L) }
     LaunchedEffect(showToBuy) {
-        if (showToBuy != toBuyShownFor) {
+        if (showToBuy != 0L && showToBuy != toBuyShownFor) {
             toBuyShownFor = showToBuy
-            if (showToBuy > 0 && !simpleMode) pages.show(ListFilter.TO_BUY.page)
+            if (!simpleMode) pages.show(ListFilter.TO_BUY.page)
         }
     }
     // Simple mode has no search, so nothing could close one left open (from before it was turned on): it closes.
@@ -363,6 +364,7 @@ fun ListScreen(
                 phoneSettings = phoneSettings,
                 isConfigured = state.isConfigured,
                 onAnswered = viewModel::onNotifyOfferAnswered,
+                onPermissionAsked = viewModel::onNotifyPermissionAsked,
             )
         },
     )

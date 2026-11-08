@@ -263,6 +263,14 @@ class SettingsViewModel(
     }
 
     /**
+     * The screen asks Android for the notification permission (the switch turned on, or "Turn on notifications"):
+     * saved, so This phone stops offering to ask and says they are blocked if the answer was no.
+     */
+    fun onNotifyPermissionAsked() {
+        phoneSettingsStore.setNotifyPermissionAsked(true)
+    }
+
+    /**
      * [clipboardText] is everything on the clipboard; the setup code may sit inside a longer chat message.
      * Fills the URL; the token is kept aside, hidden (the field stays empty), and Save uses it.
      */

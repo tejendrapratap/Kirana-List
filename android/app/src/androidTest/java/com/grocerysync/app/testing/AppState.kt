@@ -46,7 +46,9 @@ object AppState {
      *    notifications, which counts as answered: on Android 13+ without the permission it would otherwise sit above
      *    the list in every connected test, and whether it does depends on test order (ThisPhoneSwitchesTest grants
      *    the permission, which can't be taken back without ending the test's process; tools/e2e/uitest.sh takes it
-     *    back before the next run). A test of the offer sets it back to unanswered.
+     *    back before the next run). A test of the offer sets it back to unanswered. Android counts as asked for the
+     *    permission too, so Settings > This phone shows what it showed before that was saved (blocked, while it
+     *    isn't granted).
      * 8. Forgets Ticked today, through the app's own store (clearing its file alone would leave the store's copy in
      *    memory): its entries are kept for the day, so a tick in one test would show under To buy in the next.
      */
@@ -64,6 +66,7 @@ object AppState {
         app.phoneSettings.setSimpleMode(phone.simpleMode)
         app.phoneSettings.setNotifyChanges(phone.notifyChanges)
         app.phoneSettings.setNotifyOfferDone(true)
+        app.phoneSettings.setNotifyPermissionAsked(true)
         app.tickedToday.retain { false }
     }
 

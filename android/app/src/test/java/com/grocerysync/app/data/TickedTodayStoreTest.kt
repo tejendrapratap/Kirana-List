@@ -165,6 +165,25 @@ class TickedTodayStoreTest {
     }
 
     @Test
+    fun aTickStaysThisPhonesAfterItsNameChanged() {
+        // Ticked as "SM-A146B" (no name saved then), and the tick reached the sheet; then "Papa" was saved.
+        val rice = TickedEntry("rice", "Rice", rice2, rice0, now, by = "SM-A146B")
+        assertTrue(rice.isStillTicked(item("Rice", rice0, by = "SM-A146B"), "Papa"))
+        assertTrue(rice.isStillTicked(item("Rice", rice0, by = "papa"), "Papa"))
+        assertFalse(rice.isStillTicked(item("Rice", rice0, by = "Home"), "Papa"))
+        // An entry without the name (kept by an earlier build) has only the name now to go by.
+        val unnamed = TickedEntry("rice", "Rice", rice2, rice0, now)
+        assertFalse(unnamed.isStillTicked(item("Rice", rice0, by = "SM-A146B"), "Papa"))
+        assertTrue(unnamed.isStillTicked(item("Rice", rice0, by = "Papa"), "Papa"))
+    }
+
+    @Test
+    fun theNameATickWasMadeWithIsKeptAcrossRestarts() {
+        store().record("rice", "Rice", before = rice2, set = rice0, by = "SM-A146B")
+        assertEquals(listOf(TickedEntry("rice", "Rice", rice2, rice0, now, by = "SM-A146B")), store().today())
+    }
+
+    @Test
     fun theListShowsTheEntriesStillTickedWithTheItemsNameNow() {
         val entries = listOf(
             TickedEntry("rice", "Rice", rice2, rice0, now),

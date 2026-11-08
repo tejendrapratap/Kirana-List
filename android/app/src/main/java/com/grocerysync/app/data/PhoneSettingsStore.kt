@@ -21,6 +21,12 @@ data class PhoneSettings(
     val notifyChanges: Boolean = true,
     /** The list screen's one-time offer to allow notifications was answered (either way). */
     val notifyOfferDone: Boolean = false,
+    /**
+     * Android was asked for the notification permission (its dialog) on this phone: by the list's offer, by the
+     * switch in Settings or by its "Turn on notifications" button. Not the same as [notifyOfferDone]: "Not now"
+     * answers the offer without asking, and Settings then still offers to ask.
+     */
+    val notifyPermissionAsked: Boolean = false,
 )
 
 /**
@@ -49,6 +55,9 @@ class PhoneSettingsStore internal constructor(private val prefs: SharedPreferenc
     fun setNotifyOfferDone(done: Boolean) =
         update({ putBoolean(KEY_NOTIFY_OFFER_DONE, done) }) { it.copy(notifyOfferDone = done) }
 
+    fun setNotifyPermissionAsked(asked: Boolean) =
+        update({ putBoolean(KEY_NOTIFY_PERMISSION_ASKED, asked) }) { it.copy(notifyPermissionAsked = asked) }
+
     /** Writes one value and then updates [settings], under one lock so concurrent setters can't lose a change. */
     private fun update(write: SharedPreferences.Editor.() -> Unit, change: (PhoneSettings) -> PhoneSettings) {
         synchronized(this) {
@@ -66,6 +75,7 @@ class PhoneSettingsStore internal constructor(private val prefs: SharedPreferenc
             simpleMode = flag(KEY_SIMPLE_MODE, defaults.simpleMode),
             notifyChanges = flag(KEY_NOTIFY_CHANGES, defaults.notifyChanges),
             notifyOfferDone = flag(KEY_NOTIFY_OFFER_DONE, defaults.notifyOfferDone),
+            notifyPermissionAsked = flag(KEY_NOTIFY_PERMISSION_ASKED, defaults.notifyPermissionAsked),
         )
     }
 
@@ -75,5 +85,6 @@ class PhoneSettingsStore internal constructor(private val prefs: SharedPreferenc
         const val KEY_SIMPLE_MODE = "simple_mode"
         const val KEY_NOTIFY_CHANGES = "notify_changes"
         const val KEY_NOTIFY_OFFER_DONE = "notify_offer_done"
+        const val KEY_NOTIFY_PERMISSION_ASKED = "notify_permission_asked"
     }
 }

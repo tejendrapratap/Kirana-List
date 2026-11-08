@@ -27,20 +27,29 @@ data class TickedEntry(
     val set: ItemValue,
     /** When it was ticked, on this phone's clock (ms). It also tells this tick from a later one of the item. */
     val at: Long,
+    /**
+     * This phone's name when it ticked ([SettingsStore.effectiveDeviceName]), which the sheet keeps as the tick's
+     * Updated By. "" when unknown (an entry kept by an earlier build of 1.6).
+     */
+    val by: String = "",
 ) {
     /**
      * The item is still as this phone left it: [item] (the item under [key] now; null when it isn't on the list)
-     * still has [set], and its last change is this phone's ([GroceryItem.isChangedLastByOthers], [me] being this
-     * phone's name). Not when it is needed again, was renamed (its key is gone) or removed, or the other phone
-     * changed it otherwise. Nor when the other phone needed it again and then ticked it off itself: the item has
-     * [set] again, but that tick isn't this phone's, and Put back would bring back this phone's old amount for
-     * something just bought. The entry isn't shown then (and is pruned).
+     * still has [set], and its last change is this phone's ([GroceryItem.isChangedLastByOthers]) under its name now
+     * ([me]) or the one it ticked with ([by]): someone who types Your name in Settings after ticking (as the line
+     * under the notifications switch asks) keeps the ticks already sent to the sheet under the old name. Not when it
+     * is needed again, was renamed (its key is gone) or removed, or the other phone changed it otherwise. Nor when
+     * the other phone needed it again and then ticked it off itself: the item has [set] again, but that tick isn't
+     * this phone's, and Put back would bring back this phone's old amount for something just bought. The entry isn't
+     * shown then (and is pruned).
      *
      * Two phones with the same name (both left at the phone's model name, say) can't be told apart: then only the
      * value counts.
      */
     fun isStillTicked(item: GroceryItem?, me: String): Boolean =
-        item != null && item.value.sanitized() == set && !item.isChangedLastByOthers(me)
+        item != null &&
+            item.value.sanitized() == set &&
+            (!item.isChangedLastByOthers(me) || by.isNotBlank() && !item.isChangedLastByOthers(by))
 }
 
 /**
@@ -128,13 +137,13 @@ class TickedTodayStore internal constructor(
     }
 
     /**
-     * This phone took the needed item [key] ([name]) off To buy: it had [before] and now has [set]. Replaces the
-     * item's entry from an earlier tick today.
+     * This phone, named [by] (see [TickedEntry.by]), took the needed item [key] ([name]) off To buy: it had [before]
+     * and now has [set]. Replaces the item's entry from an earlier tick today.
      */
     @Synchronized
-    fun record(key: String, name: String, before: ItemValue, set: ItemValue) {
+    fun record(key: String, name: String, before: ItemValue, set: ItemValue, by: String = "") {
         dropOtherDays()
-        val entry = TickedEntry(key, name, before.sanitized(), set.sanitized(), clock())
+        val entry = TickedEntry(key, name, before.sanitized(), set.sanitized(), clock(), by)
         // Re-inserted, so the map keeps the newest tick last.
         entries.remove(key)
         entries[key] = entry
@@ -225,6 +234,7 @@ class TickedTodayStore internal constructor(
             .put("before", encodeValue(entry.before))
             .put("set", encodeValue(entry.set))
             .put("at", entry.at)
+            .put("by", entry.by)
             .toString()
 
         fun decode(key: String, text: String): TickedEntry? = try {
@@ -232,7 +242,11 @@ class TickedTodayStore internal constructor(
             val name = json.getString("name")
             val before = decodeValue(json.getJSONObject("before"))
             val set = decodeValue(json.getJSONObject("set"))
-            if (key.isEmpty() || name.isEmpty() || before == null || set == null) null else TickedEntry(key, name, before, set, json.getLong("at"))
+            if (key.isEmpty() || name.isEmpty() || before == null || set == null) {
+                null
+            } else {
+                TickedEntry(key, name, before, set, json.getLong("at"), json.optString("by"))
+            }
         } catch (e: JSONException) {
             Log.w(TAG, "Dropping an unreadable entry", e)
             null

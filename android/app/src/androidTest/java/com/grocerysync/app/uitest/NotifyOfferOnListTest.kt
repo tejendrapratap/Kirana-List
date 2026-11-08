@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.grocerysync.app.notify.hasNotificationPermission
@@ -67,6 +68,22 @@ class NotifyOfferOnListTest : GroceryUiTest() {
         // Gone from All items too, where it was offered as well.
         showAllItems()
         assertNoNode(offer)
+    }
+
+    @Test
+    fun afterNotNowSettingsStillOffersToAskAndroid() {
+        assumeTheOfferCanShow()
+        AppState.container.phoneSettings.setNotifyOfferDone(false)
+        AppState.container.phoneSettings.setNotifyPermissionAsked(false)
+        launchConnected()
+        waitForNode(offer)
+        node(button("Not now")).performClick()
+        waitForNoNode(offer)
+
+        // "Not now" didn't ask Android: Settings offers to, and doesn't say notifications are blocked.
+        openSettings()
+        waitForNode(button("Turn on notifications")).performScrollTo().assertIsDisplayed()
+        assertNoNode(hasText("Notifications are blocked for this app."))
     }
 
     @Test

@@ -530,6 +530,15 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun askingAndroidForTheNotificationPermissionIsSaved() {
+        val vm = viewModel()
+        assertFalse(vm.phoneSettings.value.notifyPermissionAsked)
+        vm.onNotifyPermissionAsked()
+        assertTrue(phoneStore.current().notifyPermissionAsked)
+        assertTrue(vm.phoneSettings.value.notifyPermissionAsked)
+    }
+
+    @Test
     fun theNotificationsSwitchAsksForANameUntilOneIsSaved() {
         val vm = viewModel()
         assertTrue(vm.noNameSaved)

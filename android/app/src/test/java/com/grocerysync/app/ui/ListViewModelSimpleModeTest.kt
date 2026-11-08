@@ -106,5 +106,9 @@ class ListViewModelSimpleModeTest {
         // Saved: the offer doesn't come back after a restart. Only the offer is answered; notifications stay on.
         assertTrue(PhoneSettingsStore(prefs).current().notifyOfferDone)
         assertTrue(PhoneSettingsStore(prefs).current().notifyChanges)
+        // "Not now" didn't ask Android, so Settings still offers to; "Turn on" asks it.
+        assertFalse(PhoneSettingsStore(prefs).current().notifyPermissionAsked)
+        viewModel.onNotifyPermissionAsked()
+        assertTrue(PhoneSettingsStore(prefs).current().notifyPermissionAsked)
     }
 }

@@ -3,6 +3,7 @@ package com.grocerysync.app
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -13,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -37,8 +39,14 @@ class MainActivity : ComponentActivity() {
     /** Counts the lists shared into the app while it runs; each one brings the list screen to the front. */
     private var sharedLists by mutableIntStateOf(0)
 
-    /** Counts the taps on the change notification while the app runs; each one shows To buy ([receiveShowToBuy]). */
-    private var toBuyRequests by mutableIntStateOf(0)
+    /**
+     * The latest tap on the change notification that this activity received, or 0 for none; each new one shows To buy
+     * ([receiveShowToBuy]). A token that tells taps apart (when it came, elapsedRealtimeNanos), not a count: ListScreen
+     * saves the one it took last, and that outlives this activity (recreated for a rotation or a new Language while
+     * Settings was shown, or after the process was stopped), while a count would start again at 0 here and could
+     * meet the saved one at the next tap, which then would not switch pages.
+     */
+    private var toBuyRequest by mutableLongStateOf(0L)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Every screen's app bar is deep green in both themes (appBarColors), so the status bar icons over it are
@@ -58,7 +66,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             GrocerySyncTheme {
-                GrocerySyncRoot(sharedLists = sharedLists, toBuyRequests = toBuyRequests)
+                GrocerySyncRoot(sharedLists = sharedLists, toBuyRequest = toBuyRequest)
             }
         }
     }
@@ -82,7 +90,7 @@ class MainActivity : ComponentActivity() {
         if (!intent.getBooleanExtra(EXTRA_SHOW_TO_BUY, false)) return
         intent.removeExtra(EXTRA_SHOW_TO_BUY)
         if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
-        toBuyRequests++
+        toBuyRequest = SystemClock.elapsedRealtimeNanos()
     }
 
     companion object {
@@ -134,10 +142,11 @@ private enum class Screen { LIST, SETTINGS }
  * Two screens, so a navigation library would be overkill: the current one survives rotation, process death and a
  * new Language (Settings recreates the activity and stays open).
  * Each list shared into the app ([sharedLists] goes up) shows the list screen, where its preview opens; each tap on
- * the change notification ([toBuyRequests] goes up) shows the list screen on To buy.
+ * the change notification (a new [toBuyRequest]) shows the list screen on To buy. A recreated activity starts with
+ * no tap (0), so Settings stays open then.
  */
 @Composable
-private fun GrocerySyncRoot(sharedLists: Int, toBuyRequests: Int) {
+private fun GrocerySyncRoot(sharedLists: Int, toBuyRequest: Long) {
     var screen by rememberSaveable { mutableStateOf(Screen.LIST) }
     // Keeps each screen's saved UI state (list filter, scroll position, ...) while the other one is shown.
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -146,14 +155,14 @@ private fun GrocerySyncRoot(sharedLists: Int, toBuyRequests: Int) {
     LaunchedEffect(sharedLists) {
         if (sharedLists > 0) screen = Screen.LIST
     }
-    LaunchedEffect(toBuyRequests) {
-        if (toBuyRequests > 0) screen = Screen.LIST
+    LaunchedEffect(toBuyRequest) {
+        if (toBuyRequest != 0L) screen = Screen.LIST
     }
 
     Crossfade(targetState = screen, label = "screen") { current ->
         saveableStateHolder.SaveableStateProvider(current.name) {
             when (current) {
-                Screen.LIST -> ListScreen(onOpenSettings = { screen = Screen.SETTINGS }, showToBuy = toBuyRequests)
+                Screen.LIST -> ListScreen(onOpenSettings = { screen = Screen.SETTINGS }, showToBuy = toBuyRequest)
                 Screen.SETTINGS -> SettingsScreen(onBack = { screen = Screen.LIST })
             }
         }

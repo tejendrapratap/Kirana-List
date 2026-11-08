@@ -246,9 +246,10 @@ fun SettingsScreen(
             )
             NotifyChangesSwitch(
                 on = phoneSettings.notifyChanges,
-                asked = phoneSettings.notifyOfferDone,
+                asked = phoneSettings.notifyPermissionAsked,
                 noName = viewModel.noNameSaved,
                 onChange = viewModel::setNotifyChanges,
+                onAsked = viewModel::onNotifyPermissionAsked,
             )
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
@@ -439,17 +440,27 @@ private fun SwitchRow(title: String, detail: String, checked: Boolean, onChecked
 
 /**
  * This phone > "Notify me when someone adds to To buy" ([on]: the saved choice). Turning it on on Android 13+ without
- * the permission asks Android for it. On (it is by default) while Android was never asked ([asked] false: neither
- * the list's offer nor this switch was answered), a button asks it. Refused (now or before), the switch stays on and
- * a line says the notifications are blocked, with a button to Android's settings for them (after two refusals
- * Android no longer shows its dialog); either line goes once they are allowed (checked again each time the screen
- * comes back). [noName]: no name is saved for this phone, which the line under the switch asks for.
+ * the permission asks Android for it. On (it is by default) while Android was never asked ([asked] false: not by the
+ * list's offer, whose "Not now" doesn't ask, nor here), a button asks it; each time it asks, [onAsked] saves that
+ * (PhoneSettings.notifyPermissionAsked). Refused (now or before), the switch stays on and a line says the
+ * notifications are blocked, with a button to Android's settings for them (after two refusals Android no longer
+ * shows its dialog); either line goes once they are allowed (checked again each time the screen comes back). [noName]: no name is saved for this phone, which the line under the switch asks for.
  */
 @Composable
-private fun NotifyChangesSwitch(on: Boolean, asked: Boolean, noName: Boolean, onChange: (Boolean) -> Unit) {
+private fun NotifyChangesSwitch(
+    on: Boolean,
+    asked: Boolean,
+    noName: Boolean,
+    onChange: (Boolean) -> Unit,
+    onAsked: () -> Unit,
+) {
     val context = LocalContext.current
     val access = rememberNotificationAccess()
-    val askPermission = rememberNotificationPermissionRequest { access.refresh() }
+    val requestPermission = rememberNotificationPermissionRequest { access.refresh() }
+    val askPermission = {
+        onAsked()
+        requestPermission()
+    }
     val notAllowed = on && !access.allowed
     val canAsk = notAllowed && access.mayAsk && !asked
     NotifyChangesSetting(
@@ -461,7 +472,8 @@ private fun NotifyChangesSwitch(on: Boolean, asked: Boolean, noName: Boolean, on
         },
         onAllow = { openNotificationSettings(context) },
         canAsk = canAsk,
-        // Asking answers the list's offer as well (saved as on, which it is): a refusal then shows the blocked line.
+        // Asking answers the list's offer as well (saved as on, which it is), and is saved as asked: a refusal then
+        // shows the blocked line.
         onAsk = {
             onChange(true)
             askPermission()

@@ -51,9 +51,10 @@ fun shouldOfferNotifications(
  * The list screen's one-time offer of change notifications, complete: shown only when [shouldOfferNotifications]
  * (it reads the permission itself and checks it again whenever the screen comes back), and it asks Android for the
  * permission itself. "Turn on" asks for it (ActivityResultContracts.RequestPermission with POST_NOTIFICATIONS, through
- * [rememberNotificationPermissionRequest]); "Not now" doesn't. Both call [onAnswered], which must save
- * [PhoneSettings.notifyOfferDone] = true, so the card never comes back after either (refused, Settings > This phone
- * shows that notifications are blocked and how to allow them).
+ * [rememberNotificationPermissionRequest]) and calls [onPermissionAsked] first, which must save
+ * [PhoneSettings.notifyPermissionAsked] = true; "Not now" doesn't ask, so Settings > This phone still offers to.
+ * Both call [onAnswered], which must save [PhoneSettings.notifyOfferDone] = true, so the card never comes back after
+ * either (refused, Settings > This phone shows that notifications are blocked and how to allow them).
  *
  * How the list screen places it, at the top of the banners above the list (it draws nothing when not offered):
  *
@@ -63,10 +64,12 @@ fun shouldOfferNotifications(
  *         phoneSettings = phoneSettings,
  *         isConfigured = state.isConfigured,           // ListUiState.isConfigured
  *         onAnswered = viewModel::onNotifyOfferAnswered,
+ *         onPermissionAsked = viewModel::onNotifyPermissionAsked,
  *     )
  *
  *     // ListViewModel
  *     fun onNotifyOfferAnswered() = phoneSettingsStore.setNotifyOfferDone(true)
+ *     fun onNotifyPermissionAsked() = phoneSettingsStore.setNotifyPermissionAsked(true)
  *
  * It needs an activity that can start activities for a result (MainActivity, a ComponentActivity); nothing else is
  * set up for it. The background check is already planned while notifications are on, so allowing them is all it
@@ -77,6 +80,7 @@ fun NotifyOffer(
     phoneSettings: PhoneSettings,
     isConfigured: Boolean,
     onAnswered: () -> Unit,
+    onPermissionAsked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val access = rememberNotificationAccess()
@@ -85,6 +89,7 @@ fun NotifyOffer(
     NotifyOfferCard(
         onTurnOn = {
             onAnswered()
+            onPermissionAsked()
             askPermission()
         },
         onNotNow = onAnswered,

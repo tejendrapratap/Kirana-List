@@ -17,6 +17,7 @@ class PhoneSettingsStoreTest {
                 simpleMode = false,
                 notifyChanges = true,
                 notifyOfferDone = false,
+                notifyPermissionAsked = false,
             ),
             PhoneSettingsStore(prefs).current(),
         )
@@ -29,8 +30,15 @@ class PhoneSettingsStoreTest {
         store.setSimpleMode(true)
         store.setNotifyChanges(false)
         store.setNotifyOfferDone(true)
+        store.setNotifyPermissionAsked(true)
 
-        val changed = PhoneSettings(AppLanguage.HINDI, simpleMode = true, notifyChanges = false, notifyOfferDone = true)
+        val changed = PhoneSettings(
+            AppLanguage.HINDI,
+            simpleMode = true,
+            notifyChanges = false,
+            notifyOfferDone = true,
+            notifyPermissionAsked = true,
+        )
         assertEquals(changed, store.current())
         assertEquals(changed, store.settings.value)
         assertEquals(changed, PhoneSettingsStore(prefs).current())

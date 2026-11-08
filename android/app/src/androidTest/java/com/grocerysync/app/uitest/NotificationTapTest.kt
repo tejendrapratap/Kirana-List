@@ -64,4 +64,24 @@ class NotificationTapTest : GroceryUiTest() {
         waitForNoNode(settingsShown)
         waitForNode(tab("All items") and isSelected())
     }
+
+    @Test
+    fun aTapAfterTheAppWasRecreatedOnSettingsStillOpensToBuy() {
+        launchConnected()
+        showAllItems()
+        tapNotification()
+        waitForNode(tab("To buy") and isSelected())
+
+        // Recreated while Settings is shown (turned sideways, dark mode, a new Language): the list screen isn't drawn
+        // then, and keeps the tap it took last.
+        showAllItems()
+        openSettings()
+        waitForNode(settingsShown)
+        recreateApp()
+        waitForNode(settingsShown)
+
+        tapNotification()
+        waitForNode(tab("To buy") and isSelected())
+        waitForNoNode(settingsShown)
+    }
 }
