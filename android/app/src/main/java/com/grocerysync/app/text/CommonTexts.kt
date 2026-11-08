@@ -137,12 +137,12 @@ object HindiCommonTexts : CommonTexts {
     override val add = "जोड़ें"
     override val addItem = "सामान जोड़ें"
     override val settings = "सेटिंग्स"
-    override val toBuy = "खरीदना है"
+    override val toBuy = "ख़रीदना है"
     override val allItems = "सारा सामान"
     override val needed = "चाहिए"
     override val notNeeded = "नहीं चाहिए"
     override val yesNo = "हाँ या नहीं"
-    override val quantity = "मात्रा"
+    override val quantity = "कितना चाहिए"
     override val unit = "यूनिट"
     override val amount = "मात्रा"
 
@@ -161,7 +161,7 @@ object HindiCommonTexts : CommonTexts {
         ShopSection.CLEANING_HOUSEHOLD -> "सफ़ाई और घर का सामान"
         ShopSection.PERSONAL_CARE -> "पर्सनल केयर"
         ShopSection.PUJA -> "पूजा"
-        ShopSection.OTHER -> "बाकी"
+        ShopSection.OTHER -> "अन्य"
     }
 
     override fun addedBy(name: String) = "$name ने जोड़ा"

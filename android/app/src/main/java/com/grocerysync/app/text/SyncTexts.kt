@@ -11,13 +11,14 @@ interface SyncTexts {
      * [raw] in this language: every message the sync layer makes, and the sentences they are made of (so a part of
      * one, such as a push problem without its "Changes are saved on this phone ..." ending, translates too). The
      * script's own words inside a message (an error text, a page title) stay as they are. Anything else, such as an
-     * error text the sheet's script sent, comes back unchanged; null stays null.
+     * error text the sheet's script sent, comes back unchanged. For a message that may be missing, write
+     * `raw?.let(texts.sync::message)`.
      */
-    fun message(raw: String?): String?
+    fun message(raw: String): String
 }
 
 object EnglishSyncTexts : SyncTexts {
-    override fun message(raw: String?): String? = raw
+    override fun message(raw: String): String = raw
 }
 
 /**
@@ -30,7 +31,7 @@ object HindiSyncTexts : SyncTexts {
     private const val HINT_ACCESS =
         "Apps Script में Deploy > Manage deployments खोलें और 'Who has access' को 'Anyone' पर रखें।"
     private const val NEW_VERSION = "नया वर्ज़न डिप्लॉय करें।"
-    private const val SHEET_REFUSED = "शीट ने यह बदलाव नहीं लिया"
+    private const val SHEET_REFUSED = "शीट ने यह बदलाव नहीं माना"
     private const val LATEST_SCRIPT = "देख लें कि शीट में सबसे नई Code.gs चल रही है"
     // "इसके बाद" (then), not "फिर": the button's own name starts with फिर.
     private val tapRetry = "इसके बाद \"${HindiCommonTexts.retry}\" दबाएँ।"
@@ -62,14 +63,14 @@ object HindiSyncTexts : SyncTexts {
                 "Apps Script में Code.gs पेस्ट करें और $NEW_VERSION",
             // MSG_NOT_FOUND
             "Web app not found (404). Check the URL, or deploy the script as a Web app." to
-                "वेब ऐप नहीं मिला (404)। URL जाँचें, या स्क्रिप्ट को Web app की तरह डिप्लॉय करें।",
+                "वेब ऐप नहीं मिला (404)। URL जाँचें, या स्क्रिप्ट को Web app के रूप में डिप्लॉय करें।",
             // MSG_DEPLOYMENT_GONE
             "Google can't open this web app (\"Sorry, unable to open the file at this time\"): " +
                 "the deployment doesn't exist any more. In Apps Script open Deploy > Manage deployments, " +
                 "copy the Web app URL (ending in /exec) again and paste it in Settings." to
                 "Google यह वेब ऐप नहीं खोल पा रहा (\"Sorry, unable to open the file at this time\"): " +
                 "यह डिप्लॉयमेंट अब नहीं है। Apps Script में Deploy > Manage deployments खोलें, " +
-                "Web app URL (जो /exec पर खत्म होता है) फिर से कॉपी करें और सेटिंग्स में पेस्ट करें।",
+                "Web app URL (जो /exec पर ख़त्म होता है) फिर से कॉपी करें और सेटिंग्स में पेस्ट करें।",
             // MSG_UNAUTHORIZED
             "The secret token doesn't match SECRET_TOKEN in the script." to
                 "सीक्रेट टोकन स्क्रिप्ट के SECRET_TOKEN से मेल नहीं खाता।",
@@ -90,7 +91,7 @@ object HindiSyncTexts : SyncTexts {
             "The sheet refused this change" to SHEET_REFUSED,
             "The sheet refused this change." to "$SHEET_REFUSED।",
             "Remove or relax that rule in the sheet (Data > Data validation), then tap Retry." to
-                "शीट में वह नियम हटाएँ या ढीला करें (Data > Data validation), $tapRetry",
+                "शीट में वह नियम हटाएँ या बदलें (Data > Data validation), $tapRetry",
             "Remove that protection in the sheet (Data > Protect sheets and ranges), then tap Retry." to
                 "शीट में वह सुरक्षा हटाएँ (Data > Protect sheets and ranges), $tapRetry",
             // ListLogic.DEFAULT_FAILURE: a change the sheet refused without saying why.
@@ -122,17 +123,20 @@ object HindiSyncTexts : SyncTexts {
                     """Make sure the sheet runs the latest Code\.gs and deploy a new version\.""",
             ) {
                 val detail = if (it[1].isEmpty()) "" else " (${it[1]})"
-                "स्क्रिप्ट ने ऐप का अनुरोध नहीं माना$detail। $LATEST_SCRIPT, और $NEW_VERSION"
+                "स्क्रिप्ट ने ऐप की रिक्वेस्ट नहीं मानी$detail। $LATEST_SCRIPT, और $NEW_VERSION"
             },
             // Protocol.mapServerError: any other error code, with or without the script's text.
             MessagePattern("""The script reported an error(?:: (.*))?\. Make sure the sheet runs the latest Code\.gs\.""") {
                 val detail = if (it[1].isEmpty()) "" else ": ${it[1]}"
-                "स्क्रिप्ट ने गड़बड़ी बताई$detail। $LATEST_SCRIPT।"
+                "स्क्रिप्ट ने गड़बड़ी बताई$detail${endMark(it[1])} $LATEST_SCRIPT।"
             },
         ),
     )
 
-    override fun message(raw: String?): String? = raw?.let(translator::translate)
+    override fun message(raw: String): String = translator.translate(raw)
+
+    /** "।" after [detail] (the script's own words), unless they already end a sentence. */
+    private fun endMark(detail: String): String = if (detail.trimEnd().lastOrNull() in setOf('.', '!', '?', '।')) "" else "।"
 
     /** The Hindi of one known sentence (a hint inside a pattern's message); null for any other text. */
     private fun sentence(english: String): String? = translator.translatedOrNull(english)

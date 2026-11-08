@@ -20,7 +20,7 @@ texts, add it here too.
 | English | Hindi |
 |---|---|
 | Kirana List (app bar title) | किराना लिस्ट |
-| To buy | खरीदना है |
+| To buy | ख़रीदना है |
 | All items | सारा सामान |
 | item / items (counted) | चीज़ / चीज़ें (1 चीज़, 3 चीज़ें) |
 | Got it (tick off) | ले लिया |
@@ -34,7 +34,7 @@ texts, add it here too.
 | Settings | सेटिंग्स |
 | Retry / Try again | फिर से कोशिश करें |
 | Needed / Not needed / Need | चाहिए / नहीं चाहिए / चाहिए |
-| Quantity / Yes or no (item types) | मात्रा / हाँ या नहीं |
+| Quantity / Yes or no (item types) | कितना चाहिए / हाँ या नहीं |
 | Unit / Amount | यूनिट / मात्रा |
 | Shop section | सेक्शन |
 | Added by X / Updated by X | X ने जोड़ा / X ने बदला |
@@ -69,7 +69,7 @@ texts, add it here too.
 | Cleaning & household | सफ़ाई और घर का सामान |
 | Personal care | पर्सनल केयर |
 | Puja | पूजा |
-| Other | बाकी |
+| Other | अन्य |
 
 ## Sets in Add common items
 

@@ -87,7 +87,7 @@ class TextsTest {
         assertEquals("सब्ज़ी और फल", HindiCommonTexts.sectionName(ShopSection.SABZI_FRUIT))
         assertEquals("दूध, अंडे और ब्रेड", HindiCommonTexts.sectionName(ShopSection.DAIRY_EGGS_BREAD))
         assertEquals("मसाले", HindiCommonTexts.sectionName(ShopSection.MASALA))
-        assertEquals("बाकी", HindiCommonTexts.sectionName(ShopSection.OTHER))
+        assertEquals("अन्य", HindiCommonTexts.sectionName(ShopSection.OTHER))
         val hindi = ShopSection.entries.map(HindiCommonTexts::sectionName)
         assertEquals("every section has its own Hindi name", hindi.size, hindi.toSet().size)
         for (section in ShopSection.entries) {
@@ -169,7 +169,7 @@ class TextsTest {
     fun hindiWordsFollowTheGlossary() {
         val hindi = HindiCommonTexts
         assertEquals("पहले जैसा करें", hindi.undo)
-        assertEquals("खरीदना है", hindi.toBuy)
+        assertEquals("ख़रीदना है", hindi.toBuy)
         assertEquals("सारा सामान", hindi.allItems)
         assertEquals("फिर से कोशिश करें", hindi.retry)
         assertEquals("यह फ़ोन", HindiSettingsTexts.thisPhone)

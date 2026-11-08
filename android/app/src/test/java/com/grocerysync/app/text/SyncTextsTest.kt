@@ -8,7 +8,6 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -83,7 +82,7 @@ class SyncTextsTest {
         val title = "The sheet's script is out of date."
         assertTrue(Protocol.MSG_SCRIPT_OUTDATED.startsWith("$title "))
         assertEquals("शीट की स्क्रिप्ट पुरानी है।", hindi.message(title))
-        assertTrue(hindi.message(Protocol.MSG_SCRIPT_OUTDATED)!!.startsWith("शीट की स्क्रिप्ट पुरानी है। "))
+        assertTrue(hindi.message(Protocol.MSG_SCRIPT_OUTDATED).startsWith("शीट की स्क्रिप्ट पुरानी है। "))
     }
 
     @Test
@@ -95,6 +94,13 @@ class SyncTextsTest {
         val errorPage = page("<html><head><title>Error</title></head><body><div>TypeError: x is undefined</div></body></html>")
         assertTrue(errorPage.startsWith(Protocol.SCRIPT_FAILED_PREFIX))
         assertHindi(errorPage, hindi.message(errorPage), kept = "TypeError: x is undefined")
+
+        // The script's words already end a sentence: no "।" straight after the full stop.
+        val dotted = serverError("odd_code: It broke.")
+        assertHindi(dotted, hindi.message(dotted), kept = "It broke.")
+        assertFalse(hindi.message(dotted), hindi.message(dotted).contains(".।"))
+        val undotted = serverError("odd_code: It broke")
+        assertTrue(hindi.message(undotted), hindi.message(undotted).contains("It broke।"))
 
         val badRequest = serverError("bad_request: unknown action")
         assertHindi(badRequest, hindi.message(badRequest), kept = "(unknown action)")
@@ -122,16 +128,15 @@ class SyncTextsTest {
         val bare = Protocol.changeErrorText("sheet_rejected:")
         assertHindi(bare, hindi.message(bare))
         // "Tap Retry" names the Retry button as it is shown in Hindi.
-        assertTrue(hindi.message(bare)!!.contains("\"${HindiCommonTexts.retry}\""))
-        assertTrue(hindi.message(rule)!!.contains("\"${HindiCommonTexts.retry}\""))
+        assertTrue(hindi.message(bare).contains("\"${HindiCommonTexts.retry}\""))
+        assertTrue(hindi.message(rule).contains("\"${HindiCommonTexts.retry}\""))
         // Not "फिर "फिर से कोशिश करें"": the word for "then" isn't the one the button's name starts with.
-        assertFalse(hindi.message(bare)!!.contains("फिर \"फिर"))
-        assertTrue(hindi.message(bare)!!.endsWith("इसके बाद \"${HindiCommonTexts.retry}\" दबाएँ।"))
+        assertFalse(hindi.message(bare).contains("फिर \"फिर"))
+        assertTrue(hindi.message(bare).endsWith("इसके बाद \"${HindiCommonTexts.retry}\" दबाएँ।"))
     }
 
     @Test
     fun anythingElseComesBackUnchanged() {
-        assertNull(hindi.message(null))
         // A per-change error the script sent as it is, and a known sentence followed by something unknown.
         assertEquals("name: too long", hindi.message("name: too long"))
         val halfKnown = "Can't reach Google right now. Something else happened."
@@ -143,7 +148,6 @@ class SyncTextsTest {
     fun englishShowsTheMessagesAsTheyAre() {
         val messages = messageConstants(Protocol::class.java).values + serverError("internal: Boom") + "anything"
         for (message in messages) assertSame(message, EnglishSyncTexts.message(message))
-        assertNull(EnglishSyncTexts.message(null))
         assertSame(EnglishSyncTexts, AppTexts.English.sync)
         assertSame(HindiSyncTexts, AppTexts.Hindi.sync)
     }
