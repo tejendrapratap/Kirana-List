@@ -80,10 +80,12 @@ class ShareRoundTripTest {
 
     @Test
     fun itemsTheFamilyBuysSeparatelyBothArrive() {
-        // Two lines of a Diwali list, and whole moong next to moong dal: different things, so both come back.
+        // Two lines of a Diwali list, whole moong next to moong dal, pav next to bread: each comes back, also
+        // where the dictionary has both names as one item (Pav is a name of Bread).
         val separate = listOf(
             yesNo("Kheel"), yesNo("Batashe"),
             quantity("Moong", "1", Units.KG), quantity("Moong dal", "2", Units.KG),
+            quantity("Pav", "1", Units.PACK), quantity("Bread", "1", Units.PACK),
         )
         for (sectionOf in listOf(::catalogSectionOf, null)) {
             val text = buildShareText(separate, sectionOf)

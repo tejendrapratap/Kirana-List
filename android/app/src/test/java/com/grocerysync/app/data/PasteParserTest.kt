@@ -155,6 +155,16 @@ class PasteParserTest {
     }
 
     @Test
+    fun marksALineWhollyInBold() {
+        // It may be a heading of a hand-written list; the preview decides (it knows the list and the dictionary).
+        for (text in listOf("*Sabzi*", "*Dahi*", "*Rice 2 kg*")) assertEquals(text, true, PasteParser.parseLine(text)?.bold)
+        assertEquals("Sabzi", PasteParser.parseLine("*Sabzi*")?.name)
+        for (text in listOf("Sabzi", "*Rice* 2 kg", "* Rice", "• *Dahi*", "_Dahi_")) {
+            assertEquals(text, false, PasteParser.parseLine(text)?.bold)
+        }
+    }
+
+    @Test
     fun aLineEndingInAColonIsAHeading() {
         val line = PasteParser.parseLine("Sabzi:")
         assertEquals(LineProblem.HEADING, line?.problem)

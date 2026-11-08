@@ -19,15 +19,20 @@ sealed interface PasteAction {
     /** The key of the item it adds or changes; null when it changes nothing. */
     val itemKey: String?
 
-    /** A new item, added as needed: yes / no for a line without an amount, else the amount (pcs without a unit). */
-    data class Add(val name: String, val value: ItemValue) : PasteAction {
+    /**
+     * A new item, added as needed: yes / no for a line without an amount, else the amount (pcs without a unit).
+     * [looksLikeHeading]: the line was wholly in bold, without an amount, and names nothing the list or the
+     * dictionary knows ("*Sabzi*", "*Kirana*"): probably a heading of a hand-written list, so it starts unticked.
+     */
+    data class Add(val name: String, val value: ItemValue, val looksLikeHeading: Boolean = false) : PasteAction {
         override val itemKey: String get() = ItemKeys.normalize(name)
     }
 
     /**
      * The item [key] ([name] as stored) isn't needed and gets [value]. [typedName]: what the line called it when
      * that is another name ("Curd" for Dahi), else null. [expected]: its value now; when it has another value by
-     * the time this is applied (changed on another phone), it is left as it is.
+     * the time this is applied (changed on another phone), it is left as it is. [amountLeftOut]: the line had an
+     * amount, which a yes / no item doesn't take ("Dahi 1 kg").
      */
     data class MarkNeeded(
         val key: String,
@@ -35,12 +40,16 @@ sealed interface PasteAction {
         val typedName: String?,
         val expected: ItemValue,
         val value: ItemValue,
+        val amountLeftOut: Boolean = false,
     ) : PasteAction {
         override val itemKey: String get() = key
     }
 
-    /** [name] is needed already (yes / no, the same amount, or a line without an amount): nothing changes. */
-    data class AlreadyNeeded(val name: String, val typedName: String?) : PasteAction {
+    /**
+     * [name] is needed already (yes / no, the same amount, or a line without an amount): nothing changes.
+     * [amountLeftOut] as for [MarkNeeded].
+     */
+    data class AlreadyNeeded(val name: String, val typedName: String?, val amountLeftOut: Boolean = false) : PasteAction {
         override val itemKey: String? get() = null
     }
 
@@ -77,7 +86,10 @@ enum class SkipReason {
     /** The amount's unit isn't the item's (amounts are never converted). */
     UNIT_MISMATCH,
 
-    /** An earlier line names the same item (or another name of it: "Curd" after "Dahi"). */
+    /**
+     * An earlier line names the same item: the same name, or another name of an item on the list ("Curd" after
+     * "Dahi" while Dahi is on it).
+     */
     REPEATED,
 }
 
@@ -87,21 +99,27 @@ data class PasteRow(val index: Int, val line: String, val action: PasteAction) {
     val selectable: Boolean
         get() = action is PasteAction.Add || action is PasteAction.MarkNeeded || action is PasteAction.ChangeAmount
 
-    /** Ticked until the user says otherwise; a new amount for an item that is needed already is not. */
+    /**
+     * Ticked until the user says otherwise; not a new amount for an item that is needed already, nor a new item
+     * that looks like a heading ([PasteAction.Add.looksLikeHeading]).
+     */
     val selectedByDefault: Boolean
-        get() = action is PasteAction.Add || action is PasteAction.MarkNeeded
+        get() = (action is PasteAction.Add && !action.looksLikeHeading) || action is PasteAction.MarkNeeded
 }
 
 /**
  * What each of [lines] ([PasteParser.parse]) does to the list [items] (as shown now):
  * - A name on the list (capitals and spaces don't count), or another name of the same item in the dictionary
  *   ([ItemCatalog]: "Curd" for Dahi), changes that item and never renames it. A yes / no item is marked needed
- *   and ignores an amount. A quantity takes the line's amount when its unit is the item's ([unitFits]; amounts
- *   are never converted): marked needed when it isn't, else unchanged for the same amount or a new amount
- *   ([PasteAction.ChangeAmount], unticked at first). A line without an amount marks a quantity needed with one
- *   unit, or one - / + step when that is more ([neededAmount]: 1 kg, 100 g, 1 pcs).
+ *   and ignores an amount (the row says so). A quantity takes the line's amount when its unit is the item's
+ *   ([unitFits]; amounts are never converted): marked needed when it isn't, else unchanged for the same amount or
+ *   a new amount ([PasteAction.ChangeAmount], unticked at first). A line without an amount marks a quantity
+ *   needed with one unit, or one - / + step when that is more ([neededAmount]: 1 kg, 100 g, 1 pcs).
  * - Any other name is a new item ([PasteAction.Add]) named as typed, with a capital first letter. Without an
- *   amount it is yes / no, as it was on the phone that shared it, so a shared list comes back the same.
+ *   amount it is yes / no, as it was on the phone that shared it, so a shared list comes back the same. Two
+ *   new names are two items, even when the dictionary has them as one ("Pav" and "Bread"): the list they came
+ *   from had both. A line wholly in bold without an amount that names nothing known starts unticked
+ *   ([PasteAction.Add.looksLikeHeading]).
  * - A later line for an item an earlier line already took is skipped ([SkipReason.REPEATED]), so is every line
  *   the parser couldn't use.
  */
@@ -115,21 +133,17 @@ fun planPaste(lines: List<PastedLine>, items: List<GroceryItem>): List<PasteRow>
         if (byEntry[entry] == null || item.key == ItemKeys.normalize(entry.displayName)) byEntry[entry] = item
     }
     val takenKeys = HashSet<String>()
-    val takenEntries = HashSet<CatalogEntry>()
     return lines.mapIndexed { index, line ->
         val action = line.problem?.let { PasteAction.Skipped(it.skipReason()) } ?: run {
             val key = ItemKeys.normalize(line.name)
             val entry = ItemCatalog.entryFor(line.name)
             val existing = byKey[key] ?: entry?.let(byEntry::get)
             val target = existing?.key ?: key
-            if (target in takenKeys || (existing == null && entry != null && entry in takenEntries)) {
+            if (target in takenKeys) {
                 PasteAction.Skipped(SkipReason.REPEATED)
             } else {
-                val planned = if (existing == null) newItem(line) else changeOf(existing, line)
-                if (planned !is PasteAction.Skipped) {
-                    takenKeys += target
-                    entry?.let(takenEntries::add)
-                }
+                val planned = if (existing == null) newItem(line, known = entry != null) else changeOf(existing, line)
+                if (planned !is PasteAction.Skipped) takenKeys += target
                 planned
             }
         }
@@ -144,20 +158,24 @@ private fun LineProblem.skipReason(): SkipReason = when (this) {
     LineProblem.HEADING -> SkipReason.HEADING
 }
 
-private fun newItem(line: PastedLine): PasteAction {
+/** [line] as a new item; [known]: the dictionary has its name, so a bold line is that item, not a heading. */
+private fun newItem(line: PastedLine, known: Boolean): PasteAction {
     val value = line.amount?.let { ItemValue.Quantity(it, line.unit ?: Units.PCS) } ?: ItemValue.BoolValue(true)
-    return PasteAction.Add(ItemSearch.suggestedName(line.name), value)
+    val looksLikeHeading = line.bold && line.amount == null && !known
+    return PasteAction.Add(ItemSearch.suggestedName(line.name), value, looksLikeHeading)
 }
 
 private fun changeOf(item: GroceryItem, line: PastedLine): PasteAction {
     val typedName = line.name.takeIf { ItemKeys.normalize(it) != item.key }
     return when (val value = item.value) {
-        is ItemValue.BoolValue ->
+        is ItemValue.BoolValue -> {
+            val amountLeftOut = line.amount != null
             if (value.value) {
-                PasteAction.AlreadyNeeded(item.name, typedName)
+                PasteAction.AlreadyNeeded(item.name, typedName, amountLeftOut)
             } else {
-                PasteAction.MarkNeeded(item.key, item.name, typedName, value, ItemValue.BoolValue(true))
+                PasteAction.MarkNeeded(item.key, item.name, typedName, value, ItemValue.BoolValue(true), amountLeftOut)
             }
+        }
         is ItemValue.Quantity -> quantityChange(item, value, line, typedName)
     }
 }
@@ -343,23 +361,69 @@ internal fun pasteRowText(row: PasteRow): String = when (val action = row.action
     is PasteAction.Skipped -> "Skipped: ${quotedItemName(row.line)}"
 }
 
-/** The small text under it: "Curd → Dahi" for another name of the item, or why a line is skipped; else null. */
-internal fun pasteRowDetail(row: PasteRow): String? = when (val action = row.action) {
-    is PasteAction.Add -> null
-    is PasteAction.MarkNeeded -> action.typedName?.let { otherNameText(it, action.name) }
-    is PasteAction.AlreadyNeeded -> action.typedName?.let { otherNameText(it, action.name) }
-    is PasteAction.ChangeAmount -> action.typedName?.let { otherNameText(it, action.name) }
-    is PasteAction.Skipped -> when (action.reason) {
-        SkipReason.UNREADABLE -> "Couldn't read"
-        SkipReason.ZERO_AMOUNT -> "The amount is 0"
-        SkipReason.NAME_TOO_LONG -> "The name is too long"
-        SkipReason.HEADING -> "Looks like a heading"
-        SkipReason.UNIT_MISMATCH -> "${quotedItemName(action.itemName)} is in ${action.itemUnit}"
-        SkipReason.REPEATED -> "Listed twice"
+/**
+ * The small text under it: "Curd → Dahi" for another name of the item, that a yes / no item leaves out the line's
+ * amount, why a new item isn't ticked, or why a line is skipped; else null.
+ */
+internal fun pasteRowDetail(row: PasteRow): String? = rowNotes(row, spoken = false)
+
+/**
+ * What TalkBack says for the row (with its check box state): the row's text and its small text, in words rather
+ * than the arrows shown: "Change Rice from 2 kg to 3 kg", "Mark Dahi needed, written as Curd", "Skipped: Eggs 12,
+ * Eggs is in dozen".
+ */
+internal fun pasteRowDescription(row: PasteRow): String {
+    val text = when (val action = row.action) {
+        is PasteAction.Add -> "Add ${quotedItemName(action.name)}${spokenAmount(action.value)}"
+        is PasteAction.MarkNeeded -> "Mark ${quotedItemName(action.name)} needed${spokenAmount(action.value)}"
+        is PasteAction.AlreadyNeeded -> "Already needed: ${quotedItemName(action.name)}"
+        is PasteAction.ChangeAmount ->
+            "Change ${quotedItemName(action.name)} from ${action.expected.displayText()} to ${action.value.displayText()}"
+        is PasteAction.Skipped -> "Skipped: ${quotedItemName(row.line)}"
     }
+    return listOfNotNull(text, rowNotes(row, spoken = true)).joinToString(", ")
 }
 
-private fun otherNameText(typedName: String, name: String) = "${quotedItemName(typedName)} → ${quotedItemName(name)}"
+/** [pasteRowDetail], or ([spoken]) its words for [pasteRowDescription]. */
+private fun rowNotes(row: PasteRow, spoken: Boolean): String? {
+    val notes = when (val action = row.action) {
+        is PasteAction.Add -> listOf(if (action.looksLikeHeading) LOOKS_LIKE_HEADING_TEXT else null)
+        is PasteAction.MarkNeeded -> listOf(
+            action.typedName?.let { otherNameText(it, action.name, spoken) },
+            if (action.amountLeftOut) amountLeftOutText(action.name, spoken) else null,
+        )
+        is PasteAction.AlreadyNeeded -> listOf(
+            action.typedName?.let { otherNameText(it, action.name, spoken) },
+            if (action.amountLeftOut) amountLeftOutText(action.name, spoken) else null,
+        )
+        is PasteAction.ChangeAmount -> listOf(action.typedName?.let { otherNameText(it, action.name, spoken) })
+        is PasteAction.Skipped -> listOf(
+            when (action.reason) {
+                SkipReason.UNREADABLE -> "Couldn't read"
+                SkipReason.ZERO_AMOUNT -> "The amount is 0"
+                SkipReason.NAME_TOO_LONG -> "The name is too long"
+                SkipReason.HEADING -> "Looks like a heading"
+                SkipReason.UNIT_MISMATCH -> "${quotedItemName(action.itemName)} is in ${action.itemUnit}"
+                SkipReason.REPEATED -> "Listed twice"
+            },
+        )
+    }
+    return notes.filterNotNull().joinToString(if (spoken) ", " else ". ").ifEmpty { null }
+}
+
+/** Under a new item that looks like a heading ([PasteAction.Add.looksLikeHeading]). */
+private const val LOOKS_LIKE_HEADING_TEXT = "Looks like a heading, so it isn't ticked"
+
+/** "Curd → Dahi"; ([spoken]) "written as Curd". */
+private fun otherNameText(typedName: String, name: String, spoken: Boolean) =
+    if (spoken) "written as ${quotedItemName(typedName)}" else "${quotedItemName(typedName)} → ${quotedItemName(name)}"
+
+/** A yes / no item [name] ignored the line's amount: "Dahi is yes / no, so the amount is left out". */
+private fun amountLeftOutText(name: String, spoken: Boolean) =
+    "${quotedItemName(name)} is ${if (spoken) "yes or no" else "yes / no"}, so the amount is left out"
+
+/** ", 2 kg" for a quantity (where the row shows " - 2 kg"); "" for yes / no. */
+private fun spokenAmount(value: ItemValue): String = (value as? ItemValue.Quantity)?.let { ", ${it.displayText()}" }.orEmpty()
 
 /** The preview's first line: what the paste holds, e.g. "5 new, 3 to update, 1 already needed, 2 skipped". */
 internal fun pasteSummaryText(rows: List<PasteRow>): String {

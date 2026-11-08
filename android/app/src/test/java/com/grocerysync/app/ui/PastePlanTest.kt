@@ -45,8 +45,10 @@ class PastePlanTest {
         val dahi = item("Dahi", BoolValue(false))
         val marked = PasteAction.MarkNeeded("dahi", "Dahi", null, BoolValue(false), BoolValue(true))
         assertEquals(marked, action("dahi", dahi))
-        assertEquals(marked, action("Dahi 2 kg", dahi))
+        // The row says the amount was left out.
+        assertEquals(marked.copy(amountLeftOut = true), action("Dahi 2 kg", dahi))
         assertEquals(PasteAction.AlreadyNeeded("Dahi", null), action("Dahi", item("Dahi", BoolValue(true))))
+        assertEquals(PasteAction.AlreadyNeeded("Dahi", null, amountLeftOut = true), action("Dahi 1 kg", item("Dahi", BoolValue(true))))
     }
 
     @Test
@@ -122,9 +124,13 @@ class PastePlanTest {
     fun aLaterLineForTheSameItemIsSkipped() {
         val repeated = PasteAction.Skipped(SkipReason.REPEATED)
         assertEquals(repeated, actions("Rice 2 kg\nrice 1 kg")[1])
-        // Two names of one new item add it once.
-        assertEquals(listOf(PasteAction.Add("Curd", BoolValue(true)), repeated), actions("Curd\nDahi"))
+        // Another name of an item on the list is that item.
         assertEquals(repeated, actions("Dahi\nCurd", item("Dahi", BoolValue(false)))[1])
+        // Two new names are two items, even when the dictionary has them as one: the list they came from had both.
+        assertEquals(
+            listOf(PasteAction.Add("Pav", BoolValue(true)), PasteAction.Add("Bread", BoolValue(true))),
+            actions("Pav\nBread"),
+        )
         // A skipped line doesn't take the item.
         val rice = item("Rice", qty("0", Units.KG))
         assertEquals(
@@ -134,6 +140,31 @@ class PastePlanTest {
             ),
             actions("Rice 2 pcs\nRice 2 kg", rice),
         )
+    }
+
+    @Test
+    fun aBoldLineThatNamesNothingKnownLooksLikeAHeading() {
+        val rows = planPaste(PasteParser.parse("*Sabzi*\n• Onion 1 kg\n*Kirana*\n*Dahi*\n*Rice 2 kg*\nSabzi"), emptyList())
+        assertEquals(
+            listOf(
+                PasteAction.Add("Sabzi", BoolValue(true), looksLikeHeading = true),
+                PasteAction.Add("Onion", qty("1", Units.KG)),
+                PasteAction.Add("Kirana", BoolValue(true), looksLikeHeading = true),
+                // A name the dictionary knows, or a line with an amount, is an item.
+                PasteAction.Add("Dahi", BoolValue(true)),
+                PasteAction.Add("Rice", qty("2", Units.KG)),
+                PasteAction.Skipped(SkipReason.REPEATED),
+            ),
+            rows.map { it.action },
+        )
+        // Still offered, but not ticked: the user ticks it if it is an item.
+        assertEquals(listOf(true, true, true, true, true, false), rows.map { it.selectable })
+        assertEquals(listOf(false, true, false, true, true, false), rows.map { it.selectedByDefault })
+        assertEquals("Looks like a heading, so it isn't ticked", pasteRowDetail(rows[0]))
+        assertNull(pasteRowDetail(rows[1]))
+        // An item of that name on the list is that item.
+        val sabzi = item("Sabzi", BoolValue(false))
+        assertEquals(PasteAction.MarkNeeded("sabzi", "Sabzi", null, BoolValue(false), BoolValue(true)), action("*Sabzi*", sabzi))
     }
 
     @Test
@@ -289,6 +320,53 @@ class PastePlanTest {
         assertEquals("Listed twice", pasteRowDetail(row(PasteAction.Skipped(SkipReason.REPEATED))))
         // A long line is cut.
         assertEquals("Skipped: " + "A".repeat(37) + "...", pasteRowText(row(PasteAction.Skipped(SkipReason.NAME_TOO_LONG), "A".repeat(140))))
+        // A yes / no item says why the line's amount is gone, after the other name.
+        val curd1kg = row(PasteAction.MarkNeeded("dahi", "Dahi", "Curd", BoolValue(false), BoolValue(true), amountLeftOut = true))
+        assertEquals("Mark Dahi needed", pasteRowText(curd1kg))
+        assertEquals("Curd → Dahi. Dahi is yes / no, so the amount is left out", pasteRowDetail(curd1kg))
+        assertEquals(
+            "Dahi is yes / no, so the amount is left out",
+            pasteRowDetail(row(PasteAction.AlreadyNeeded("Dahi", null, amountLeftOut = true))),
+        )
+    }
+
+    @Test
+    fun talkBackReadsRowsInWords() {
+        fun row(action: PasteAction, line: String = "") = PasteRow(0, line, action)
+        assertEquals("Add Rice, 2 kg", pasteRowDescription(row(PasteAction.Add("Rice", qty("2", Units.KG)))))
+        assertEquals("Add Dahi", pasteRowDescription(row(PasteAction.Add("Dahi", BoolValue(true)))))
+        assertEquals(
+            "Add Sabzi, Looks like a heading, so it isn't ticked",
+            pasteRowDescription(row(PasteAction.Add("Sabzi", BoolValue(true), looksLikeHeading = true))),
+        )
+        assertEquals(
+            "Mark Dahi needed, written as Curd",
+            pasteRowDescription(row(PasteAction.MarkNeeded("dahi", "Dahi", "Curd", BoolValue(false), BoolValue(true)))),
+        )
+        assertEquals(
+            "Mark Dahi needed, written as Curd, Dahi is yes or no, so the amount is left out",
+            pasteRowDescription(row(PasteAction.MarkNeeded("dahi", "Dahi", "Curd", BoolValue(false), BoolValue(true), amountLeftOut = true))),
+        )
+        assertEquals(
+            "Mark Rice needed, 2 kg",
+            pasteRowDescription(row(PasteAction.MarkNeeded("rice", "Rice", null, qty("0", Units.KG), qty("2", Units.KG)))),
+        )
+        assertEquals(
+            "Already needed: Oil, written as Cooking oil",
+            pasteRowDescription(row(PasteAction.AlreadyNeeded("Oil", "Cooking oil"))),
+        )
+        assertEquals(
+            "Change Rice from 2 kg to 3 kg",
+            pasteRowDescription(row(PasteAction.ChangeAmount("rice", "Rice", null, qty("2", Units.KG), qty("3", Units.KG)))),
+        )
+        assertEquals(
+            "Skipped: Eggs 12, Eggs is in dozen",
+            pasteRowDescription(row(PasteAction.Skipped(SkipReason.UNIT_MISMATCH, "Eggs", Units.DOZEN), line = "Eggs 12")),
+        )
+        assertEquals("Skipped: Rice 2-3 kg, Couldn't read", pasteRowDescription(row(PasteAction.Skipped(SkipReason.UNREADABLE), "Rice 2-3 kg")))
+        // No arrows: TalkBack would say "right arrow".
+        val rows = planPaste(PasteParser.parse("Curd\nRice 3 kg\nEggs 12"), listOf(item("Dahi", BoolValue(false)), item("Rice", qty("2", Units.KG))))
+        for (planned in rows) assertFalse(pasteRowDescription(planned), '→' in pasteRowDescription(planned))
     }
 
     @Test

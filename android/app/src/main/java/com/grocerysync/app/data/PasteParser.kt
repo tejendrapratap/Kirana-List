@@ -27,6 +27,8 @@ enum class LineProblem {
  * @param unit the unit written, cleaned ([Units.normalize]: "kgs" is "kg"); null when none was ("Rice 2",
  *   "Rice x2"), which counts pieces.
  * @param problem why the line can't be used; null when it can.
+ * @param bold the whole line was in WhatsApp bold ("*Sabzi*"), as hand-written lists mark their headings; the
+ *   preview decides whether it is one (only it knows the list and the dictionary).
  */
 data class PastedLine(
     val text: String,
@@ -34,6 +36,7 @@ data class PastedLine(
     val amount: Amount? = null,
     val unit: String? = null,
     val problem: LineProblem? = null,
+    val bold: Boolean = false,
 )
 
 /**
@@ -46,7 +49,8 @@ data class PastedLine(
  *   [ ], [x], emoji), numbering ("1.", "1)", "(1)"), WhatsApp formatting (*bold*, _italic_, ~strike~,
  *   `mono`) and punctuation or emoji at the end;
  * - leaves out blank lines, lines with no letter or digit ("-----"), and Share's own title and
- *   "*Dairy, eggs & bread*" section lines, so a shared list pasted on another phone gives the same items;
+ *   "*Dairy, eggs & bread*" section lines, so a shared list pasted on another phone gives the same items; any
+ *   other line wholly in bold is marked ([PastedLine.bold]), as it may be a heading of its own ("*Sabzi*");
  * - reads an amount after the name ("Rice 2 kg", "Rice - 2kg", "Rice: 2 kg", "Rice (2 kg)", "Rice x2",
  *   "Rice 2") or before it ("2 kg rice", "2kg rice", "2 x rice", "½ kg paneer"). Amounts may have decimals
  *   ("1.5", "1,5"), thousands ("1,000"), fractions ("1/2", "½", "1 1/2", "1½") and digits of other scripts
@@ -94,7 +98,8 @@ object PasteParser {
             return PastedLine(text = heading, name = "", problem = LineProblem.HEADING)
         }
         if (line.length > MAX_LINE_LENGTH) return PastedLine(text = line, name = "", problem = LineProblem.NAME_TOO_LONG)
-        return readItem(line)
+        val item = readItem(line)
+        return if (wholeBold && item.problem == null) item.copy(bold = true) else item
     }
 
     /** [line] (cleaned) as an item: the name and the amount and unit before or after it, if any. */

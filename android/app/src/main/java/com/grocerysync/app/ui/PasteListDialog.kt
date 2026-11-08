@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -278,15 +279,19 @@ private fun PastePreviewStep(
 
 /**
  * One line: a check box (the whole row toggles it) when it changes something; else a tick for "Already needed"
- * or an info icon for a skipped line. The text says it all, so the icons are silent for TalkBack.
+ * or an info icon for a skipped line. The text says it all, so the icons are silent for TalkBack, which reads the
+ * row as one, in words rather than the arrows shown ([pasteRowDescription]).
  */
 @Composable
 private fun PasteRowItem(row: PasteRow, selected: Boolean, onSelectedChange: (Boolean) -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val description = pasteRowDescription(row)
     val rowModifier = if (row.selectable) {
-        Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = onSelectedChange)
+        Modifier
+            .toggleable(value = selected, role = Role.Checkbox, onValueChange = onSelectedChange)
+            .semantics { contentDescription = description }
     } else {
-        Modifier.semantics(mergeDescendants = true) {}
+        Modifier.semantics(mergeDescendants = true) { contentDescription = description }
     }
     Row(
         modifier = rowModifier
@@ -331,7 +336,11 @@ private suspend fun readClipboardText(context: Context, clipboard: Clipboard): S
 
 private val PreviewRows = listOf(
     PasteRow(0, "Rice 2 kg", PasteAction.Add("Rice", ItemValue.Quantity(Amount.whole(2), Units.KG))),
-    PasteRow(1, "Curd", PasteAction.MarkNeeded("dahi", "Dahi", "Curd", ItemValue.BoolValue(false), ItemValue.BoolValue(true))),
+    PasteRow(
+        1,
+        "Curd 1 kg",
+        PasteAction.MarkNeeded("dahi", "Dahi", "Curd", ItemValue.BoolValue(false), ItemValue.BoolValue(true), amountLeftOut = true),
+    ),
     PasteRow(2, "Oil", PasteAction.AlreadyNeeded("Oil", null)),
     PasteRow(
         3,
@@ -340,6 +349,7 @@ private val PreviewRows = listOf(
     ),
     PasteRow(4, "Eggs 12", PasteAction.Skipped(SkipReason.UNIT_MISMATCH, "Eggs", Units.DOZEN)),
     PasteRow(5, "2-3 kg", PasteAction.Skipped(SkipReason.UNREADABLE)),
+    PasteRow(6, "Kirana", PasteAction.Add("Kirana", ItemValue.BoolValue(true), looksLikeHeading = true)),
 )
 
 @Composable
@@ -361,4 +371,13 @@ private fun PasteTextPreview() {
 @Composable
 private fun PastePreviewPreview() {
     PasteListDialogPreviewOf(PasteListState(text = "", previewing = true, rows = PreviewRows, selected = setOf(0, 1)))
+}
+
+/** A list shared into the app before the family's list has come from the sheet: the button waits. */
+@Preview(widthDp = 360, heightDp = 640, fontScale = 1.3f)
+@Composable
+private fun PastePreviewWaitingPreview() {
+    PasteListDialogPreviewOf(
+        PasteListState(text = "", previewing = true, rows = PreviewRows.take(2), selected = setOf(0, 1), waitingForList = true),
+    )
 }
