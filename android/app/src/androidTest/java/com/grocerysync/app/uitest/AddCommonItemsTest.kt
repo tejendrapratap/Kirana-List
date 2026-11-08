@@ -202,8 +202,9 @@ class AddCommonItemsTest : GroceryUiTest() {
         waitForNode(isHeading() and hasText("सब्ज़ी और फल"))
         node(hasText("टिक की गई चीज़ें \"सारा सामान\" में जुड़ेंगी", substring = true)).assertExists()
         node(starterRow("Onion") and hasText("kg")).assertIsOn()
-        node(starterList).performScrollToNode(starterRow("Dahi"))
-        node(starterRow("Dahi") and hasText("हाँ या नहीं") and hasContentDescription("Dahi, Curd, दही, हाँ या नहीं"))
+        // A yes / no item of the everyday set (Dahi, a regional item, isn't in it).
+        node(starterList).performScrollToNode(starterRow("Garlic"))
+        node(starterRow("Garlic") and hasText("हाँ या नहीं") and hasContentDescription("Garlic, Lahsun, लहसुन, हाँ या नहीं"))
             .assertIsOn()
 
         node(choice("व्रत")).performClick()

@@ -15,6 +15,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.grocerysync.app.MainActivity
+import com.grocerysync.app.text.AppTexts
+import com.grocerysync.app.text.Texts
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -59,11 +61,20 @@ abstract class GroceryUiTest {
         fake = FakeSheetServer().start()
     }
 
+    /**
+     * Also puts English back as the language on screen. [Texts.current] is shared by every test of the run and only
+     * MainActivity sets it (from the saved language) when it starts: a test that showed the app in Hindi would
+     * otherwise leave a createComposeRule test after it, which never starts MainActivity, drawing in Hindi.
+     */
     @After
     fun closeAppAndFake() {
-        scenario?.close()
-        scenario = null
-        fake.close()
+        try {
+            scenario?.close()
+            scenario = null
+            fake.close()
+        } finally {
+            Texts.current = AppTexts.English
+        }
     }
 
     /**

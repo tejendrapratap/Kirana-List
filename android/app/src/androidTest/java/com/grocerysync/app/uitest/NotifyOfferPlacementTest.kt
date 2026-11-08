@@ -13,7 +13,9 @@ import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.sync.ConnectionState
 import com.grocerysync.app.sync.SyncStatus
+import com.grocerysync.app.testing.UseTextsRule
 import com.grocerysync.app.testing.itemRow
+import com.grocerysync.app.text.AppTexts
 import com.grocerysync.app.text.EnglishListTexts
 import com.grocerysync.app.text.EnglishNotifyTexts
 import com.grocerysync.app.ui.ListActions
@@ -39,6 +41,10 @@ class NotifyOfferPlacementTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    /** The checks below match English texts: a Hindi test that ran before mustn't leave the card in Hindi. */
+    @get:Rule
+    val english = UseTextsRule(AppTexts.English)
 
     private val offer = hasText(EnglishNotifyTexts.offerQuestion)
     private val errorBanner = hasText(EnglishListTexts.syncErrorFallback)

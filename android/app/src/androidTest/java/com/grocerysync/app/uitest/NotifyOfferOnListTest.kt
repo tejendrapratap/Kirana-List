@@ -25,11 +25,12 @@ import org.junit.runner.RunWith
  * wasn't answered; "Not now" puts it away for good, in Simple mode too. AppState.reset counts the offer as answered,
  * so each test here that wants it makes it unanswered first.
  *
- * Whether Android has given the permission can't be chosen by a test (taking it away ends the test's process), and
- * ThisPhoneSwitchesTest grants it for the rest of the run: the tests that need the card on screen are skipped once it
- * is granted, and below Android 13. Run this class before ThisPhoneSwitchesTest (its name comes first), or on its
- * own, on an emulator where the app doesn't have the permission. "Turn on" opens Android's permission dialog, which
- * only Android's own screens can answer, so its button is checked on the card alone
+ * Whether Android has given the permission can't be chosen by a test (taking it away ends the test's process).
+ * ThisPhoneSwitchesTest grants it, and Android keeps a grant until it is taken back (reinstalling the app keeps it),
+ * so tools/e2e/uitest.sh takes it back before each run. The tests that need the card on screen are skipped while it
+ * is granted, and below Android 13: within one run this class must come before ThisPhoneSwitchesTest, as its name
+ * does (and as it does when both are named with --class in that order). "Turn on" opens Android's permission dialog,
+ * which only Android's own screens can answer, so its button is checked on the card alone
  * (NotificationCardsTest.theOffersButtons); NotifyOfferPlacementTest checks where the card sits on any emulator.
  */
 @RunWith(AndroidJUnit4::class)

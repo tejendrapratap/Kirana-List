@@ -44,6 +44,8 @@ import com.grocerysync.app.sync.ConnectionState
 import com.grocerysync.app.sync.Protocol
 import com.grocerysync.app.sync.PushProblem
 import com.grocerysync.app.sync.SyncStatus
+import com.grocerysync.app.testing.UseTextsRule
+import com.grocerysync.app.testing.isCutOff
 import com.grocerysync.app.testing.itemRow
 import com.grocerysync.app.text.AppTexts
 import com.grocerysync.app.text.Texts
@@ -56,7 +58,6 @@ import com.grocerysync.app.ui.components.spokenText
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -85,10 +86,9 @@ class SimpleModeLargeTextTest {
     private lateinit var snackbars: SnackbarHostState
     private lateinit var scope: CoroutineScope
 
-    @After
-    fun backToEnglish() {
-        Texts.current = AppTexts.English
-    }
+    /** Each test sets its language when it draws the list; English again afterwards, also after a failure. */
+    @get:Rule
+    val english = UseTextsRule(AppTexts.English)
 
     private fun item(name: String, value: ItemValue): GroceryItem =
         GroceryItem(ItemKeys.normalize(name), name, value, updatedAt = 0L, updatedBy = "Home", pendingSync = false, addedAt = 0L)
@@ -316,7 +316,7 @@ class SimpleModeLargeTextTest {
         val layouts = mutableListOf<TextLayoutResult>()
         val getLayout = node.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action
         assertTrue("$what has no text layout", getLayout?.invoke(layouts) == true)
-        assertFalse("$what overflows", layouts.single().hasVisualOverflow)
+        assertFalse("$what overflows", isCutOff(layouts.single()))
     }
 
     private companion object {

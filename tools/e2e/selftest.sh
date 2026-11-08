@@ -364,6 +364,9 @@ res $? "a failing test: exit 1, its stack and a summary" "$out"
 grep -q "^-s emulator-5556 install -r -t $R/android/app/build/outputs/apk/debug/app-debug.apk$" "$CALLS" &&
   grep -q "^-s emulator-5556 install -r -t $R/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk$" "$CALLS"
 res $? "installs the app and the test APK on the emulator only (-r -t)" "$(grep install "$CALLS")"
+grep -q '^-s emulator-5556 shell pm revoke com.grocerysync.app android.permission.POST_NOTIFICATIONS$' "$CALLS" &&
+  grep -n 'pm revoke\|am instrument' "$CALLS" | head -n 1 | grep -q 'pm revoke'
+res $? "takes back the notification permission before am instrument (Android 13+)" "$(grep -E 'pm |instrument' "$CALLS")"
 grep -q '^-s emulator-5556 shell am instrument -w -r --no-window-animation -e class com.grocerysync.app.uitest.SearchTest,com.grocerysync.app.uitest.PagesTest#c com.grocerysync.app.test/androidx.test.runner.AndroidJUnitRunner$' "$CALLS"
 res $? "am instrument with the classes, the test package and its runner" "$(grep instrument "$CALLS")"
 {

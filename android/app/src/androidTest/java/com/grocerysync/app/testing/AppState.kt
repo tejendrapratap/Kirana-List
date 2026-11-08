@@ -45,8 +45,8 @@ object AppState {
      *    PhoneSettingsStore. MainActivity reads the language when it starts. Except the list's offer of
      *    notifications, which counts as answered: on Android 13+ without the permission it would otherwise sit above
      *    the list in every connected test, and whether it does depends on test order (ThisPhoneSwitchesTest grants
-     *    the permission, which can't be taken back without ending the test's process). A test of the offer sets it
-     *    back to unanswered.
+     *    the permission, which can't be taken back without ending the test's process; tools/e2e/uitest.sh takes it
+     *    back before the next run). A test of the offer sets it back to unanswered.
      * 8. Forgets Ticked today, through the app's own store (clearing its file alone would leave the store's copy in
      *    memory): its entries are kept for the day, so a tick in one test would show under To buy in the next.
      */
