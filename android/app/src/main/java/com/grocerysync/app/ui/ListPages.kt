@@ -68,6 +68,9 @@ internal sealed interface PageContent {
     /** One row per item, in this order. */
     data class Rows(val items: List<GroceryItem>) : PageContent
 
+    /** To buy grouped by shop section (no search): each section's header, then its rows. */
+    data class Sections(val groups: List<ShopSectionGroup>) : PageContent
+
     /** The search matches nothing on this page: [message], then one row offering [action]. */
     data class NoMatch(val message: String, val action: NoMatchAction) : PageContent
 }
@@ -92,12 +95,13 @@ internal sealed interface NoMatchAction {
 }
 
 /**
- * What [page] shows for [query] (the open search's text; "" while the search is closed). [loaded], [toBuy] and
- * [allItems] are those of [ListUiState].
+ * What [page] shows for [query] (the open search's text; "" while the search is closed). [loaded], [toBuy],
+ * [allItems] and [toBuySections] are those of [ListUiState].
  *
- * While the search is inactive ([ItemSearch.isActive]) a page shows its list as it is, or its empty state. While
- * it is active, a page shows its matching items from A to Z ([ItemSearch.filter]): To buy only the needed ones,
- * All items every one. When none match, the page says so and offers one way on:
+ * While the search is inactive ([ItemSearch.isActive]) a page shows its list as it is, or its empty state; To buy
+ * by shop section when [toBuySections] is given. While it is active, a page shows its matching items from A to Z
+ * ([ItemSearch.filter]), with no sections: To buy only the needed ones, All items every one. When none match, the
+ * page says so and offers one way on:
  * - To buy, when items that are not needed match: show them under All items ([NoMatchAction.ShowInAllItems]).
  * - Otherwise nothing on the list matches: add the query as a new item ([NoMatchAction.Add], named with
  *   [ItemSearch.suggestedName] in [locale]).
@@ -109,13 +113,20 @@ internal fun pageContent(
     allItems: List<GroceryItem>,
     query: String,
     locale: Locale = Locale.getDefault(),
+    toBuySections: List<ShopSectionGroup>? = null,
 ): PageContent {
     if (!loaded) return PageContent.NotLoaded
     val items = when (page) {
         ListFilter.TO_BUY -> toBuy
         ListFilter.ALL -> allItems
     }
-    if (!ItemSearch.isActive(query)) return if (items.isEmpty()) PageContent.Empty else PageContent.Rows(items)
+    if (!ItemSearch.isActive(query)) {
+        return when {
+            items.isEmpty() -> PageContent.Empty
+            page == ListFilter.TO_BUY && toBuySections != null -> PageContent.Sections(toBuySections)
+            else -> PageContent.Rows(items)
+        }
+    }
     val shown = ItemSearch.filter(items, query)
     if (shown.isNotEmpty()) return PageContent.Rows(shown)
     // None of the needed items match; any match under All items is an item that isn't needed right now.

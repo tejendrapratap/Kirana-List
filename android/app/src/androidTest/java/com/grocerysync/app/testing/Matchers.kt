@@ -9,6 +9,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isSelectable
 
 // Finders for the app's screens, built only from what the app already exposes to accessibility services:
@@ -104,6 +105,23 @@ fun needSwitch(name: String): SemanticsMatcher = hasContentDescription("Need $na
 fun stepButton(name: String, step: String, more: Boolean): SemanticsMatcher =
     hasContentDescription("$step ${if (more) "more" else "less"} $name")
 
+/**
+ * To buy: the header of shop section [label] ("Dairy, eggs & bread"), a heading for TalkBack, which reads it with
+ * its count ("Masala, 3 items"); with any count when [count] is null.
+ */
+fun sectionHeader(label: String, count: Int? = null): SemanticsMatcher {
+    val counted = if (count == null) "\\d+ items?" else "$count ${if (count == 1) "item" else "items"}"
+    return isHeading() and hasContentDescriptionMatching(Regex("${Regex.escape(label)}, $counted"))
+}
+
+/** To buy: any shop section's header. */
+val anySectionHeader: SemanticsMatcher = isHeading() and hasContentDescriptionMatching(Regex(".+, \\d+ items?"))
+
+/** A node with a content description that matches [regex] entirely. */
+fun hasContentDescriptionMatching(regex: Regex): SemanticsMatcher = SemanticsMatcher("content description matches $regex") { node ->
+    node.config.getOrNull(SemanticsProperties.ContentDescription)?.any { regex.matches(it) } == true
+}
+
 /** All items: the amount between - and + of [name], e.g. "1.5 kg". */
 fun stepperAmount(name: String, amount: String): SemanticsMatcher =
     hasContentDescription("Quantity $amount") and hasClickAction() and hasAnyAncestor(itemRow(name))
@@ -123,7 +141,12 @@ val nameField: SemanticsMatcher = hasSetTextAction() and hasText("Item")
 val amountField: SemanticsMatcher = hasSetTextAction() and hasContentDescription("Amount")
 
 /** The item dialog's unit picker: "Unit" while none is chosen, "Unit: kg" once one is. */
-val unitPicker: SemanticsMatcher = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.DropdownList)
+val unitPicker: SemanticsMatcher = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.DropdownList) and
+    hasContentDescriptionMatching(Regex("Unit(: .+)?"))
+
+/** The edit dialog's "Shop section" picker (this phone only): "Shop section: Masala". */
+val sectionPicker: SemanticsMatcher = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.DropdownList) and
+    hasContentDescriptionMatching(Regex("Shop section: .+"))
 
 /** A labelled text field, e.g. "Secret token" or "Web app URL" in Settings, "Unit" in the Other unit dialog. */
 fun textField(label: String): SemanticsMatcher = hasSetTextAction() and hasText(label)

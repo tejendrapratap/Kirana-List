@@ -1,5 +1,6 @@
 package com.grocerysync.app.ui
 
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -78,8 +79,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.grocerysync.app.data.Amount
 import com.grocerysync.app.data.GroceryItem
+import com.grocerysync.app.data.ItemCatalog
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
+import com.grocerysync.app.data.ShopSectionSettings
 import com.grocerysync.app.data.Units
 import com.grocerysync.app.data.ValueType
 import com.grocerysync.app.sync.ConnectionState
@@ -92,6 +95,7 @@ import com.grocerysync.app.ui.components.NoSearchMatches
 import com.grocerysync.app.ui.components.PushWarningLine
 import com.grocerysync.app.ui.components.ScriptUpdateLine
 import com.grocerysync.app.ui.components.SetupBanner
+import com.grocerysync.app.ui.components.ShopSectionHeader
 import com.grocerysync.app.ui.components.SyncErrorBanner
 import com.grocerysync.app.ui.components.ToBuyRow
 import com.grocerysync.app.ui.components.rememberTickingTime
@@ -322,6 +326,9 @@ private fun EditItemDialog(key: String, state: ListUiState, viewModel: ListViewM
             },
             onDelete = { viewModel.deleteItem(key) },
             removedElsewhere = live == null,
+            // This phone's choice for the item, else the dictionary's section for the name being typed.
+            shopSection = { name -> state.shopSections.chosen[key] ?: ItemCatalog.sectionFor(name) },
+            onShopSectionChange = { name, section -> viewModel.setShopSection(key, name, section) },
         )
         // Gone before this screen saw it (e.g. after the app was restarted with the dialog open).
         state.loaded -> LaunchedEffect(key) { viewModel.onEditedItemRemoved(null) }
@@ -479,8 +486,8 @@ private fun ListContent(
                 SideEffect {
                     if (searchScroll.takeScrollToTop(filter, query)) listState.requestScrollToItem(0)
                 }
-                val content = remember(filter, state.loaded, state.toBuy, state.allItems, query) {
-                    pageContent(filter, state.loaded, state.toBuy, state.allItems, query)
+                val content = remember(filter, state.loaded, state.toBuy, state.allItems, query, state.toBuySections) {
+                    pageContent(filter, state.loaded, state.toBuy, state.allItems, query, toBuySections = state.toBuySections)
                 }
                 PullToRefreshBox(
                     isRefreshing = state.isRefreshing,
@@ -640,6 +647,7 @@ private fun LazyListScope.pageItems(
             ListFilter.TO_BUY -> toBuyRows(content.items, state, now, actions)
             ListFilter.ALL -> allItemsRows(content.items, state, now, actions)
         }
+        is PageContent.Sections -> toBuySectionRows(content.groups, state, now, actions)
         is PageContent.NoMatch -> noSearchMatches(content, actions, onShowAllItems)
     }
 }
@@ -667,7 +675,7 @@ private fun LazyListScope.emptyPage(filter: ListFilter, state: ListUiState) {
     }
 }
 
-/** To buy's rows: every needed item, or (search active) the needed items that match, A to Z. */
+/** To buy's rows: every needed item, or (search active) the needed items that match, A to Z; or a section's. */
 private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState, now: () -> Long, actions: ListActions) {
     items(items, key = ::itemKey, contentType = { "to-buy" }) { item ->
         ToBuyRow(
@@ -678,6 +686,19 @@ private fun LazyListScope.toBuyRows(items: List<GroceryItem>, state: ListUiState
             onClick = { actions.edit(item.key) },
             modifier = Modifier.animateItem(),
         )
+    }
+}
+
+/**
+ * To buy by shop section: per section a sticky header (its name and count; a heading for TalkBack), then its rows
+ * as [toBuyRows] draws them. Header keys can't collide with item keys ("item:..."), and each item is in one section.
+ */
+private fun LazyListScope.toBuySectionRows(groups: List<ShopSectionGroup>, state: ListUiState, now: () -> Long, actions: ListActions) {
+    for (group in groups) {
+        stickyHeader(key = "section:" + group.section.id, contentType = "section") {
+            ShopSectionHeader(section = group.section, count = group.items.size, modifier = Modifier.animateItem())
+        }
+        toBuyRows(group.items, state, now, actions)
     }
 }
 
@@ -799,6 +820,7 @@ private fun previewItem(
 private val PreviewItems = listOf(
     previewItem("bread", "Bread", ItemValue.BoolValue(true), 40_000L, "Home", pending = false, added = true),
     previewItem("milk", "Milk", ItemValue.Quantity(Amount(1_500L), Units.L), 600_000L, "Shop", pending = true, added = true),
+    previewItem("onion", "Onion", ItemValue.Quantity(Amount.whole(1L), Units.KG), 300_000L, "Home", pending = false),
     previewItem("rice", "Rice", ItemValue.Quantity(Amount.whole(2L), Units.KG), 900_000L, "Home", pending = false),
     previewItem("basmati rice", "Basmati rice", ItemValue.BoolValue(false), 3_600_000L, "Home", pending = false),
     previewItem("coffee", "Coffee", ItemValue.BoolValue(false), 7_200_000L, "Sheet", pending = false),
@@ -807,6 +829,7 @@ private val PreviewItems = listOf(
 private fun previewState(items: List<GroceryItem>) = ListUiState(
     loaded = true,
     toBuy = items.filter { it.value.isNeeded },
+    toBuySections = groupBySection(items.filter { it.value.isNeeded }, ShopSectionSettings()::sectionOf),
     allItems = items.filter { it.value.isNeeded } + items.filterNot { it.value.isNeeded },
     namesByKey = items.associate { it.key to it.name },
     outbox = OutboxStatus(pending = 1, failed = emptyList()),
@@ -862,4 +885,11 @@ private fun ToBuySearchPreview() {
 @Composable
 private fun ToBuySearchInAllItemsPreview() {
     ListContentPreviewOf(ListFilter.TO_BUY, SearchState(open = true, query = "coffee"))
+}
+
+/** To buy by shop section (the default) on a 360dp phone with large text, in the dark theme. */
+@Preview(showBackground = true, widthDp = 360, heightDp = 640, fontScale = 1.3f, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun ToBuySectionsPreview() {
+    ListContentPreviewOf(ListFilter.TO_BUY, SearchState())
 }
