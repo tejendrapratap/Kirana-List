@@ -21,9 +21,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
@@ -66,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -108,10 +111,13 @@ import com.grocerysync.app.ui.components.SimpleAddItemButton
 import com.grocerysync.app.ui.components.SimpleModeSnackbar
 import com.grocerysync.app.ui.components.SimpleToBuyRow
 import com.grocerysync.app.ui.components.SyncErrorBanner
+import com.grocerysync.app.ui.components.TICKED_TODAY_HEADER_KEY
 import com.grocerysync.app.ui.components.TickedTodayHeader
+import com.grocerysync.app.ui.components.TickedTodayOpen
 import com.grocerysync.app.ui.components.TickedTodayRow
 import com.grocerysync.app.ui.components.ToBuyRow
 import com.grocerysync.app.ui.components.rememberTickingTime
+import com.grocerysync.app.ui.components.tickedTodayRowKey
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import com.grocerysync.app.ui.theme.selectorColors
 import kotlinx.coroutines.CancellationException
@@ -120,6 +126,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** Keeps the last rows clear of the FAB. */
 private val FabClearance = 88.dp
@@ -379,6 +386,11 @@ fun ListScreen(
                 initialName = addName,
                 // Simple mode shows only To buy: what is added there is needed, unless the person says not.
                 defaultNeeded = simpleMode,
+                // And an item that is there but not needed is out of sight: the dialog offers to need it again.
+                notNeededKeys = remember(state.allItems) {
+                    state.allItems.filterNot { it.value.isNeeded }.mapTo(HashSet()) { it.key }
+                },
+                onNeedExisting = viewModel::needAgain,
             )
         }
         is ItemDialog.Edit -> key("edit:${current.key}") {
@@ -506,9 +518,13 @@ internal fun ListContent(
     // Simple mode has no search (ListScreen closes one left open).
     val searchOpen = search.open && !simpleMode
     val query = if (searchOpen) search.query else ""
-    // Saved like the page shown. Closed at first, but open in Simple mode, where nothing should be hidden away;
-    // turning Simple mode on or off starts it over the new mode's way.
-    var tickedTodayExpanded by rememberSaveable(simpleMode) { mutableStateOf(simpleMode) }
+    // Saved like the page shown, with the mode it was left in. Closed at first, but open in Simple mode, where nothing
+    // should be hidden away; turning Simple mode on or off starts it over the new mode's way. Not by rememberSaveable's
+    // inputs: Simple mode is switched in Settings, and a value restored from there isn't checked against them.
+    var tickedTodayOpen by rememberSaveable(stateSaver = TickedTodayOpen.Saver) {
+        mutableStateOf(TickedTodayOpen.startIn(simpleMode))
+    }
+    val tickedTodayExpanded = tickedTodayOpen.expandedIn(simpleMode)
     val rowClock = rememberTickingTime(ROW_CLOCK_PERIOD_MS)
     val now = { rowClock.value }
     val texts = Texts.current
@@ -579,7 +595,7 @@ internal fun ListContent(
                     query = query,
                     searchOpen = searchOpen,
                     tickedTodayExpanded = tickedTodayExpanded,
-                    onTickedTodayExpandedChange = { tickedTodayExpanded = it },
+                    onTickedTodayExpandedChange = { tickedTodayOpen = TickedTodayOpen(simpleMode, expanded = it) },
                     now = now,
                     actions = actions,
                     notifyOffer = notifyOffer,
@@ -633,31 +649,39 @@ private fun ListBody(
                 end = innerPadding.calculateEndPadding(layoutDirection),
             ),
     ) {
-        // Below the app bar (not in its fixed-height title slot) so large text never clips it. About as much
-        // space above it as below (the selector's 8dp plus its touch target's margin), off the green bar's edge.
-        LiveStatusLine(
-            status = state.status,
-            isConfigured = state.isConfigured,
-            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 10.dp),
-            // Simple mode's bigger text may need more lines; none of it is cut short there.
-            showAll = simpleMode,
-        )
-        // Outside the list, so they are in view however far the list is scrolled.
-        if (state.scriptUpdateNeeded) {
-            ScriptUpdateLine(
-                pendingItems = state.outbox.pending,
-                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp),
-            )
-        }
-        state.pushWarning?.let { problem ->
-            PushWarningLine(
-                problem = problem,
-                pendingItems = state.outbox.pending,
-                // A manual sync pushes at once, skipping the push backoff.
-                onRetry = actions.retrySync,
-                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp),
+        // The lines above the list take at most a part of the screen and scroll past that, so the list always keeps
+        // room for its rows: in Simple mode, with large text, a long warning in Hindi can be taller than the screen.
+        Column(
+            Modifier
+                .atMostFractionOfHeight(STATUS_LINES_MAX_HEIGHT_FRACTION)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            // Below the app bar (not in its fixed-height title slot) so large text never clips it. About as much
+            // space above it as below (the selector's 8dp plus its touch target's margin), off the green bar's edge.
+            LiveStatusLine(
+                status = state.status,
+                isConfigured = state.isConfigured,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 10.dp),
+                // Simple mode's bigger text may need more lines; none of it is cut short there.
                 showAll = simpleMode,
             )
+            // Outside the list, so they are in view however far the list is scrolled.
+            if (state.scriptUpdateNeeded) {
+                ScriptUpdateLine(
+                    pendingItems = state.outbox.pending,
+                    modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp),
+                )
+            }
+            state.pushWarning?.let { problem ->
+                PushWarningLine(
+                    problem = problem,
+                    pendingItems = state.outbox.pending,
+                    // A manual sync pushes at once, skipping the push backoff.
+                    onRetry = actions.retrySync,
+                    modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp),
+                    showAll = simpleMode,
+                )
+            }
         }
         if (simpleMode) {
             // Only To buy: no page row, no pager and nothing to swipe to. Its gap above is the list's header item.
@@ -737,6 +761,23 @@ private fun ListBody(
             }
         }
     }
+}
+
+/** The most of the list screen's body the status line and the warnings under it take ([atMostFractionOfHeight]). */
+private const val STATUS_LINES_MAX_HEIGHT_FRACTION = 1f / 3
+
+/**
+ * Takes at most [fraction] of the height it is offered. In a Column, a child without a weight is measured before the
+ * weighted ones and offered the height left, so this leaves the rest to the weighted child (the list).
+ */
+private fun Modifier.atMostFractionOfHeight(fraction: Float): Modifier = layout { measurable, constraints ->
+    val limited = if (constraints.hasBoundedHeight) {
+        constraints.copy(maxHeight = (constraints.maxHeight * fraction).roundToInt().coerceAtLeast(constraints.minHeight))
+    } else {
+        constraints
+    }
+    val placeable = measurable.measure(limited)
+    layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
 }
 
 /**
@@ -1065,8 +1106,9 @@ private fun LazyListScope.allItemsRows(items: List<GroceryItem>, state: ListUiSt
 /**
  * "Ticked today" ([ListUiState.tickedToday]): a header that sticks like a section's ("Ticked today (3)", a heading
  * for TalkBack) and, while [expanded], one row per item with its Put back button. Nothing when no item is ticked.
- * Keys can't collide with the rows' ("item:...") or the sections' ("section:..."). In [simpleMode] the header and
- * the rows are as tall as Simple mode's other rows.
+ * Keys can't collide with each other, whatever an item is called ([tickedTodayRowKey]), nor with the rows'
+ * ("item:...") or the sections' ("section:..."). In [simpleMode] the header and the rows are as tall as Simple mode's
+ * other rows.
  */
 private fun LazyListScope.tickedTodaySection(
     entries: List<TickedEntry>,
@@ -1077,7 +1119,7 @@ private fun LazyListScope.tickedTodaySection(
 ) {
     if (entries.isEmpty()) return
     val height = if (simpleMode) Modifier.heightIn(min = SimpleRowMinHeight) else Modifier
-    stickyHeader(key = "ticked:header", contentType = "ticked-header") {
+    stickyHeader(key = TICKED_TODAY_HEADER_KEY, contentType = "ticked-header") {
         TickedTodayHeader(
             count = entries.size,
             expanded = expanded,
@@ -1086,7 +1128,7 @@ private fun LazyListScope.tickedTodaySection(
         )
     }
     if (expanded) {
-        items(entries, key = { "ticked:" + it.key }, contentType = { "ticked" }) { entry ->
+        items(entries, key = ::tickedTodayRowKey, contentType = { "ticked" }) { entry ->
             TickedTodayRow(entry = entry, onPutBack = { onPutBack(entry) }, modifier = Modifier.animateItem().then(height))
         }
     }

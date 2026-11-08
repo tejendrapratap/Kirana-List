@@ -39,6 +39,7 @@ import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -138,6 +139,10 @@ private val ScrollHintFadeHeight = 24.dp
  * button under the name calls [onOpenExisting] with that item's key, to edit it instead. A new name that the
  * item dictionary knows as another name of an item on the list ("Curd" while "Dahi" is there) only gets a
  * warning ([similarItemName]) and Save stays enabled; in add mode it offers the same button.
+ * [notNeededKeys]: the keys of the items on the list that aren't needed. With [defaultNeeded] (Simple mode, which shows
+ * only To buy), when the item the name is taken by or similar to is one of them, the dialog says it is on the list but
+ * not needed now, and its button calls [onNeedExisting] with that item's key, to make it needed again instead: Simple
+ * mode shows that item nowhere, and has no All items or search to find it.
  * [initialName]: add mode only, the name the field starts with (e.g. the All items search); when given,
  * the name field is not autofocused.
  *
@@ -164,6 +169,8 @@ fun ItemEditDialog(
     shopSection: ((name: String) -> ShopSection)? = null,
     onShopSectionChange: (name: String, section: ShopSection) -> Unit = { _, _ -> },
     defaultNeeded: Boolean = false,
+    notNeededKeys: Set<String> = emptySet(),
+    onNeedExisting: (key: String) -> Unit = {},
 ) {
     val t = Texts.current
     val isAdd = item == null
@@ -222,6 +229,10 @@ fun ItemEditDialog(
     val takenBy = if (nameError == null) nameTakenBy(name, item?.key, existingNames) else null
     // The same thing under another name ("Curd" while "Dahi" is on the list): a warning only.
     val similarTo = remember(name, item?.key, existingNames) { similarItemName(name, item?.key, existingNames) }
+    // Simple mode: that item is on the list but not needed, so out of sight; the dialog offers to need it again.
+    val notNeededMatch = (takenBy ?: similarTo)?.takeIf {
+        isAdd && defaultNeeded && ItemKeys.normalize(it) in notNeededKeys
+    }
     val canSave = canSaveItem(name, item?.key, existingNames, type, amountText, unit)
     val changedElsewhere = !removedElsewhere && liveValue != null && baseValue != null && liveValue != baseValue
 
@@ -371,7 +382,11 @@ fun ItemEditDialog(
                 }
                 val nameMessage = when {
                     nameError != null && name.isNotEmpty() -> nameError
-                    takenBy != null -> if (isAdd) alreadyOnListText(takenBy) else anotherItemCalledText(takenBy)
+                    takenBy != null -> when {
+                        notNeededMatch != null -> onListNotNeededText(takenBy)
+                        isAdd -> alreadyOnListText(takenBy)
+                        else -> anotherItemCalledText(takenBy)
+                    }
                     else -> null
                 }
                 // Never together with nameMessage (see similarItemName); not an error, so Save stays enabled.
@@ -413,7 +428,13 @@ fun ItemEditDialog(
                         // input"; outermost on the field's node, so it replaces that default.
                         .semantics { nameMessage?.let { error(it) } },
                 )
-                if (isAdd && takenBy != null) {
+                if (notNeededMatch != null) {
+                    // One tap, and big: the person may not know the item is there (this dialog closes).
+                    FilledTonalButton(
+                        onClick = { onNeedExisting(ItemKeys.normalize(notNeededMatch)) },
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) { Text(putBackOnToBuyText(notNeededMatch)) }
+                } else if (isAdd && takenBy != null) {
                     // Edit the item that is already there instead (this dialog closes).
                     TextButton(onClick = { onOpenExisting(ItemKeys.normalize(name)) }) { Text(openItemText(takenBy)) }
                 } else if (isAdd && similarTo != null) {

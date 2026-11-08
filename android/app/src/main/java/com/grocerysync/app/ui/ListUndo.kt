@@ -1,7 +1,9 @@
 package com.grocerysync.app.ui
 
+import com.grocerysync.app.data.GroceryItem
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.TickedEntry
+import com.grocerysync.app.data.stepped
 import com.grocerysync.app.text.Texts
 import com.grocerysync.app.ui.components.spokenText
 
@@ -31,6 +33,24 @@ internal fun stepEvent(
         return ListEvent.Stepped(key, name, shown.before, next, shown.tickedEntry)
     }
     return ListEvent.Stepped(key, name, current, next, ticked)
+}
+
+/**
+ * The change that makes [item], which isn't needed, needed again ([ListViewModel.needAgain]): a yes / no item becomes
+ * yes; a quantity gets the amount it had before this phone ticked it off today, as Put back gives it ([ticked], its
+ * entry under Ticked today, if any, while the item is still as this phone's tick left it: [TickedEntry.isStillTicked],
+ * [me] being this phone's name), else one step of its unit, as + gives it. The change carries that entry, as it takes
+ * the item off Ticked today, so its Undo puts it back ([ListEvent.ValueChange.tickedEntry]).
+ */
+internal fun neededAgainChange(item: GroceryItem, ticked: TickedEntry?, me: String): ListEvent.ValueChange {
+    val entry = ticked?.takeIf { it.key == item.key && it.isStillTicked(item, me) }
+    return when (val value = item.value) {
+        is ItemValue.BoolValue -> ListEvent.NeedChanged(item.key, item.name, needed = true, tickedEntry = entry)
+        is ItemValue.Quantity -> {
+            val before = (entry?.before as? ItemValue.Quantity)?.takeIf { it.isNeeded }
+            ListEvent.Stepped(item.key, item.name, value, before ?: value.stepped(up = true), entry)
+        }
+    }
 }
 
 /**

@@ -37,6 +37,8 @@ class ItemTextsHindiTest {
         assertEquals("\"Rice\" नाम का दूसरा सामान पहले से है", anotherItemCalledText("Rice"))
         assertEquals("\"Rice\" खोलें", openItemText("Rice"))
         assertEquals("मिलता-जुलता \"दही\" पहले से लिस्ट में है", similarItemText("दही"))
+        assertEquals("\"Dahi\" लिस्ट में है, पर अभी नहीं चाहिए", onListNotNeededText("Dahi"))
+        assertEquals("\"Dahi\" को \"ख़रीदना है\" में वापस लाएँ", putBackOnToBuyText("Dahi"))
         // A long name is cut as in English: the button quotes a shorter one.
         val long = "Basmati rice extra long grain premium quality from the hills"
         assertEquals("\"Basmati rice extra long grain premium...\" पहले से लिस्ट में है", alreadyOnListText(long))

@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -145,7 +146,8 @@ internal fun syncErrorText(message: String?): String {
  * The list is live (reading works) but sending changes keeps failing: says why and what happens to the
  * waiting changes; Retry sends them now. Shown under the status line, outside the scrolling list, so it
  * is in view however far the list is scrolled; accessibility services announce it when it appears. At most
- * six lines, shortened if need be, or with [showAll] (Simple mode, whose text is bigger) as many as it takes.
+ * six lines, shortened if need be, or with [showAll] (Simple mode, whose text is bigger) as many as it takes. Retry
+ * goes under the text when its label would leave the text too narrow ([ButtonBesideOrBelow]).
  */
 @Composable
 fun PushWarningLine(
@@ -165,28 +167,64 @@ fun PushWarningLine(
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
     ) {
-        Row(
-            modifier = Modifier.padding(start = 12.dp, top = 4.dp, end = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(PUSH_WARNING_TITLE) }
-                    append(text.removePrefix(PUSH_WARNING_TITLE))
-                },
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = if (showAll) Int.MAX_VALUE else 6,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 4.dp),
-            )
+        ButtonBesideOrBelow(Modifier.padding(start = 12.dp, top = 4.dp, end = 4.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(PUSH_WARNING_TITLE) }
+                        append(text.removePrefix(PUSH_WARNING_TITLE))
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = if (showAll) Int.MAX_VALUE else 6,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 4.dp),
+                )
+            }
             TextButton(
                 onClick = onRetry,
                 modifier = Modifier.semantics { contentDescription = t.list.retrySendingChanges },
             ) { Text(t.common.retry) }
+        }
+    }
+}
+
+/**
+ * The most of a line's width its button takes beside the text ([ButtonBesideOrBelow]); a wider one goes under it.
+ * Hindi's Retry (फिर से कोशिश करें) at the usual text size fits, so the line stays compact.
+ */
+private const val BESIDE_BUTTON_MAX_WIDTH_FRACTION = 0.4f
+
+/**
+ * Lays out [content], a text and then a button (two children, in that order), as one line of the width it is given:
+ * the button at the end beside the text, both centred, while the button takes at most
+ * [BESIDE_BUTTON_MAX_WIDTH_FRACTION] of the width; else the text across the whole width and the button under it at
+ * the end. Measured beside it, the text gets only what the button leaves (a button doesn't wrap its label first): with
+ * a long label (Hindi) and large text that is a strip of a few letters a line, many lines tall.
+ */
+@Composable
+private fun ButtonBesideOrBelow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val (textPart, buttonPart) = measurables
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val button = buttonPart.measure(loose)
+        val width = constraints.maxWidth
+        if (button.width <= width * BESIDE_BUTTON_MAX_WIDTH_FRACTION) {
+            val text = textPart.measure(loose.copy(maxWidth = width - button.width))
+            val height = maxOf(text.height, button.height)
+            layout(width, height) {
+                text.placeRelative(0, (height - text.height) / 2)
+                button.placeRelative(width - button.width, (height - button.height) / 2)
+            }
+        } else {
+            val text = textPart.measure(loose)
+            layout(width, text.height + button.height) {
+                text.placeRelative(0, 0)
+                button.placeRelative(width - button.width, text.height)
+            }
         }
     }
 }

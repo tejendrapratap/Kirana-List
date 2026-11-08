@@ -47,6 +47,15 @@ interface ItemTexts {
      */
     fun similarItem(name: String): String
 
+    /**
+     * Simple mode's add dialog, whose list shows only To buy, for a name of an item on the list that isn't needed (so
+     * out of sight there): "Dahi" is on the list but isn't needed now. Instead of [alreadyOnList].
+     */
+    fun onListNotNeeded(name: String): String
+
+    /** The button under it that makes that item needed again and closes the dialog: Put "Dahi" back on To buy. */
+    fun putBackOnToBuy(name: String): String
+
     /** Above the name when the item was renamed or removed on another phone while the dialog was open. */
     val removedElsewhere: String
 
@@ -161,6 +170,8 @@ object EnglishItemTexts : ItemTexts {
     override fun anotherItemCalled(name: String) = "Another item is already called \"$name\""
     override fun openItem(name: String) = "Open \"$name\""
     override fun similarItem(name: String) = "Similar: \"$name\" is already on the list"
+    override fun onListNotNeeded(name: String) = "\"$name\" is on the list but isn't needed now"
+    override fun putBackOnToBuy(name: String) = "Put \"$name\" back on ${EnglishCommonTexts.toBuy}"
     override val removedElsewhere = "This item was renamed or removed on another phone. Save to add it again."
     override fun changedElsewhere(value: String) = "Changed on another phone to $value. Save to use your value instead."
     override val trackAs = "Track as"
@@ -212,6 +223,10 @@ object HindiItemTexts : ItemTexts {
     override fun anotherItemCalled(name: String) = "\"$name\" नाम का दूसरा सामान पहले से है"
     override fun openItem(name: String) = "\"$name\" खोलें"
     override fun similarItem(name: String) = "मिलता-जुलता \"$name\" पहले से लिस्ट में है"
+    override fun onListNotNeeded(name: String) = "\"$name\" लिस्ट में है, पर अभी नहीं चाहिए"
+
+    // Put back (वापस लाएँ), as Ticked today's button says it, into the page named in quotes.
+    override fun putBackOnToBuy(name: String) = "\"$name\" को \"${HindiCommonTexts.toBuy}\" में वापस लाएँ"
     override val removedElsewhere = "दूसरे फ़ोन पर इसका नाम बदला गया या इसे हटाया गया। फिर से जोड़ने के लिए सेव करें।"
 
     // "बदला गया: ..." reads well before both a word (चाहिए) and an amount (2 kg).

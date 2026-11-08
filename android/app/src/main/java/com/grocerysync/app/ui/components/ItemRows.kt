@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.IntrinsicMeasurable
@@ -519,7 +520,7 @@ private fun UpdatedByText(updatedBy: String, maxLines: Int = 1) {
 private fun QuantityBadge(quantity: ItemValue.Quantity, maxLines: Int = 2) {
     val text = quantity.displayText()
     Surface(
-        shape = RoundedCornerShape(percent = 50),
+        shape = quantityBadgeShape(MaterialTheme.typography.titleMedium),
         // Turmeric, the colour of amounts to buy: the fixed role, so the chip is bright haldi in dark mode too.
         color = MaterialTheme.colorScheme.secondaryFixedDim,
         contentColor = MaterialTheme.colorScheme.onSecondaryFixed,
@@ -533,10 +534,33 @@ private fun QuantityBadge(quantity: ItemValue.Quantity, maxLines: Int = 2) {
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             maxLines = maxLines,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = BadgeVerticalPadding),
         )
     }
 }
+
+/** The space above and below a [QuantityBadge]'s text. */
+private val BadgeVerticalPadding = 4.dp
+
+/**
+ * A [QuantityBadge]'s shape: a pill while its text ([style]) is on one line. A badge that wraps keeps a one-line
+ * badge's corners (half its height) rather than becoming a pill of its own size: the round ends of a tall pill would
+ * cut off the ends of its widest lines, whose text starts close to the edge. The height of a line is measured, not
+ * taken from the style, as the text is laid out (large text grows line heights less on Android 14 and later).
+ */
+@Composable
+private fun quantityBadgeShape(style: TextStyle): Shape {
+    val textMeasurer = rememberTextMeasurer(cacheSize = 1)
+    val padding = with(LocalDensity.current) { BadgeVerticalPadding.toPx() }
+    return remember(textMeasurer, style, padding) {
+        val lineHeight = textMeasurer.measure(ONE_LINE_SAMPLE, style, maxLines = 1).size.height
+        // A corner larger than half the badge's height is made smaller (CornerBasedShape), so one line is a pill.
+        RoundedCornerShape(lineHeight / 2f + padding)
+    }
+}
+
+/** Any text of one line: only its height is used. */
+private const val ONE_LINE_SAMPLE = "2 kg"
 
 @Composable
 private fun NeedToggle(needed: Boolean, itemName: String, onNeededChange: (Boolean) -> Unit) {
