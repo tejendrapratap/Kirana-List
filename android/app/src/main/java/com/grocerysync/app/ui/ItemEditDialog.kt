@@ -105,6 +105,7 @@ import com.grocerysync.app.data.convertTo
 import com.grocerysync.app.data.displayText
 import com.grocerysync.app.data.stepped
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
+import com.grocerysync.app.ui.theme.selectorColors
 import kotlinx.coroutines.delay
 import kotlin.math.min
 
@@ -270,11 +271,13 @@ fun ItemEditDialog(
                     selected = type == ValueType.BOOLEAN,
                     onClick = { switchType(ValueType.BOOLEAN) },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    colors = selectorColors(),
                 ) { Text(LABEL_YES_NO) }
                 SegmentedButton(
                     selected = type == ValueType.QUANTITY,
                     onClick = { switchType(ValueType.QUANTITY) },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    colors = selectorColors(),
                 ) { Text(LABEL_QUANTITY) }
             }
         }
@@ -292,6 +295,7 @@ fun ItemEditDialog(
                             needed = true
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        colors = selectorColors(),
                     ) { Text(LABEL_YES) }
                     SegmentedButton(
                         selected = !needed,
@@ -300,6 +304,7 @@ fun ItemEditDialog(
                             needed = false
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        colors = selectorColors(),
                     ) { Text(LABEL_NO) }
                 }
             }
