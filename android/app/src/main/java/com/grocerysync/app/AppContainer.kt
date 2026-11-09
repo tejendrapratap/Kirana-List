@@ -27,7 +27,7 @@ class AppContainer(context: Context) {
     val settings = SettingsStore(appContext)
     /** This phone's own To buy layout: grouping by shop section and sections chosen per item (never synced). */
     val shopSections = ShopSectionStore(appContext)
-    /** This phone's own preferences: language, Simple mode, change notifications (never synced). */
+    /** This phone's own preferences: language and Simple mode (never synced). */
     val phoneSettings = PhoneSettingsStore(appContext)
     /** "Ticked today" under To buy: the items this phone took off To buy today (never synced). */
     val tickedToday = TickedTodayStore(appContext)

@@ -32,7 +32,7 @@ android {
         // "Added by" (database version 3). 4: search on the page shown, To buy too (database version 3).
         // 5: share the list, common items, Hindi / English names, paste a list and shop sections
         // (database version 3). 6: the new name (Kirana List) and look, the same data (database version 3).
-        // 7: more Undo, Ticked today, Hindi, Simple mode and change notifications (database version 3).
+        // 7: more Undo, Ticked today, Hindi and Simple mode (database version 3).
         // Android refuses to install an older versionCode over this one, so an older app, which cannot
         // open a newer database, can't replace it.
         versionCode = 7
@@ -41,8 +41,7 @@ android {
         // on To buy too: it searches the page shown, 1.4 = share the list, common items, Hindi / English
         // names, paste a list and To buy by shop section, 1.5 = Kirana List: the new name, icon and
         // "fresh market" colours, with a colour for each shop section, 1.6 = Undo after - / +, the Need
-        // switch and Edit, Ticked today, the app in Hindi with a Language choice, Simple mode for elders
-        // and a notification when someone else adds to To buy).
+        // switch and Edit, Ticked today, the app in Hindi with a Language choice and Simple mode for elders).
         versionName = "1.6"
 
         // UI tests (src/androidTest): run them on an emulator with tools/e2e/uitest.sh, not with

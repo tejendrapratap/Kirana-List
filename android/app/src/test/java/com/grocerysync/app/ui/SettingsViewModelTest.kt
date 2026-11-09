@@ -2,7 +2,6 @@ package com.grocerysync.app.ui
 
 import androidx.lifecycle.SavedStateHandle
 import com.grocerysync.app.data.FakeSharedPreferences
-import com.grocerysync.app.data.PhoneSettings
 import com.grocerysync.app.data.PhoneSettingsStore
 import com.grocerysync.app.data.ServerClock
 import com.grocerysync.app.data.SettingsStore
@@ -514,41 +513,6 @@ class SettingsViewModelTest {
         assertTrue(vm.phoneSettings.value.simpleMode)
         vm.setSimpleMode(false)
         assertFalse(phoneStore.current().simpleMode)
-    }
-
-    @Test
-    fun theNotificationsSwitchIsSavedAtOnceAndAnswersTheListsOffer() {
-        val vm = viewModel()
-        assertTrue(vm.phoneSettings.value.notifyChanges)
-        assertFalse(vm.phoneSettings.value.notifyOfferDone)
-        vm.setNotifyChanges(false)
-        assertEquals(PhoneSettings(notifyChanges = false, notifyOfferDone = true), phoneStore.current())
-        vm.setNotifyChanges(true)
-        assertEquals(PhoneSettings(notifyChanges = true, notifyOfferDone = true), phoneStore.current())
-        // Not part of Save: nothing typed is touched.
-        assertEquals("", vm.webAppUrl)
-    }
-
-    @Test
-    fun askingAndroidForTheNotificationPermissionIsSaved() {
-        val vm = viewModel()
-        assertFalse(vm.phoneSettings.value.notifyPermissionAsked)
-        vm.onNotifyPermissionAsked()
-        assertTrue(phoneStore.current().notifyPermissionAsked)
-        assertTrue(vm.phoneSettings.value.notifyPermissionAsked)
-    }
-
-    @Test
-    fun theNotificationsSwitchAsksForANameUntilOneIsSaved() {
-        val vm = viewModel()
-        assertTrue(vm.noNameSaved)
-        vm.onWebAppUrlChange(url)
-        vm.onTokenChange("first-token-1234")
-        vm.onDeviceNameChange("Mummy")
-        // Typed but not saved: the sheet would still get the phone's model.
-        assertTrue(vm.noNameSaved)
-        vm.saveAndWait()
-        assertFalse(vm.noNameSaved)
     }
 
     private fun assertHandleHasNoToken(handle: SavedStateHandle, vararg tokens: String) {

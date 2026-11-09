@@ -61,7 +61,6 @@ case $sub in
     cmdline="$*"
     case $cmdline in
       "getprop sys.boot_completed") cat "$D/devices/$serial.boot" 2>/dev/null || echo 1;;
-      "getprop ro.build.version.sdk") cat "$D/devices/$serial.sdk" 2>/dev/null || echo 36;;
       "pm path android") echo "package:/system/framework/framework-res.apk";;
       "pm path com.grocerysync.app") [ -f "$D/installed" ] && echo "package:/data/app/base.apk";;
       "cat /proc/sys/kernel/random/boot_id") cat "$D/devices/$serial.bootid" 2>/dev/null || echo boot-1;;

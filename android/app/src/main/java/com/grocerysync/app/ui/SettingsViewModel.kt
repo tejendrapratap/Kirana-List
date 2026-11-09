@@ -112,13 +112,6 @@ class SettingsViewModel(
     /** The saved Web app URL: the only URL the saved token is sent to. */
     private var savedUrl by mutableStateOf(settingsStore.current().webAppUrl)
 
-    /**
-     * No name is saved for this phone (the sheet gets its model's name instead): the notifications switch asks for
-     * one. The saved name, not the field: a name typed but not saved doesn't count yet.
-     */
-    var noNameSaved by mutableStateOf(settingsStore.current().deviceName.isBlank())
-        private set
-
     /** The setup code's token while the URL field still holds the code's URL. */
     private val usableSetupCodeToken: String?
         get() = setupCodeToken?.takeIf { TokenEntry.sameUrl(setupCodeUrl, webAppUrl) }
@@ -165,7 +158,6 @@ class SettingsViewModel(
             settingsStore.settings.collect {
                 hasSavedToken = it.token.isNotBlank()
                 savedUrl = it.webAppUrl
-                noNameSaved = it.deviceName.isBlank()
             }
         }
     }
@@ -250,24 +242,6 @@ class SettingsViewModel(
     /** Simple mode on or off, saved at once; the list screen follows it. */
     fun setSimpleMode(on: Boolean) {
         phoneSettingsStore.setSimpleMode(on)
-    }
-
-    /**
-     * Change notifications on or off, saved at once (GroceryApp plans or cancels the background check). Either way
-     * this answers the list screen's one-time offer too: someone who chose here isn't asked there again. Asking
-     * Android for the permission is the screen's part (it needs the activity).
-     */
-    fun setNotifyChanges(on: Boolean) {
-        phoneSettingsStore.setNotifyChanges(on)
-        phoneSettingsStore.setNotifyOfferDone(true)
-    }
-
-    /**
-     * The screen asks Android for the notification permission (the switch turned on, or "Turn on notifications"):
-     * saved, so This phone stops offering to ask and says they are blocked if the answer was no.
-     */
-    fun onNotifyPermissionAsked() {
-        phoneSettingsStore.setNotifyPermissionAsked(true)
     }
 
     /**

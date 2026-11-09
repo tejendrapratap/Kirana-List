@@ -36,9 +36,6 @@ internal object DatabaseSchema {
     const val M_LAST_SUCCESS = "last_success_at"
     const val M_SERVER_VERSION = "server_version"
 
-    /** The web app URL that answered last (1.6): the mirror is its list. A meta row, so no new schema version. */
-    const val M_SHEET_URL = "sheet_url"
-
     /**
      * A new install. Columns added by an upgrade come last, in the order the upgrades add them, so a fresh
      * database and an upgraded one have the same tables.

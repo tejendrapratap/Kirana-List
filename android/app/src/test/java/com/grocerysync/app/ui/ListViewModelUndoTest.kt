@@ -612,7 +612,7 @@ class ListViewModelUndoTest {
         val entry = ticked.today().single()
         // The tick came back from the sheet under the name this phone had then.
         store.synced(listOf(item("Rice", kg("0"), by = me, updatedAt = 50_000L), item("Dal", kg("1"))))
-        // Your name typed in Settings later (the line under the notifications switch asks for it).
+        // Your name typed in Settings later.
         settings.save(SyncSettings("", "", "Papa"))
         assertEquals(listOf(entry), shownTickedToday(ticked.today(), repository.items.first(), "Papa"))
         // The next change prunes Ticked today: Rice stays, Put back still there.

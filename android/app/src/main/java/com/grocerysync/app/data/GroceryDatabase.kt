@@ -25,7 +25,6 @@ import com.grocerysync.app.data.DatabaseSchema.C_VALUE
 import com.grocerysync.app.data.DatabaseSchema.M_LAST_SUCCESS
 import com.grocerysync.app.data.DatabaseSchema.M_REVISION
 import com.grocerysync.app.data.DatabaseSchema.M_SERVER_VERSION
-import com.grocerysync.app.data.DatabaseSchema.M_SHEET_URL
 import com.grocerysync.app.data.DatabaseSchema.M_SPREADSHEET
 import com.grocerysync.app.data.DatabaseSchema.T_ITEMS
 import com.grocerysync.app.data.DatabaseSchema.T_META
@@ -40,16 +39,9 @@ data class ServerSnapshot(val revision: String, val spreadsheetName: String?, va
 
 /**
  * [serverVersion]: protocol version of the script that answered last (2 for scripts that don't say), null
- * before any answer; see [SyncStore.commitPull]. [sheetUrl]: the web app URL that answered last, so the list
- * kept is its list (null before any answer since 1.6); after the phone switches to another sheet it still names
- * the old one until the new one answers.
+ * before any answer; see [SyncStore.commitPull].
  */
-data class SyncInfo(
-    val lastSuccessAt: Long?,
-    val spreadsheetName: String?,
-    val serverVersion: Int? = null,
-    val sheetUrl: String? = null,
-)
+data class SyncInfo(val lastSuccessAt: Long?, val spreadsheetName: String?, val serverVersion: Int? = null)
 
 /** Storage operations used by the sync engine. All calls block; run them on an IO dispatcher. */
 interface SyncStore {
@@ -60,7 +52,7 @@ interface SyncStore {
     /**
      * After an `apply` response, in one transaction: deletes the confirmed ops [deleteIds], marks
      * [failures] (op id -> server error) FAILED, replaces the mirror with [snapshot] and records the
-     * [serverVersion] and the web app URL ([sheetUrl]) that answered.
+     * [serverVersion] that answered.
      */
     fun commitPush(
         deleteIds: Set<String>,
@@ -68,15 +60,13 @@ interface SyncStore {
         snapshot: ServerSnapshot,
         syncedAt: Long,
         serverVersion: Int,
-        sheetUrl: String,
     )
 
     /**
      * After a `list` response: replaces the mirror with [snapshot], or just records success when unchanged
-     * (null); records the [serverVersion] that answered (the version the mirror and revision come from) and its
-     * web app URL ([sheetUrl]: "unchanged" means the mirror is that sheet's list too).
+     * (null); records the [serverVersion] that answered (the version the mirror and revision come from).
      */
-    fun commitPull(snapshot: ServerSnapshot?, syncedAt: Long, serverVersion: Int, sheetUrl: String)
+    fun commitPull(snapshot: ServerSnapshot?, syncedAt: Long, serverVersion: Int)
 }
 
 /**
@@ -131,7 +121,6 @@ class GroceryDatabase(context: Context) : SyncStore {
             lastSuccessAt = getMeta(db, M_LAST_SUCCESS)?.toLongOrNull(),
             spreadsheetName = getMeta(db, M_SPREADSHEET),
             serverVersion = getMeta(db, M_SERVER_VERSION)?.toIntOrNull(),
-            sheetUrl = getMeta(db, M_SHEET_URL),
         )
     }
 
@@ -192,7 +181,6 @@ class GroceryDatabase(context: Context) : SyncStore {
         snapshot: ServerSnapshot,
         syncedAt: Long,
         serverVersion: Int,
-        sheetUrl: String,
     ) = write { db ->
         for (id in deleteIds) db.delete(T_OUTBOX, "$C_ID = ?", arrayOf(id))
         for ((id, error) in failures) {
@@ -205,16 +193,13 @@ class GroceryDatabase(context: Context) : SyncStore {
         replaceMirror(db, snapshot)
         putMeta(db, M_LAST_SUCCESS, syncedAt.toString())
         putMeta(db, M_SERVER_VERSION, serverVersion.toString())
-        putMeta(db, M_SHEET_URL, sheetUrl)
     }
 
-    override fun commitPull(snapshot: ServerSnapshot?, syncedAt: Long, serverVersion: Int, sheetUrl: String) =
-        write { db ->
-            if (snapshot != null) replaceMirror(db, snapshot)
-            putMeta(db, M_LAST_SUCCESS, syncedAt.toString())
-            putMeta(db, M_SERVER_VERSION, serverVersion.toString())
-            putMeta(db, M_SHEET_URL, sheetUrl)
-        }
+    override fun commitPull(snapshot: ServerSnapshot?, syncedAt: Long, serverVersion: Int) = write { db ->
+        if (snapshot != null) replaceMirror(db, snapshot)
+        putMeta(db, M_LAST_SUCCESS, syncedAt.toString())
+        putMeta(db, M_SERVER_VERSION, serverVersion.toString())
+    }
 
     private fun replaceMirror(db: SQLiteDatabase, snapshot: ServerSnapshot) {
         db.delete(T_ITEMS, null, null)

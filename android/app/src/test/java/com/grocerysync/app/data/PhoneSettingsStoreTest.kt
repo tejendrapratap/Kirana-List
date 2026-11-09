@@ -12,13 +12,7 @@ class PhoneSettingsStoreTest {
     @Test
     fun startsWithTheDefaults() {
         assertEquals(
-            PhoneSettings(
-                language = AppLanguage.PHONE,
-                simpleMode = false,
-                notifyChanges = true,
-                notifyOfferDone = false,
-                notifyPermissionAsked = false,
-            ),
+            PhoneSettings(language = AppLanguage.PHONE, simpleMode = false),
             PhoneSettingsStore(prefs).current(),
         )
     }
@@ -28,17 +22,8 @@ class PhoneSettingsStoreTest {
         val store = PhoneSettingsStore(prefs)
         store.setLanguage(AppLanguage.HINDI)
         store.setSimpleMode(true)
-        store.setNotifyChanges(false)
-        store.setNotifyOfferDone(true)
-        store.setNotifyPermissionAsked(true)
 
-        val changed = PhoneSettings(
-            AppLanguage.HINDI,
-            simpleMode = true,
-            notifyChanges = false,
-            notifyOfferDone = true,
-            notifyPermissionAsked = true,
-        )
+        val changed = PhoneSettings(AppLanguage.HINDI, simpleMode = true)
         assertEquals(changed, store.current())
         assertEquals(changed, store.settings.value)
         assertEquals(changed, PhoneSettingsStore(prefs).current())
@@ -53,9 +38,9 @@ class PhoneSettingsStoreTest {
     @Test
     fun aSettingChangesOnlyItself() {
         val store = PhoneSettingsStore(prefs)
-        store.setNotifyOfferDone(true)
-        assertEquals(PhoneSettings(notifyOfferDone = true), store.current())
-        assertEquals(PhoneSettings(notifyOfferDone = true), PhoneSettingsStore(prefs).current())
+        store.setSimpleMode(true)
+        assertEquals(PhoneSettings(simpleMode = true), store.current())
+        assertEquals(PhoneSettings(simpleMode = true), PhoneSettingsStore(prefs).current())
     }
 
     @Test
@@ -71,8 +56,6 @@ class PhoneSettingsStoreTest {
         // A language a newer version knows, and values of the wrong type (they must not throw).
         prefs.values["language"] = "mr"
         prefs.values["simple_mode"] = "yes"
-        prefs.values["notify_changes"] = 0
-        prefs.values["notify_offer_done"] = 1L
         assertEquals(PhoneSettings(), PhoneSettingsStore(prefs).current())
 
         prefs.values["language"] = 3
