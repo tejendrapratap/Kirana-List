@@ -22,7 +22,7 @@ import org.junit.runner.RunWith
 
 /** Settings > This phone: the Simple mode switch, saved as soon as it is switched. */
 @RunWith(AndroidJUnit4::class)
-class ThisPhoneSwitchesTest : GroceryUiTest() {
+class SimpleModeSwitchTest : GroceryUiTest() {
 
     /** A switch row by its title (the line under it is part of the same row). */
     private fun switchRow(title: String): SemanticsMatcher = isToggleable() and hasText(title)
