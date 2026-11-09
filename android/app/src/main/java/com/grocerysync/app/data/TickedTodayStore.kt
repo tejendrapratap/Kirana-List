@@ -36,12 +36,11 @@ data class TickedEntry(
     /**
      * The item is still as this phone left it: [item] (the item under [key] now; null when it isn't on the list)
      * still has [set], and its last change is this phone's ([GroceryItem.isChangedLastByOthers]) under its name now
-     * ([me]) or the one it ticked with ([by]): someone who types Your name in Settings after ticking (as the line
-     * under the notifications switch asks) keeps the ticks already sent to the sheet under the old name. Not when it
-     * is needed again, was renamed (its key is gone) or removed, or the other phone changed it otherwise. Nor when
-     * the other phone needed it again and then ticked it off itself: the item has [set] again, but that tick isn't
-     * this phone's, and Put back would bring back this phone's old amount for something just bought. The entry isn't
-     * shown then (and is pruned).
+     * ([me]) or the one it ticked with ([by]): someone who types Your name in Settings after ticking keeps the ticks
+     * already sent to the sheet under the old name. Not when it is needed again, was renamed (its key is gone) or
+     * removed, or the other phone changed it otherwise. Nor when the other phone needed it again and then ticked it
+     * off itself: the item has [set] again, but that tick isn't this phone's, and Put back would bring back this
+     * phone's old amount for something just bought. The entry isn't shown then (and is pruned).
      *
      * Two phones with the same name (both left at the phone's model name, say) can't be told apart: then only the
      * value counts.

@@ -17,13 +17,11 @@ import com.grocerysync.app.testing.UseTextsRule
 import com.grocerysync.app.testing.itemRow
 import com.grocerysync.app.text.AppTexts
 import com.grocerysync.app.text.EnglishListTexts
-import com.grocerysync.app.text.EnglishNotifyTexts
 import com.grocerysync.app.ui.ListActions
 import com.grocerysync.app.ui.ListContent
 import com.grocerysync.app.ui.ListFilter
 import com.grocerysync.app.ui.ListUiState
 import com.grocerysync.app.ui.SearchState
-import com.grocerysync.app.ui.components.NotifyOfferCard
 import com.grocerysync.app.ui.theme.GrocerySyncTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -31,29 +29,28 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Where the list screen puts the offer of change notifications ([ListContent]'s notifyOffer, which ListScreen fills
- * with NotifyOffer): first in the banner header, above a banner about the connection and above the rows, in the usual
- * screen and in Simple mode. The card itself is given here, so this runs whatever the emulator's notification
- * permission is (NotifyOfferOnListTest shows the real offer in the app, where the permission decides).
+ * Where the list screen puts its banners (setup, "couldn't sync", changes not sent): in each page's header item
+ * (bannerHeader in ListPage), so they are drawn above the rows, in the usual screen and in Simple mode, whose To buy is
+ * a branch of its own. Elders in Simple mode must still see that the list stopped syncing; were the header dropped or
+ * moved there, no other test would notice. The list is made here, so no app, sheet or setting of the device is needed.
  */
 @RunWith(AndroidJUnit4::class)
-class NotifyOfferPlacementTest {
+class BannerPlacementTest {
 
     @get:Rule
     val compose = createComposeRule()
 
-    /** The checks below match English texts: a Hindi test that ran before mustn't leave the card in Hindi. */
+    /** The checks below match English texts: a Hindi test that ran before mustn't leave the banner in Hindi. */
     @get:Rule
     val english = UseTextsRule(AppTexts.English)
 
-    private val offer = hasText(EnglishNotifyTexts.offerQuestion)
     private val errorBanner = hasText(EnglishListTexts.syncErrorFallback)
 
     private val dahi = GroceryItem(
         ItemKeys.normalize("Dahi"), "Dahi", ItemValue.BoolValue(true), updatedAt = 0L, updatedBy = "Home", pendingSync = false,
     )
 
-    /** A set-up list with Dahi to buy whose last sync failed, so a banner about the connection shows too. */
+    /** A set-up list with Dahi to buy whose last sync failed, so the banner about the connection shows. */
     private val state = ListUiState(
         loaded = true,
         toBuy = listOf(dahi),
@@ -96,30 +93,27 @@ class NotifyOfferPlacementTest {
                     snackbarHostState = remember { SnackbarHostState() },
                     actions = noActions,
                     simpleMode = simpleMode,
-                    notifyOffer = { NotifyOfferCard(onTurnOn = {}, onNotNow = {}) },
                 )
             }
         }
     }
 
-    /** The offer is on screen, above the banner about the connection, which is above Dahi's row. */
-    private fun assertTheOfferComesFirst() {
-        val card = compose.onNode(offer).assertIsDisplayed().getUnclippedBoundsInRoot()
+    /** The banner about the connection is on screen, above Dahi's row. */
+    private fun assertTheBannerIsAboveTheRows() {
         val banner = compose.onNode(errorBanner).assertIsDisplayed().getUnclippedBoundsInRoot()
         val row = compose.onNode(itemRow("Dahi")).assertIsDisplayed().getUnclippedBoundsInRoot()
-        assertTrue("The offer ($card) should be above the banner ($banner)", card.bottom <= banner.top)
         assertTrue("The banner ($banner) should be above the rows ($row)", banner.bottom <= row.top)
     }
 
     @Test
-    fun theOfferIsFirstAboveTheList() {
+    fun theBannerIsAboveTheRows() {
         showList(simpleMode = false)
-        assertTheOfferComesFirst()
+        assertTheBannerIsAboveTheRows()
     }
 
     @Test
-    fun simpleModeHasItFirstToo() {
+    fun simpleModeShowsItAboveTheRowsToo() {
         showList(simpleMode = true)
-        assertTheOfferComesFirst()
+        assertTheBannerIsAboveTheRows()
     }
 }

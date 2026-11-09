@@ -3,7 +3,6 @@ package com.grocerysync.app
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -14,13 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModelProvider
-import com.grocerysync.app.notify.ChangeNotifier
 import com.grocerysync.app.text.Texts
 import com.grocerysync.app.text.update
 import com.grocerysync.app.ui.AppViewModelProvider
@@ -39,15 +36,6 @@ class MainActivity : ComponentActivity() {
     /** Counts the lists shared into the app while it runs; each one brings the list screen to the front. */
     private var sharedLists by mutableIntStateOf(0)
 
-    /**
-     * The latest tap on the change notification that this activity received, or 0 for none; each new one shows To buy
-     * ([receiveShowToBuy]). A token that tells taps apart (when it came, elapsedRealtimeNanos), not a count: ListScreen
-     * saves the one it took last, and that outlives this activity (recreated for a rotation or a new Language while
-     * Settings was shown, or after the process was stopped), while a count would start again at 0 here and could
-     * meet the saved one at the next tap, which then would not switch pages.
-     */
-    private var toBuyRequest by mutableLongStateOf(0L)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         // Every screen's app bar is deep green in both themes (appBarColors), so the status bar icons over it are
         // always light. The navigation bar shows the list's surface: dark icons in light theme, light in dark.
@@ -55,47 +43,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Before anything is composed: every screen reads its texts from Texts.current. Choosing another language in
         // Settings recreates this activity, so this runs again then; so does a change of the phone's language.
-        // A new language also renames the notifications' channel (Android shows it in the app's settings for them).
         val language = (application as GroceryApp).container.phoneSettings.current().language
-        if (Texts.update(language, resources.configuration)) ChangeNotifier(this).createChannel()
+        Texts.update(language, resources.configuration)
         // Only on a fresh start: after rotation or process death the shared text was taken already (the list screen
         // keeps it), and Recents starts the activity again with the intent that once shared it.
-        if (savedInstanceState == null) {
-            receiveSharedList(intent)
-            receiveShowToBuy(intent)
-        }
+        if (savedInstanceState == null) receiveSharedList(intent)
         setContent {
             GrocerySyncTheme {
-                GrocerySyncRoot(sharedLists = sharedLists, toBuyRequest = toBuyRequest)
+                GrocerySyncRoot(sharedLists = sharedLists)
             }
         }
     }
 
-    /**
-     * launchMode singleTop: a list shared while the app is on top of its task comes here, and so does a tap on the
-     * change notification while the app runs.
-     */
+    /** launchMode singleTop: a list shared while the app is on top of its task comes here. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         receiveSharedList(intent)
-        receiveShowToBuy(intent)
-    }
-
-    /**
-     * A tap on the change notification ([ChangeNotifier]: [EXTRA_SHOW_TO_BUY]) shows To buy, what it is about, also
-     * when the app was left on Settings or on All items. Only once: the extra goes, and Recents, which starts the
-     * activity again with the intent that once opened it, doesn't switch screens.
-     */
-    private fun receiveShowToBuy(intent: Intent) {
-        if (!intent.getBooleanExtra(EXTRA_SHOW_TO_BUY, false)) return
-        intent.removeExtra(EXTRA_SHOW_TO_BUY)
-        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
-        toBuyRequest = SystemClock.elapsedRealtimeNanos()
-    }
-
-    companion object {
-        /** On the change notification's intent: show To buy ([receiveShowToBuy]). */
-        const val EXTRA_SHOW_TO_BUY = "com.grocerysync.app.extra.SHOW_TO_BUY"
     }
 
     /**
@@ -141,12 +104,10 @@ private enum class Screen { LIST, SETTINGS }
 /**
  * Two screens, so a navigation library would be overkill: the current one survives rotation, process death and a
  * new Language (Settings recreates the activity and stays open).
- * Each list shared into the app ([sharedLists] goes up) shows the list screen, where its preview opens; each tap on
- * the change notification (a new [toBuyRequest]) shows the list screen on To buy. A recreated activity starts with
- * no tap (0), so Settings stays open then.
+ * Each list shared into the app ([sharedLists] goes up) shows the list screen, where its preview opens.
  */
 @Composable
-private fun GrocerySyncRoot(sharedLists: Int, toBuyRequest: Long) {
+private fun GrocerySyncRoot(sharedLists: Int) {
     var screen by rememberSaveable { mutableStateOf(Screen.LIST) }
     // Keeps each screen's saved UI state (list filter, scroll position, ...) while the other one is shown.
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -155,14 +116,11 @@ private fun GrocerySyncRoot(sharedLists: Int, toBuyRequest: Long) {
     LaunchedEffect(sharedLists) {
         if (sharedLists > 0) screen = Screen.LIST
     }
-    LaunchedEffect(toBuyRequest) {
-        if (toBuyRequest != 0L) screen = Screen.LIST
-    }
 
     Crossfade(targetState = screen, label = "screen") { current ->
         saveableStateHolder.SaveableStateProvider(current.name) {
             when (current) {
-                Screen.LIST -> ListScreen(onOpenSettings = { screen = Screen.SETTINGS }, showToBuy = toBuyRequest)
+                Screen.LIST -> ListScreen(onOpenSettings = { screen = Screen.SETTINGS })
                 Screen.SETTINGS -> SettingsScreen(onBack = { screen = Screen.LIST })
             }
         }

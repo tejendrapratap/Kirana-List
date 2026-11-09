@@ -54,7 +54,6 @@ class AppTexts(
     val bulk: BulkTexts,
     val settings: SettingsTexts,
     val sync: SyncTexts,
-    val notify: NotifyTexts,
 ) {
     companion object {
         val English = AppTexts(
@@ -66,7 +65,6 @@ class AppTexts(
             bulk = EnglishBulkTexts,
             settings = EnglishSettingsTexts,
             sync = EnglishSyncTexts,
-            notify = EnglishNotifyTexts,
         )
 
         val Hindi = AppTexts(
@@ -78,7 +76,6 @@ class AppTexts(
             bulk = HindiBulkTexts,
             settings = HindiSettingsTexts,
             sync = HindiSyncTexts,
-            notify = HindiNotifyTexts,
         )
     }
 }
@@ -92,7 +89,7 @@ class AppTexts(
  * - [current] is snapshot state, so what is worked out from it follows a change by itself: a `derivedStateOf` in a
  *   view model (which outlives `recreate()`) that reads it, directly or through a function such as
  *   InputValidation.validateWebAppUrl, gives the new language's text the next time it is read. Being snapshot
- *   state, it is still safe to read from any thread (the background check for changes reads it without a screen).
+ *   state, it is also safe to read from any thread.
  * - Sentences that are stored don't follow it: view models and other state holders keep structured data in
  *   long-lived state (a `mutableStateOf` or StateFlow in a view model, `rememberSaveable`, SavedStateHandle), never
  *   finished sentences, which would stay in the old language. For example a test result keeps its kind and the
@@ -104,8 +101,7 @@ class AppTexts(
  * - JVM unit tests run in English (the default here). A test that switches to Hindi restores English afterwards
  *   (the test rule UseTextsRule does both).
  *
- * MainActivity sets [current] in onCreate before setContent, from the saved choice and its own configuration;
- * GroceryApp sets it in onCreate (and when the phone's configuration changes) for work done without a screen.
+ * MainActivity sets [current] in onCreate before setContent, from the saved choice and its own configuration.
  */
 object Texts {
     /** The texts every screen reads now; English until the app sets it at startup. Snapshot state (see above). */

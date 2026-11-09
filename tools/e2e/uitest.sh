@@ -4,10 +4,9 @@
 # Usage: uitest.sh [-s emulator-NNNN] [--class CLASS[#method]]... [--no-build] [--fresh] [--uninstall] [-- ARGS]
 #        uitest.sh [-s emulator-NNNN] uninstall
 #   Builds the debug app and its test APK (./gradlew assembleDebug assembleDebugAndroidTest), installs both on
-#   the emulator (adb -s emulator-NNNN install -r -t), takes back the app's notification permission (Android 13+;
-#   a test grants it, and a reinstall keeps it), runs them with "am instrument -w -r" and prints one line per
-#   test, then a pass/fail summary (naming any skipped test) and the wall time of each step. Exits 0 only when
-#   every test passed.
+#   the emulator (adb -s emulator-NNNN install -r -t), runs them with "am instrument -w -r" and prints one line
+#   per test, then a pass/fail summary (naming any skipped test) and the wall time of each step. Exits 0 only
+#   when every test passed.
 #   Use it instead of ./gradlew connectedDebugAndroidTest, which runs on EVERY device adb knows (a phone on
 #   USB or Wi-Fi too): this script only talks to emulator-NNNN, and lib.sh refuses any other serial.
 #   --class C        only test class C (SearchTest, or the full name), or one test with C#method; repeatable
@@ -133,17 +132,6 @@ install_apk() {
 }
 install_apk "$app_apk"
 install_apk "$test_apk"
-# Android keeps a granted permission when the app is reinstalled (install -r), so ThisPhoneSwitchesTest's grant of
-# POST_NOTIFICATIONS would last into every later run on this emulator, and NotifyOfferOnListTest would skip the tests
-# that need the app without it. Take it back (and forget a "Don't allow" from a session by hand) before each run.
-# Only on Android 13+, where the permission exists; done here, as no test may run while it is taken away (that ends
-# the app's process, which the tests share).
-sdk=$(gs_sh getprop ro.build.version.sdk)
-if [[ "$sdk" =~ ^[0-9]+$ ]] && [ "$sdk" -ge 33 ]; then
-  gs_adb shell pm revoke "$APP_PACKAGE" android.permission.POST_NOTIFICATIONS >/dev/null 2>&1
-  gs_adb shell pm clear-permission-flags "$APP_PACKAGE" android.permission.POST_NOTIFICATIONS user-set user-fixed \
-    >/dev/null 2>&1
-fi
 install_s=$((SECONDS - t))
 
 # ---- run

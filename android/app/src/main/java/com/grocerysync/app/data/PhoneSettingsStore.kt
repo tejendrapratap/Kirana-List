@@ -17,16 +17,6 @@ data class PhoneSettings(
     val language: AppLanguage = AppLanguage.PHONE,
     /** Simple mode: only To buy, bigger text and buttons, Undo that stays on screen. */
     val simpleMode: Boolean = false,
-    /** Notify when someone else adds to To buy while the app is closed. */
-    val notifyChanges: Boolean = true,
-    /** The list screen's one-time offer to allow notifications was answered (either way). */
-    val notifyOfferDone: Boolean = false,
-    /**
-     * Android was asked for the notification permission (its dialog) on this phone: by the list's offer, by the
-     * switch in Settings or by its "Turn on notifications" button. Not the same as [notifyOfferDone]: "Not now"
-     * answers the offer without asking, and Settings then still offers to ask.
-     */
-    val notifyPermissionAsked: Boolean = false,
 )
 
 /**
@@ -50,14 +40,6 @@ class PhoneSettingsStore internal constructor(private val prefs: SharedPreferenc
 
     fun setSimpleMode(on: Boolean) = update({ putBoolean(KEY_SIMPLE_MODE, on) }) { it.copy(simpleMode = on) }
 
-    fun setNotifyChanges(on: Boolean) = update({ putBoolean(KEY_NOTIFY_CHANGES, on) }) { it.copy(notifyChanges = on) }
-
-    fun setNotifyOfferDone(done: Boolean) =
-        update({ putBoolean(KEY_NOTIFY_OFFER_DONE, done) }) { it.copy(notifyOfferDone = done) }
-
-    fun setNotifyPermissionAsked(asked: Boolean) =
-        update({ putBoolean(KEY_NOTIFY_PERMISSION_ASKED, asked) }) { it.copy(notifyPermissionAsked = asked) }
-
     /** Writes one value and then updates [settings], under one lock so concurrent setters can't lose a change. */
     private fun update(write: SharedPreferences.Editor.() -> Unit, change: (PhoneSettings) -> PhoneSettings) {
         synchronized(this) {
@@ -69,13 +51,9 @@ class PhoneSettingsStore internal constructor(private val prefs: SharedPreferenc
     private fun load(): PhoneSettings {
         val stored = prefs.all
         val defaults = PhoneSettings()
-        fun flag(key: String, default: Boolean) = stored[key] as? Boolean ?: default
         return PhoneSettings(
             language = AppLanguage.fromId(stored[KEY_LANGUAGE] as? String) ?: defaults.language,
-            simpleMode = flag(KEY_SIMPLE_MODE, defaults.simpleMode),
-            notifyChanges = flag(KEY_NOTIFY_CHANGES, defaults.notifyChanges),
-            notifyOfferDone = flag(KEY_NOTIFY_OFFER_DONE, defaults.notifyOfferDone),
-            notifyPermissionAsked = flag(KEY_NOTIFY_PERMISSION_ASKED, defaults.notifyPermissionAsked),
+            simpleMode = stored[KEY_SIMPLE_MODE] as? Boolean ?: defaults.simpleMode,
         )
     }
 
@@ -83,8 +61,5 @@ class PhoneSettingsStore internal constructor(private val prefs: SharedPreferenc
         const val PREFS_NAME = "phone_settings"
         const val KEY_LANGUAGE = "language"
         const val KEY_SIMPLE_MODE = "simple_mode"
-        const val KEY_NOTIFY_CHANGES = "notify_changes"
-        const val KEY_NOTIFY_OFFER_DONE = "notify_offer_done"
-        const val KEY_NOTIFY_PERMISSION_ASKED = "notify_permission_asked"
     }
 }

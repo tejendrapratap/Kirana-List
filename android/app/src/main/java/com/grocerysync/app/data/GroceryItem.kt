@@ -32,9 +32,8 @@ data class GroceryItem(
      * True when someone else changed the item last: its Updated By isn't [me], this phone's name as it writes it
      * there (spaces around and capitals don't count). A change still waiting on this phone ([pendingSync]) is this
      * phone's, and a row without a name (from before the sheet kept one) is nobody's change. Ticked today asks this
-     * ([TickedEntry.isStillTicked]); it is the rule the list's highlight of recent changes and the change
-     * notifications use too (`isRecentChangeByOthers`, `ListChangeWatch.isByOthers`), so they agree on whose change
-     * it was.
+     * ([TickedEntry.isStillTicked]); it is the rule the list's highlight of recent changes uses too
+     * (`isRecentChangeByOthers`), so they agree on whose change it was.
      */
     fun isChangedLastByOthers(me: String): Boolean =
         !pendingSync && updatedBy.isNotBlank() && !updatedBy.trim().equals(me.trim(), ignoreCase = true)

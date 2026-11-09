@@ -56,7 +56,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -103,7 +102,6 @@ import com.grocerysync.app.ui.components.EmptyListState
 import com.grocerysync.app.ui.components.FailedChangesBanner
 import com.grocerysync.app.ui.components.LiveStatusLine
 import com.grocerysync.app.ui.components.NoSearchMatches
-import com.grocerysync.app.ui.components.NotifyOffer
 import com.grocerysync.app.ui.components.PushWarningLine
 import com.grocerysync.app.ui.components.ScriptUpdateLine
 import com.grocerysync.app.ui.components.SetupBanner
@@ -208,18 +206,14 @@ private class PageSwitcher(private val pagerState: PagerState, private val scope
     }
 }
 
-/** [showToBuy]: new with each tap on the change notification, which shows To buy (see MainActivity); 0 for none. */
 @Composable
 fun ListScreen(
     onOpenSettings: () -> Unit,
-    showToBuy: Long = 0L,
     viewModel: ListViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // Followed while the screen is shown, so turning it on or off in Settings shows on the way back.
     val simpleMode by viewModel.simpleMode.collectAsStateWithLifecycle()
-    // For the offer of change notifications above the list (NotifyOffer).
-    val phoneSettings by viewModel.phoneSettings.collectAsStateWithLifecycle()
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val starterListOpen by viewModel.starterListOpen.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -244,16 +238,6 @@ fun ListScreen(
                 // A drag took over (and settles the pager itself); only a cancelled effect stops here.
                 ensureActive()
             }
-        }
-    }
-    // A tap on the change notification shows To buy (Simple mode shows nothing else). Each tap once: the tap taken
-    // last is saved, so coming back from Settings later doesn't switch pages. Taps never repeat (MainActivity), so
-    // the saved one can't be mistaken for a new tap after the activity was recreated or the process stopped.
-    var toBuyShownFor by rememberSaveable { mutableLongStateOf(0L) }
-    LaunchedEffect(showToBuy) {
-        if (showToBuy != 0L && showToBuy != toBuyShownFor) {
-            toBuyShownFor = showToBuy
-            if (!simpleMode) pages.show(ListFilter.TO_BUY.page)
         }
     }
     // Simple mode has no search, so nothing could close one left open (from before it was turned on): it closes.
@@ -358,15 +342,6 @@ fun ListScreen(
         },
         snackbarHostState = snackbarHostState,
         actions = actions,
-        // Asks for the permission itself and draws nothing unless it is offered; in Simple mode too.
-        notifyOffer = {
-            NotifyOffer(
-                phoneSettings = phoneSettings,
-                isConfigured = state.isConfigured,
-                onAnswered = viewModel::onNotifyOfferAnswered,
-                onPermissionAsked = viewModel::onNotifyPermissionAsked,
-            )
-        },
     )
 
     when (val current = dialog) {
@@ -483,10 +458,6 @@ class ListActions(
  * app bar [SIMPLE_TEXT_SCALE] times as big, [SimpleToBuyRow]s, one big [SimpleAddItemButton], Undo snackbars that
  * stay ([SimpleModeSnackbar], [SnackbarLook]) and Ticked today open at first. Internal for the UI tests, which show it
  * at 200% text.
- *
- * [notifyOffer] is drawn first in each page's banner header, above the banners: ListScreen gives it the offer of
- * change notifications ([NotifyOffer]), which draws nothing unless it is offered. Empty by default, so previews and
- * tests of this screen never depend on the device's notification permission.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -500,7 +471,6 @@ internal fun ListContent(
     snackbarHostState: SnackbarHostState,
     actions: ListActions,
     simpleMode: Boolean = false,
-    notifyOffer: @Composable () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     // Hoisted (not inside the pages), so a page keeps its scroll position while the other one is shown.
@@ -600,7 +570,6 @@ internal fun ListContent(
                     onTickedTodayExpandedChange = { tickedTodayOpen = TickedTodayOpen(simpleMode, expanded = it) },
                     now = now,
                     actions = actions,
-                    notifyOffer = notifyOffer,
                 )
             },
         )
@@ -636,7 +605,6 @@ private fun ListBody(
     onTickedTodayExpandedChange: (Boolean) -> Unit,
     now: () -> Long,
     actions: ListActions,
-    notifyOffer: @Composable () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     val layoutDirection = LocalLayoutDirection.current
@@ -700,7 +668,6 @@ private fun ListBody(
                 now = now,
                 bottomPadding = bottomPadding,
                 actions = actions,
-                notifyOffer = notifyOffer,
                 onShowAllItems = {},
                 modifier = Modifier
                     .weight(1f)
@@ -756,7 +723,6 @@ private fun ListBody(
                     now = now,
                     bottomPadding = bottomPadding,
                     actions = actions,
-                    notifyOffer = notifyOffer,
                     onShowAllItems = { onFilterChange(ListFilter.ALL) },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -803,7 +769,6 @@ private fun ListPage(
     now: () -> Long,
     bottomPadding: Dp,
     actions: ListActions,
-    notifyOffer: @Composable () -> Unit,
     onShowAllItems: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -829,7 +794,7 @@ private fun ListPage(
             state = listState,
             contentPadding = PaddingValues(bottom = bottomPadding),
         ) {
-            bannerHeader(state, actions, notifyOffer)
+            bannerHeader(state, actions)
             pageItems(filter, content, state, now, actions, onShowAllItems, simpleMode)
             // Below To buy's rows or its empty state; not while a search is open.
             if (filter == ListFilter.TO_BUY && !searchOpen && content != PageContent.NotLoaded) {
@@ -938,9 +903,8 @@ private fun itemKey(item: GroceryItem): String = "item:" + item.key
  * row), holding the banners. A banner that appears while the list is at the top grows this item in
  * place and pushes the rows down. As an item of its own, inserted in front of the rows, it would land
  * above the visible part: a lazy list keeps its first visible row where it is. Never filtered by search.
- * [notifyOffer] (ListContent's) comes first: a question asked once, above the banners about the connection.
  */
-private fun LazyListScope.bannerHeader(state: ListUiState, actions: ListActions, notifyOffer: @Composable () -> Unit) {
+private fun LazyListScope.bannerHeader(state: ListUiState, actions: ListActions) {
     item(key = "header", contentType = "header") {
         Column(
             Modifier
@@ -948,7 +912,6 @@ private fun LazyListScope.bannerHeader(state: ListUiState, actions: ListActions,
                 .animateContentSize()
                 .padding(top = 8.dp),
         ) {
-            notifyOffer()
             if (!state.isConfigured) {
                 SetupBanner(onSetUp = actions.openSettings)
             } else if (state.status.state == ConnectionState.ERROR) {

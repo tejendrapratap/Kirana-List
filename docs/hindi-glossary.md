@@ -5,6 +5,9 @@ themselves are in `android/app/src/main/java/com/grocerysync/app/text/`: one cat
 an English and a Hindi version (see `Texts.kt` for how they are written and read). When a new word is used by several
 texts, add it here too.
 
+The words of change notifications (सूचना, the notification's titles, its Settings texts) were dropped with the
+feature in 1.6; they will be chosen again when notifications come with the move to Firebase.
+
 ## How the Hindi is written
 
 - Everyday spoken Hindi in Devanagari, the polite आप form, short.
@@ -55,7 +58,6 @@ texts, add it here too.
 | Live / Offline / Connecting | लाइव / ऑफ़लाइन / जुड़ रहा है |
 | sheet / Google Sheet / web app / secret token | शीट / Google शीट / वेब ऐप / सीक्रेट टोकन |
 | phone / this phone | फ़ोन / यह फ़ोन |
-| notification(s) | सूचना / सूचनाएँ |
 | Simple mode | आसान मोड |
 | Language / Phone's language | भाषा / फ़ोन की भाषा |
 | Add common items | आम सामान जोड़ें |
@@ -103,11 +105,6 @@ texts, add it here too.
 | Web app URL (the field) | वेब ऐप का URL |
 | clipboard | क्लिपबोर्ड |
 | Version 1.6 | वर्ज़न 1.6 |
-| Turn on / Not now | चालू करें / अभी नहीं |
-| Notify me | मुझे सूचना दें |
-| Allow in Android settings | Android सेटिंग्स में चालू करें |
-| A and B / A, B and C / A, B and 2 others | A और B / A, B और C / A, B और 2 अन्य |
-| +3 more | +3 और |
 
 "1 घंटे पहले" and "2 घंटे पहले" alike: पहले (ago) takes the same form for one and many.
 
@@ -116,7 +113,7 @@ list's "Update" use अपडेट, as people say it of a list.
 
 ## Phrases
 
-Snackbars, TalkBack texts and notifications made of the words above. Names and amounts are data.
+Snackbars and TalkBack texts made of the words above. Names and amounts are data.
 
 | English | Hindi |
 |---|---|
@@ -139,13 +136,6 @@ Snackbars, TalkBack texts and notifications made of the words above. Names and a
 | On the list as Tel | लिस्ट में Tel नाम से है |
 | Eggs is in dozen | Eggs की यूनिट dozen है |
 | Bigger text and buttons (Simple mode) | बड़े अक्षर और बड़े बटन |
-| Checks about every 15 minutes while the app is closed. | ऐप बंद होने पर लगभग हर 15 मिनट में लिस्ट जाँचता है। |
-| Notifications are blocked for this app. | इस ऐप की सूचनाएँ बंद हैं। |
-| Notifications aren't on yet for this app. / Turn on notifications | इस ऐप की सूचनाएँ अभी चालू नहीं हैं। / सूचनाएँ चालू करें |
-| Type Your name above (like Mummy), so the phones can tell whose change it is. | ऊपर "आपका नाम" भरें (जैसे Mummy), ताकि फ़ोन पहचान सकें कि बदलाव किसका है। |
-| Changes to To buy (the notification channel) | "ख़रीदना है" में बदलाव |
-| Mummy added 1 item / 3 items to To buy | Mummy ने "ख़रीदना है" में 1 चीज़ जोड़ी / 3 चीज़ें जोड़ीं |
-| Mummy changed To buy | Mummy ने "ख़रीदना है" में बदलाव किया |
 
 ## Shop sections
 

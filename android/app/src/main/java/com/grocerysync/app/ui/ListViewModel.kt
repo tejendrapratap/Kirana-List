@@ -14,7 +14,6 @@ import com.grocerysync.app.data.ItemKeys
 import com.grocerysync.app.data.ItemValue
 import com.grocerysync.app.data.OutboxStatus
 import com.grocerysync.app.data.PasteParser
-import com.grocerysync.app.data.PhoneSettings
 import com.grocerysync.app.data.PhoneSettingsStore
 import com.grocerysync.app.data.SettingsStore
 import com.grocerysync.app.data.ShopSection
@@ -268,7 +267,7 @@ class ListViewModel(
     private val liveSync: LiveSync,
     private val settingsStore: SettingsStore,
     private val shopSectionStore: ShopSectionStore,
-    /** This phone's own preferences (never synced): Simple mode ([simpleMode]) and the notifications offer. */
+    /** This phone's own preferences (never synced): Simple mode ([simpleMode]). */
     private val phoneSettingsStore: PhoneSettingsStore,
     private val savedStateHandle: SavedStateHandle,
     /** "Ticked today" (this phone only). Without one given, kept in memory only, as for tests and previews. */
@@ -329,18 +328,6 @@ class ListViewModel(
     val simpleMode: StateFlow<Boolean> = phoneSettingsStore.settings
         .map { it.simpleMode }
         .stateIn(viewModelScope, SharingStarted.Eagerly, phoneSettingsStore.current().simpleMode)
-
-    /**
-     * This phone's own preferences, for the offer of change notifications above the list
-     * ([com.grocerysync.app.ui.components.NotifyOffer]): whether notifications are on and the offer was answered.
-     */
-    val phoneSettings: StateFlow<PhoneSettings> = phoneSettingsStore.settings
-
-    /** The notifications offer was answered ("Turn on" or "Not now"): it never shows again on this phone. */
-    fun onNotifyOfferAnswered() = phoneSettingsStore.setNotifyOfferDone(true)
-
-    /** The offer's "Turn on" asks Android for the permission: Settings no longer offers to ask it. */
-    fun onNotifyPermissionAsked() = phoneSettingsStore.setNotifyPermissionAsked(true)
 
     val dialog: StateFlow<ItemDialog?> = savedStateHandle.getStateFlow<String?>(KEY_DIALOG, null)
         .map { ItemDialog.decode(it) }
