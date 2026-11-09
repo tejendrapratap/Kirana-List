@@ -383,16 +383,36 @@ gs_ui_swipe() {
   esac
 }
 
-# gs_ui_scroll_to <how> <query> [max-swipes]: swipes up until the node is visible, then back down.
+# gs_ui_low <match>: true when a match (as gs_ui_find or uixml.js field prints it) is in the bottom fifth of the
+# screen. A node cut off by the bottom of a list still matches there, and a dump does not always clip it: a
+# Compose text field keeps its whole bounds, so its centre can be under the navigation bar, where a tap does not
+# reach it.
+gs_ui_low() {
+  local w h y
+  read -r w h < <(gs_screen_size)
+  read -r _ y _ <<<"${1%%$'\t'*}"
+  [ "${y:-0}" -gt $((h * 4 / 5)) ]
+}
+
+# gs_ui_lift <how> <query> <match>: prints the match, after one more swipe up when it is low (gs_ui_low): then a
+# tap reaches it, and a line that appears under it (like Test connection's result) is on the screen too.
+gs_ui_lift() {
+  gs_ui_low "$3" || { printf '%s\n' "$3"; return 0; }
+  gs_ui_swipe up
+  gs_ui_find "$1" "$2"
+}
+
+# gs_ui_scroll_to <how> <query> [max-swipes]: swipes up until the node is visible, then back down; lifts it out of
+# the bottom fifth (gs_ui_lift). Prints the match like gs_ui_find.
 gs_ui_scroll_to() {
   local how=$1 query=$2 max=${3:-6} i hit
   for ((i = 0; i <= max; i++)); do
-    hit=$(gs_ui_find "$how" "$query") && { printf '%s\n' "$hit"; return 0; }
+    hit=$(gs_ui_find "$how" "$query") && { gs_ui_lift "$how" "$query" "$hit"; return; }
     [ $i -lt "$max" ] && gs_ui_swipe up
   done
   for ((i = 0; i < max * 2; i++)); do
     gs_ui_swipe down
-    hit=$(gs_ui_find "$how" "$query") && { printf '%s\n' "$hit"; return 0; }
+    hit=$(gs_ui_find "$how" "$query") && { gs_ui_lift "$how" "$query" "$hit"; return; }
   done
   return 1
 }
@@ -404,7 +424,9 @@ gs_ui_set_field() {
   gs_ui_hide_keyboard
   gs_ui_dump || return 1
   hit=$(gs_uixml field "$GS_UI_LAST" "$label")
-  if [ -z "$hit" ]; then
+  # A field at the bottom edge is found but may not take a tap (gs_ui_low): the focus then stays in the field
+  # set before, which gets this value. Scroll to it then too.
+  if [ -z "$hit" ] || gs_ui_low "$hit"; then
     gs_ui_scroll_to text "$label" 4 >/dev/null || { gs_log "no text field labelled \"$label\""; return 1; }
     gs_ui_dump || return 1
     hit=$(gs_uixml field "$GS_UI_LAST" "$label") || { gs_log "no text field labelled \"$label\""; return 1; }

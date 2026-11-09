@@ -20,6 +20,7 @@
 #         "Emu"), the Web app URL (default: the emulator URL of the mock on --port / the last mock.sh port)
 #         and the Secret token (default: that mock's token; never printed), taps Test connection and waits
 #         for "Connected to ..." (skip with --no-test), taps Save and waits for the "Live" status line.
+#         Settings is taller than the screen: it scrolls down to each field and button.
 #   pull-db [DIR]               debug builds only: copies the app's SQLite files to DIR (default out/db)
 #
 # Uses the emulator from EMU_SERIAL / emu.sh; refuses anything that is not emulator-NNNN. Safe to re-run.
@@ -118,6 +119,16 @@ do_launch() {
   gs_log "launched ($(printf '%s\n' "$out" | sed -n 's/^TotalTime: /TotalTime /p') ms)"
 }
 
+# tap_button <text>: scrolls until the button with that text is on the screen, then taps its centre. The scroll
+# keeps it out of the bottom fifth, so the line where Test connection shows its result, under it, is shown too.
+tap_button() {
+  local hit
+  hit=$(gs_ui_scroll_to text "$1") || { gs_log "not found after scrolling: text \"$1\""; return 1; }
+  set -- ${hit%%$'\t'*}
+  gs_ui_tap "$1" "$2"
+  gs_log "tapped ${hit#*$'\t'} at $1,$2"
+}
+
 do_configure() {
   local name=Emu url="" tok="" port="" test=1 env
   while [ $# -gt 0 ]; do
@@ -153,13 +164,18 @@ do_configure() {
   if [ "$label" = '"More options"' ]; then
     gs_ui_tap_match text Settings 0 10 || gs_die "no Settings in the More options menu"
   fi
-  gs_ui_wait text "Web app URL" 0 15 >/dev/null || gs_die "the Settings screen did not open"
+  # Settings is taller than the screen: from 1.6 it starts with "This phone" (Your name, Language, Simple mode),
+  # so on a phone the Web app URL field and the Test connection and Save buttons are below the screen when it
+  # opens. Wait for Your name, which is at the top (Web app URL too, for a build without it), and scroll to each
+  # button before tapping it: gs_ui_tap_match only finds what is on the screen. gs_ui_set_field scrolls to its
+  # field itself.
+  gs_ui_wait text-re '^(Your name|Web app URL)$' 0 15 >/dev/null || gs_die "the Settings screen did not open"
   gs_ui_set_field "Your name" "$name" || gs_die "could not set Your name"
   gs_ui_set_field "Web app URL" "$url" || gs_die "could not set the Web app URL"
   gs_ui_set_field "Secret token" "$tok" || gs_die "could not set the Secret token"
   gs_ui_hide_keyboard
   if [ -n "$test" ]; then
-    gs_ui_tap_match text "Test connection" 0 10 || gs_die "no Test connection button"
+    tap_button "Test connection" || gs_die "no Test connection button"
     if hit=$(gs_ui_wait text-re '^Connected to ' 0 30); then
       gs_log "test connection: $(printf '%s' "$hit" | cut -f3)"
     else
@@ -169,7 +185,7 @@ do_configure() {
       exit 1
     fi
   fi
-  gs_ui_tap_match text Save 0 10 || gs_die "no Save button"
+  tap_button Save || gs_die "no Save button"
   if hit=$(gs_ui_wait text-re '^Live' 0 30); then
     gs_log "configured: status \"$(printf '%s' "$hit" | cut -f3 | tr -d '"')\""
   else
