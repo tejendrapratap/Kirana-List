@@ -9,11 +9,12 @@ Planning notes for Kirana List (formerly Grocery Sync), kept with the code.
 | [Hindi glossary](hindi-glossary.md) | The words the app's Hindi texts use (1.6 onwards): pages, buttons, shop sections, sets, who and when, Share's title, and how the Hindi is written |
 | [Removing the setup](zero-setup.md) | How to drop the Google Sheet + Apps Script setup (recommended: Firebase with an invite code), the migration plan, and how to get the app onto phones (sideloading, Play internal testing, public release), with a fact check of every price and policy |
 
-## Decisions so far (2026-11-08)
+## Decisions so far (2026-11-08, updated 2026-11-09)
 
 1. Ship the five quick wins first, as 1.4. They change only the app, so the sheet's script stays as it is.
 2. Then move off Google Sheets to Firebase (Cloud Firestore in Mumbai, anonymous sign-in, invite code) as its own release. The Cloudflare Worker + D1 option is the fallback.
 3. Keep sideloading the signed APK for the family for now; move to a Play Console internal testing track when it saves effort.
+4. 2026-11-09: change notifications wait for the move to Firebase, where Firebase Cloud Messaging pushes them at once (see feature 7 in [Feature ideas](feature-ideas.md) and *Offline and live updates* in [Removing the setup](zero-setup.md)). The version with a background check about every 15 minutes while the app is closed was taken out of 1.6: 15 minutes is only the best case (Doze, App Standby and OnePlus's battery limits could make it 30 minutes to hours late), and it wakes the phone up to 96 times a day.
 
 ## Look and name
 

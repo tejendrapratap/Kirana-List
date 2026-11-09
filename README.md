@@ -17,7 +17,7 @@ A shared grocery list for two phones, stored in **your own Google Sheet**. It's 
 - Each item is either **Yes / no** or a **Quantity**: an amount and a unit, so the shopper knows exactly what to buy ("Rice 2 kg", "Milk 1.5 L"; 0 = don't need). You can switch an item between the two any time.
 - Each item says who added or last changed it, and when ("Added by Home - 2 hours ago", "Updated by Shop - 5 minutes ago"). Search finds an item by part of its name on either list, or by its other name in English or Hindi ("curd" finds Dahi, "pyaaz" or "प्याज" finds Onion), and you swipe between **To buy** and **All items**. Adding "Curd" while "Dahi" is on the list points that out (it doesn't stop you).
 - **To buy** is grouped by shop section, in the order you walk through the shops: Sabzi & fruit; Dairy, eggs & bread; Meat & fish; Atta, rice & dal; Oil & ghee; Masala; ... and Other last. The app knows the section of common Indian grocery items in English and Hindi (built from [the common Indian grocery list](docs/indian-grocery-list.md)). Each phone can move an item to another section, or show To buy A to Z.
-- Each phone shows the app in **English or Hindi**, and can turn on **Simple mode** for elders: only To buy, bigger text and big buttons. While the app is closed, a notification says when someone else adds to To buy.
+- Each phone shows the app in **English or Hindi**, and can turn on **Simple mode** for elders: only To buy, bigger text and big buttons.
 - Tapped the wrong thing? **Undo** follows **Got it**, **−** / **+**, the **Need** switch, edits and deletes, and **Ticked today** at the end of To buy puts back what you ticked off by mistake.
 - It works offline. Changes are saved on the phone and sync when the connection is back. If both people change the same item, the most recent change wins.
 - The sheet stays a normal, readable spreadsheet, and you can edit it by hand too.
@@ -137,18 +137,19 @@ Later releases signed with the same key install over the app as normal updates, 
 
 ## What's new in 1.6
 
-Version 1.6 is about mistakes, Hindi, elders and knowing when the list changed:
+Version 1.6 is about mistakes, Hindi and elders:
 
 - **More Undo.** Besides **Got it**, **Delete** and **Add common items**, you can now undo **−** / **+** (*Rice: 2 kg → 3 kg*), the **Need** switch (*Dahi: not needed*) and **Save** in an item's dialog (*Renamed Curd to Dahi*, *Changed Rice*). Several taps on **−** or **+** of the same item, while its message is showing, undo together: back to the amount before the first tap. Undo never overwrites a change made on the other phone meanwhile; then nothing changes and the message says *"Rice" was changed on another phone*.
 - **Ticked today.** At the end of **To buy**, **Ticked today (3)** lists what this phone took off To buy today (**Got it**, the **Need** switch turned off, or **−** down to 0), so a mistake can still be fixed after the Undo message has gone. Tap it to open it; **Put back** puts an item back on To buy with its amount, with Undo. It is this phone's own list and starts empty every day. Like Undo, **Put back** doesn't overwrite a change from the other phone.
 - **Hindi.** The whole app can be in Hindi. **⋮ > Settings > This phone > Language** offers *Phone's language* (the default: Hindi when the phone is set to Hindi, English otherwise), *English* and *हिन्दी*; each phone chooses for itself. On Android 13 and newer, Android's own setting for the app's language works too. Item names, units and amounts stay as you typed them, and so do error messages from the sheet's script. **Share** writes its message in the phone's language (*किराने की लिस्ट (3 चीज़ें):*, with Hindi section headings). A list shared from a Hindi phone pastes on an English one, and the other way round.
 - **Simple mode** for elders (**Settings > This phone > Simple mode**, per phone). The list shows only **To buy**, with bigger text, a big **Got it** on each row and one big **Add item** button (a new item starts as needed, so it shows up on To buy). An Undo message stays on screen until you tap **Undo** or its **X**, and **Ticked today** starts open. Search, **All items**, **Add common items** and **Paste a list** are hidden; **Share** and **⋮ > Settings** stay.
-- **Notifications.** While the app is closed, it checks the sheet about every 15 minutes and tells you when someone else added to To buy: *Mummy added 3 items to To buy*, with *Dahi, Oil 2 L, Batti* under it (*Mummy changed To buy* when only amounts changed). So a notification can come up to about 15 minutes late. Tap it to open the list. Each phone turns it on or off in **Settings > This phone** (*Notify me when someone adds to To buy*). It starts on; on Android 13 and newer the list asks once (*Get a notification when someone adds to To buy?* **Turn on** / **Not now**), if Android hasn't asked yet (after **Not now**, say), Settings offers **Turn on notifications**, and if notifications are blocked, Settings says so and offers **Allow in Android settings**. Type **Your name** in Settings too, so the phones can tell whose change it is.
 
 Updating:
 
 - **Install 1.6 over 1.5** on both phones (section 2), as a normal update. Don't uninstall first: the list, your name, the web app URL and the hidden token stay, and so do changes that haven't been sent yet.
-- **The sheet and `Code.gs` stay as they are.** 1.6 changes only the app (the notifications too), so there is no `Code.gs` update and nothing to redeploy, and a phone still on 1.5 keeps working with one on 1.6. A list shared in Hindi pastes on 1.5 too: its title ends in *:*, so **Paste a list** on 1.5 shows it as a heading, unticked, and doesn't add it.
+- **The sheet and `Code.gs` stay as they are.** 1.6 changes only the app, so there is no `Code.gs` update and nothing to redeploy, and a phone still on 1.5 keeps working with one on 1.6. A list shared in Hindi pastes on 1.5 too: its title ends in *:*, so **Paste a list** on 1.5 shows it as a heading, unticked, and doesn't add it.
+
+A notification when someone adds to the list will come later, with the app's move to Firebase, which can send it to the other phones the moment it happens.
 
 ## Updating to 1.5 (Kirana List)
 
@@ -210,7 +211,7 @@ While only some of this is updated:
 | See who changed what | Each item in **All items** says who added or last changed it, and when: "Added by Home - 2 hours ago" until someone changes it, then "Updated by Shop - 5 minutes ago". Times are in words: just now, 3 minutes ago, 2 hours ago, yesterday, 4 days ago, then the date ("on 3 Nov"). The text wraps onto another line rather than hiding the time. Fresh changes from the other person are highlighted (in **To buy** too, as "Updated by Home"). The **History** tab in the sheet has the full log. |
 | Refresh right now | Pull the list down. |
 | Open Settings | Tap **⋮** (More options) at the top, then **Settings**. |
-| Choose this phone's language, Simple mode or notifications | In **Settings**, under **This phone**: **Language** (*Phone's language*, *English* or *हिन्दी*), **Simple mode**, and **Notify me when someone adds to To buy**. These are this phone's own; the other phone and the sheet don't change. See [What's new in 1.6](#whats-new-in-16). |
+| Choose this phone's language or Simple mode | In **Settings**, under **This phone**: **Language** (*Phone's language*, *English* or *हिन्दी*) and **Simple mode**. These are this phone's own; the other phone and the sheet don't change. See [What's new in 1.6](#whats-new-in-16). |
 
 **Amounts and units**
 
@@ -284,7 +285,7 @@ A row with a ↻ icon hasn't synced yet.
 
 ## Good to know
 
-- **"Live" means the app checks every ~5 seconds while it's open.** Apps Script can't push updates to a phone, so polling is the free way to get near-real-time. In tests, a change from the other phone appeared in about 2-5 seconds. When the app is closed it stops checking every few seconds, so it doesn't drain the battery. Unsent changes are still delivered in the background, and while notifications are on (**Settings > This phone**) the app checks the sheet about every 15 minutes, the shortest Android allows for regular background work, so a notification can come up to about 15 minutes after the change.
+- **"Live" means the app checks every ~5 seconds while it's open.** Apps Script can't push updates to a phone, so polling is the free way to get near-real-time. In tests, a change from the other phone appeared in about 2-5 seconds. When the app is closed it stops checking, so it doesn't drain the battery. Unsent changes are still delivered in the background.
 - **Cost:** everything here is free, and Apps Script's free limits are far beyond what two phones need. Publishing on the Play Store would cost a one-time $25. Sharing the APK costs nothing.
 - **Editing the sheet by hand** works because `Code.gs` includes an `onEdit` trigger that stamps *Updated At* and *Updated By = Sheet* on edited rows (and *Added At* on new ones). That only works when the script was created from the sheet (Extensions → Apps Script).
 - **Privacy:** the token is stored only in the app's private storage and is excluded from Android backups and device-to-device transfer. With the release build (Option C), other apps and USB debugging can't read that storage; a debug build's can be read over USB debugging. The app never shows, copies or shares the token, only sends it to the Web app URL it was saved with, and no longer makes setup messages.
