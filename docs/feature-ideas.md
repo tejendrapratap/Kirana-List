@@ -12,7 +12,7 @@ Researched on 2026-11-08 from other shared-list apps (Bring!, AnyList, OurGrocer
 | 4 | [Paste a list / share a WhatsApp message into the app (bulk add)](#4-paste-a-list-share-a-whatsapp-message-into-the-app-bulk-add) | Medium | No | Done in 1.4 |
 | 5 | [Group To buy by shop section (automatic categories)](#5-group-to-buy-by-shop-section-automatic-categories) | Medium | No | Done in 1.4 |
 | 6 | [Join the family list without setup (invite link, QR or short code)](#6-join-the-family-list-without-setup-invite-link-qr-or-short-code) | Large | Replaces both | Later |
-| 7 | [Notification when someone else changes the list, and an 'I'm going shopping' alert](#7-notification-when-someone-else-changes-the-list-and-an-im-going-shopping-alert) | Medium | Yes | Partly done in 1.6 |
+| 7 | [Notification when someone else changes the list, and an 'I'm going shopping' alert](#7-notification-when-someone-else-changes-the-list-and-an-im-going-shopping-alert) | Medium | Yes | Not in 1.6; planned for the Firebase move |
 | 8 | [More Undo (-/+, Need switch, rename, type) and a 'Ticked today' strip](#8-more-undo---need-switch-rename-type-and-a-ticked-today-strip) | Small | No | Done in 1.6 |
 | 9 | [Voice add in Hindi / Hinglish](#9-voice-add-in-hindi-hinglish) | Medium | No | Later |
 | 10 | ['Buy again' suggestions from purchase history](#10-buy-again-suggestions-from-purchase-history) | Medium | Yes | Later |
@@ -121,14 +121,14 @@ Features marked "Much easier after the backend move" depend on [removing the set
 
 **Why:** Without it the other person must open the app to notice changes, and last-minute items get missed when someone is already at the shop.
 
-**Evidence:** MacRumors users asking for shared-list alerts, with AnyList recommended: https://forums.macrumors.com/threads/shared-list-app-with-notifications.2062137 and https://forums.macrumors.com/threads/reminders-push-notifications-for-shared-lists.2198690 ; Bring! going-shopping message: https://getbring.com/blog-posts/your-activities-at-a-glance ; Android periodic work is at least 15 minutes apart: https://developer.android.com/reference/androidx/work/PeriodicWorkRequest
+**Evidence:** MacRumors users asking for shared-list alerts, with AnyList recommended: https://forums.macrumors.com/threads/shared-list-app-with-notifications.2062137 and https://forums.macrumors.com/threads/reminders-push-notifications-for-shared-lists.2198690 ; Bring! going-shopping message: https://getbring.com/blog-posts/your-activities-at-a-glance ; Android periodic work is at least 15 minutes apart: https://developer.android.com/reference/androidx/work/PeriodicWorkRequest ; Doze holds back jobs (WorkManager's too) until maintenance windows that come less often the longer the phone lies unused, and points to FCM for notifications the user must see at once: https://developer.android.com/training/monitoring-device-state/doze-standby ; App Standby buckets limit how often an app's jobs run, down to one batched session a day in the restricted bucket: https://developer.android.com/topic/performance/appstandby ; OnePlus's battery limits are among the strictest, and its sleep standby can hold back even push messages at night: https://dontkillmyapp.com/oneplus
 
-**What has to change:** On the Sheet: app only for a 15-minute background pull (SyncWorker with pull = true), a notification channel and the POST_NOTIFICATIONS runtime permission (Android 13+). That is delayed 15+ minutes. 'Going shopping' needs a new script action and a Code.gs redeploy. Instant push needs FCM, which is L on Apps Script. A real backend gives instant push for both.
+**What has to change:** After the move to Firebase ([Removing the setup](zero-setup.md)): Firebase Cloud Messaging (FCM) pushes the notification to the household's other phones when someone adds to To buy. It arrives at once, with no background polling on the phones (a notification message gets through Doze; OnePlus's sleep standby may still hold it back at night). Something has to send it, and that can't be the app: FCM's server credentials can message every phone, so they must never ship in an APK. Two senders fit: Cloud Functions on a Firestore trigger (an item under households/{hid}/items that goes onto To buy), which need the paid Blaze plan (claim 7 of the [fact check](zero-setup.md#fact-check)); or the fallback's Cloudflare Worker, which the writing phone calls once its change is saved and which checks that the caller is a member of the household before it sends. Each phone keeps its FCM token in its member document, so the sender knows the other phones and leaves out the writer. The app adds firebase-messaging next to the Firebase libraries the move brings (google-services setup, BoM), a messaging service that shows the notification, a notification channel, the POST_NOTIFICATIONS runtime permission (Android 13+) and a switch under Settings > This phone; the texts and Settings cards built for 1.6, in English and Hindi, are in the git history. The 'I'm going shopping' alert fits the same path: the shopper's phone sets a 'shopping until' time on the household, and the same sender pushes 'add anything now' to the others. On the Sheet neither is planned: instant push from Apps Script needs FCM, which is L, and a background check is too late (see Status).
 
 - Effort: Medium
 - India-specific: no
 - Much easier after the backend move: yes
-- Status: Partly done in 1.6 (a notification when someone else puts items on To buy or changes an amount there, such as 'Mummy added 3 items to To buy' with 'Dahi, Oil 2 L, Batti', from a background check about every 15 minutes while the app is closed, so up to about 15 minutes late; app only, no Code.gs change; on unless turned off under Settings > This phone, and a one-time offer on the list asks for Android 13+'s permission. Still open: the 'I'm going shopping' alert, which needs a new script action and a Code.gs redeploy; instant notifications, which need push; and notifications of other changes, such as items ticked off or deleted)
+- Status: Not in 1.6; planned for the Firebase move. A version with a background check about every 15 minutes while the app was closed ('Mummy added 3 items to To buy' with 'Dahi, Oil 2 L, Batti', a switch under Settings > This phone, a one-time offer for Android 13+'s permission) was built during 1.6 and taken out before release. 15 minutes is only the best case: Doze, App Standby buckets and OnePlus's battery limits could make a notification 30 minutes to hours late, and the check wakes the phone up to 96 times a day. Push through FCM arrives at once and needs no polling.
 
 ## 8. More Undo (-/+, Need switch, rename, type) and a 'Ticked today' strip
 
@@ -213,7 +213,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 
 **Evidence:** An AnyList reviewer calls quick add from the Watch 'a god send': https://apps.apple.com/nz/app/anylist/id522167641 ; widgets are offered by AnyList, OurGroceries and Bring! (listings). A widget's own update period is at least 30 minutes: https://developer.android.com/develop/ui/views/appwidgets/advanced . The demand evidence is weak.
 
-**What has to change:** App only: Jetpack Glance or RemoteViews, a receiver in the manifest, and a background pull (shares feature 7's 15-minute fetch). Check whether glance-appwidget 1.2.0 works with the project's compileSdk 36 / AGP 9.1.0 pin (unconfirmed); otherwise use RemoteViews. Ticking items on the widget is L.
+**What has to change:** App only: Jetpack Glance or RemoteViews, a receiver in the manifest, and a background pull (a periodic WorkManager fetch, at least 15 minutes apart; the app has none, see feature 7). Check whether glance-appwidget 1.2.0 works with the project's compileSdk 36 / AGP 9.1.0 pin (unconfirmed); otherwise use RemoteViews. Ticking items on the widget is L.
 
 - Effort: Medium
 - India-specific: no
@@ -238,7 +238,7 @@ Features marked "Much easier after the backend move" depend on [removing the set
 ## Already in the app (1.6)
 
 - Near-real-time sync between phones: about every 5 s while the app is open, edits sent at once (300 ms grouping), pull-to-refresh
-- Works offline: local SQLite copy plus an outbox of unsent changes, retries with backoff, and a WorkManager send when the app is closed (no background fetch before 1.6's check for notifications)
+- Works offline: local SQLite copy plus an outbox of unsent changes, retries with backoff, and a WorkManager send when the app is closed (no background fetch)
 - Two pages, To buy and All items, switched by tab or swipe, each keeping its own scroll position
 - Reusable master list: All items with a Need switch or a -/+ stepper; Got it keeps the item (sets 0/false) instead of deleting it
 - Two item types, Yes/no or Quantity, switchable; units pcs, kg, g, L, ml, dozen, pack plus any custom unit up to 16 characters (so pao or bunch can already be typed); spelling clean-up (Kgs->kg, pkt->pack, nos->pcs); up to 3 decimals, comma as decimal mark
@@ -264,7 +264,6 @@ Features marked "Much easier after the backend move" depend on [removing the set
 - Ticked today at the end of To buy: what this phone ticked off today, with Put back (1.6)
 - The app in English or Hindi, chosen per phone under Settings > This phone; Share writes in the phone's language, and a list shared from a Hindi phone pastes on an English one and the other way round (1.6)
 - Simple mode for elders: only To buy, bigger text and buttons, Undo that stays on screen (1.6)
-- A notification when someone else adds to To buy, from a background check about every 15 minutes while the app is closed (1.6)
 
 ## Considered and left out
 
